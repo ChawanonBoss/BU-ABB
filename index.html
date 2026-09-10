@@ -355,6 +355,21 @@
   select.inline-input.status-done{ background:var(--accent-soft); border-color:var(--accent); color:var(--ink); }
   select.inline-input.status-cancelled{ background:var(--danger-soft); border-color:var(--danger); color:var(--ink); }
 
+  .status-toggle-btn{
+    padding:6px 14px;
+    border-radius:100px;
+    border:1px solid transparent;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    cursor:pointer;
+    transition:transform .12s ease, opacity .15s ease;
+  }
+  .status-toggle-btn:hover{ opacity:0.85; transform:translateY(-1px); }
+  .status-toggle-btn:active{ transform:scale(0.95); }
+  .status-toggle-btn.status-pending{ background:var(--info-soft); border-color:var(--info); color:var(--ink); }
+  .status-toggle-btn.status-done{ background:var(--accent-soft); border-color:var(--accent); color:var(--ink); }
+
   .badge-count{
     display:inline-block;
     background:var(--sun-soft);
@@ -757,6 +772,7 @@
                 <option value="100">แสดง 100</option>
               </select>
               <button class="btn outline" id="downloadReportBtn" type="button">ดาวน์โหลดรายงาน</button>
+              <a class="btn outline" id="downloadOrderTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
               <button class="btn outline" id="importExcelBtn">นำเข้าจาก Excel</button>
               <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
             </div>
@@ -1328,17 +1344,19 @@ document.querySelectorAll('.subtab-item').forEach(btn => {
   });
 });
 
-let selectedDashboardMonth = { all: null, orders: null, shipped: null };
+let selectedDashboardMonths = { all: [], orders: [], shipped: [] };
 let dashboardRecentPage = { all: 1, orders: 1, shipped: 1 };
 const RECENT_PAGE_SIZE = 10;
 
 function selectDashboardMonth(suffix, idx){
-  selectedDashboardMonth[suffix] = (selectedDashboardMonth[suffix] === idx) ? null : idx;
+  const arr = selectedDashboardMonths[suffix];
+  const pos = arr.indexOf(idx);
+  if (pos === -1) arr.push(idx); else arr.splice(pos, 1);
   dashboardRecentPage[suffix] = 1;
   renderDashboard();
 }
 function clearDashboardMonth(suffix){
-  selectedDashboardMonth[suffix] = null;
+  selectedDashboardMonths[suffix] = [];
   dashboardRecentPage[suffix] = 1;
   renderDashboard();
 }
@@ -1350,10 +1368,10 @@ function goToDashboardPage(suffix, page){
 const monthShortLabels = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
 function renderDashboardSection(suffix, orders){
-  const selMonth = selectedDashboardMonth[suffix];
-  const hasSelection = selMonth !== null && selMonth !== undefined;
+  const selMonths = selectedDashboardMonths[suffix];
+  const hasSelection = selMonths.length > 0;
   const displayOrders = hasSelection
-    ? orders.filter(o => o.date && new Date(o.date).getMonth() === selMonth)
+    ? orders.filter(o => o.date && selMonths.includes(new Date(o.date).getMonth()))
     : orders;
 
   animateNumber($(`statTotalOrders_${suffix}`), displayOrders.length);
@@ -1366,8 +1384,9 @@ function renderDashboardSection(suffix, orders){
 
   const periodEl = $(`periodIndicator_${suffix}`);
   if (periodEl){
+    const sortedMonthLabels = [...selMonths].sort((a,b)=>a-b).map(m=>monthShortLabels[m]).join(', ');
     periodEl.textContent = hasSelection
-      ? `กำลังแสดง: เดือน${monthShortLabels[selMonth]} ปี ${selectedDashboardYear+543}`
+      ? `กำลังแสดง: เดือน${sortedMonthLabels} ปี ${selectedDashboardYear+543}`
       : `กำลังแสดง: ทั้งปี ${selectedDashboardYear+543}`;
   }
 
@@ -1388,11 +1407,11 @@ function renderDashboardSection(suffix, orders){
 
   const barsEl = $(`monthlyBars_${suffix}`);
   barsEl.innerHTML = months.map((m, idx) => {
-    const isSelected = selMonth === idx;
+    const isSelected = selMonths.includes(idx);
     const dim = hasSelection && !isSelected;
     const targetHeight = (m.count/max*100) || 2;
     return `
-    <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)}">
+    <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)} (คลิกเพื่อเลือกหลายเดือน)">
       <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
       <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
       <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
@@ -1406,7 +1425,8 @@ function renderDashboardSection(suffix, orders){
 
   const filterBadge = $(`monthFilterBadge_${suffix}`);
   if (hasSelection){
-    filterBadge.textContent = `${monthShortLabels[selMonth]} ✕`;
+    const sortedMonthLabels = [...selMonths].sort((a,b)=>a-b).map(m=>monthShortLabels[m]).join(', ');
+    filterBadge.textContent = `${sortedMonthLabels} ✕`;
     filterBadge.style.display = 'inline-block';
   } else {
     filterBadge.style.display = 'none';
@@ -1429,7 +1449,7 @@ function renderDashboardSection(suffix, orders){
       <td>${fmtMoney(o.price)}</td>
       <td><span class="badge ${o.status}">${orderStatusLabel[o.status] || o.status}</span></td>
     </tr>
-  `).join('') : `<tr><td colspan="5" class="empty-row">${hasSelection ? `ไม่มีคำสั่งซื้อในเดือน ${monthShortLabels[selMonth]}` : `ไม่มีคำสั่งซื้อในปี ${selectedDashboardYear+543}`}</td></tr>`;
+  `).join('') : `<tr><td colspan="5" class="empty-row">${hasSelection ? `ไม่มีคำสั่งซื้อในเดือนที่เลือก` : `ไม่มีคำสั่งซื้อในปี ${selectedDashboardYear+543}`}</td></tr>`;
 
   const paginationEl = $(`recentPagination_${suffix}`);
   if (totalPages <= 1){
@@ -1448,10 +1468,10 @@ function renderDashboard(){
   const ordersSet = yearOrders.filter(o => o.status !== 'cancelled');
   const shippedSet = yearOrders.filter(o => o.status === 'done');
 
-  const allSelMonth = selectedDashboardMonth.all;
-  const allHasSelection = allSelMonth !== null && allSelMonth !== undefined;
+  const allSelMonths = selectedDashboardMonths.all;
+  const allHasSelection = allSelMonths.length > 0;
   const pendingBase = allHasSelection
-    ? yearOrders.filter(o => o.date && new Date(o.date).getMonth() === allSelMonth)
+    ? yearOrders.filter(o => o.date && allSelMonths.includes(new Date(o.date).getMonth()))
     : yearOrders;
 
   // Active warranty count is always global — not affected by the dashboard's year or month filter
@@ -1533,11 +1553,9 @@ function renderOrders(){
       <td>${fmtDate(o.date)}</td>
       <td><input type="date" class="inline-input" value="${o.shipDate || ''}" onchange="setOrderField('${o.id}','shipDate',this.value)"></td>
       <td>
-        <select class="inline-input status-${o.status}" onchange="setOrderField('${o.id}','status',this.value)">
-          <option value="pending" ${o.status==='pending'?'selected':''}>PENDING</option>
-          <option value="done" ${o.status==='done'?'selected':''}>COMPLETE</option>
-          ${o.status==='cancelled' ? `<option value="cancelled" selected>CANCELLED</option>` : ''}
-        </select>
+        <button class="status-toggle-btn status-${o.status}" onclick="toggleOrderStatus('${o.id}')" title="คลิกเพื่อสลับสถานะ">
+          ${o.status==='pending' ? 'PENDING' : 'COMPLETE'}
+        </button>
       </td>
       <td class="row-actions">
         ${o.status!=='cancelled' ? `<button class="icon-btn cancel-btn" onclick="cancelOrder('${o.id}')" title="ยกเลิกคำสั่งซื้อ">
@@ -1667,7 +1685,7 @@ $('dashboardYearFilter').addEventListener('change', (e) => {
 
 $('dashboardClearBtn').addEventListener('click', () => {
   selectedDashboardYear = new Date().getFullYear();
-  selectedDashboardMonth = { all: null, orders: null, shipped: null };
+  selectedDashboardMonths = { all: [], orders: [], shipped: [] };
   dashboardRecentPage = { all: 1, orders: 1, shipped: 1 };
   refreshDashboardYearFilter();
   renderDashboard();
@@ -1729,6 +1747,12 @@ async function setOrderField(id, field, value){
     setSync('error');
     toast('บันทึกไม่สำเร็จ');
   }
+}
+async function toggleOrderStatus(id){
+  const o = data.orders.find(o=>o.id===id);
+  if (!o || o.status === 'cancelled') return;
+  const next = o.status === 'pending' ? 'done' : 'pending';
+  await setOrderField(id, 'status', next);
 }
 async function deleteOrder(id){
   setSync('saving');
@@ -1955,17 +1979,58 @@ $('userForm').addEventListener('submit', async (e) => {
   }
 });
 
+$('downloadOrderTemplateBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  const rows = [
+    ['เลขที่ SO','ชื่อลูกค้า','สินค้า','ราคารวม','เลขที่ PO','วันที่สั่งซื้อ','วันที่ส่งสินค้า','สถานะ'],
+    ['SO-0001','บริษัท เอบีซี จำกัด','เก้าอี้สำนักงาน',4200,'PO-1001','2026-08-01','2026-08-05','จัดส่งแล้ว'],
+    ['SO-0002','สมชาย ใจดี','โต๊ะทำงาน',3500,'','2026-08-10','','รอดำเนินการ']
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:14},{wch:24},{wch:20},{wch:12},{wch:14},{wch:16},{wch:16},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws, 'คำสั่งซื้อ');
+
+  const noteRows = [
+    ['วิธีใช้ไฟล์นี้'],
+    [''],
+    ['1. แถวที่ 1 เป็นหัวคอลัมน์ ไม่จำเป็นต้องตรงเป๊ะกับระบบ — ตอนนำเข้าจะให้จับคู่คอลัมน์เองได้'],
+    ['2. แถวที่ 2-3 เป็นตัวอย่างข้อมูล ลบออกแล้วใส่ข้อมูลจริงของคุณแทนได้'],
+    ['3. คอลัมน์ "สถานะ": พิมพ์ "จัดส่งแล้ว" หรือ "รอดำเนินการ" (ค่าอื่นจะถูกนับเป็นรอดำเนินการ)'],
+    ['4. รูปแบบวันที่แนะนำ: YYYY-MM-DD (เช่น 2026-08-05)'],
+    ['5. ชื่อลูกค้าต้องตรงกับรายชื่อในหน้า "รายชื่อลูกค้า" ของระบบ — ถ้ายังไม่มี ให้นำเข้าไฟล์ลูกค้าก่อน']
+  ];
+  const wsNote = XLSX.utils.aoa_to_sheet(noteRows);
+  wsNote['!cols'] = [{wch:85}];
+  XLSX.utils.book_append_sheet(wb, wsNote, 'คำแนะนำ');
+
+  XLSX.writeFile(wb, 'order-import-template.xlsx');
+});
+
 $('downloadCustomerTemplateBtn').addEventListener('click', (e) => {
   e.preventDefault();
   const rows = [
     ['ชื่อลูกค้า','ประเภทลูกค้า'],
-
+    ['บริษัท เอบีซี จำกัด','ตัวแทนจำหน่าย'],
+    ['สมชาย ใจดี','ลูกค้าประจำ']
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch:28 }, { wch:20 }];
-  XLSX.utils.book_append_sheet(wb, ws, 'รายชื่อลูกค้า');
-  XLSX.writeFile(wb, 'customer-list-template.xlsx');
+  ws['!cols'] = [{ wch:26 }, { wch:20 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'ลูกค้า');
+
+  const noteRows = [
+    ['วิธีใช้ไฟล์นี้'],
+    [''],
+    ['1. แถวที่ 1 เป็นหัวคอลัมน์ ไม่จำเป็นต้องตรงเป๊ะกับระบบ — ตอนนำเข้าจะให้จับคู่คอลัมน์เองได้'],
+    ['2. แถวที่ 2-3 เป็นตัวอย่างข้อมูล ลบออกแล้วใส่ข้อมูลจริงของคุณแทนได้'],
+    ['3. คอลัมน์ "ประเภทลูกค้า" พิมพ์อะไรก็ได้ตามที่ต้องการ (เช่น ลูกค้าทั่วไป, ลูกค้าประจำ, ตัวแทนจำหน่าย)']
+  ];
+  const wsNote = XLSX.utils.aoa_to_sheet(noteRows);
+  wsNote['!cols'] = [{wch:85}];
+  XLSX.utils.book_append_sheet(wb, wsNote, 'คำแนะนำ');
+
+  XLSX.writeFile(wb, 'customer-import-template.xlsx');
 });
 
 /* ====== Excel import (shared by Orders and Customer list) ====== */
