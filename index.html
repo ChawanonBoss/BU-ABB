@@ -738,11 +738,6 @@
                 <option value="done">COMPLETE</option>
                 <option value="cancelled">CANCELLED</option>
               </select>
-              <select id="ordersPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
-                <option value="20">แสดง 20</option>
-                <option value="50">แสดง 50</option>
-                <option value="100">แสดง 100</option>
-              </select>
               <button class="btn outline" id="downloadReportBtn" type="button">ดาวน์โหลดรายงาน</button>
               <button class="btn outline" id="importExcelBtn">นำเข้าจาก Excel</button>
               <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
@@ -752,6 +747,9 @@
             <thead><tr><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th></tr></thead>
             <tbody id="ordersBody"></tbody>
           </table>
+          <div style="text-align:center; margin-top:16px;">
+            <button class="btn outline" id="ordersLoadMoreBtn" type="button" style="display:none;">แสดงเพิ่มอีก 10 รายการ</button>
+          </div>
         </div>
       </div>
 
@@ -798,11 +796,6 @@
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
               <input type="text" id="customersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า" style="border-color:var(--line); background:var(--paper); width:200px; padding:8px 12px;">
               <select id="customersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
-              <select id="customersPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
-                <option value="20">แสดง 20</option>
-                <option value="50">แสดง 50</option>
-                <option value="100">แสดง 100</option>
-              </select>
               <a class="btn outline" id="downloadCustomerTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
               <button class="btn outline" id="importCustomerBtn" type="button">นำเข้าจาก Excel</button>
             </div>
@@ -811,6 +804,9 @@
             <thead><tr><th>ชื่อลูกค้า</th><th>ประเภทลูกค้า</th><th>จำนวนคำสั่งซื้อ</th><th>จำนวนเงิน</th><th></th></tr></thead>
             <tbody id="customersBody"></tbody>
           </table>
+          <div style="text-align:center; margin-top:16px;">
+            <button class="btn outline" id="customersLoadMoreBtn" type="button" style="display:none;">แสดงเพิ่มอีก 10 รายการ</button>
+          </div>
         </div>
       </div>
 
@@ -992,6 +988,8 @@ $('authForgotLink').addEventListener('click', async (e) => {
   }
 });
 
+let pendingSignupName = '';
+
 $('authForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = $('authEmail').value.trim();
@@ -1001,6 +999,7 @@ $('authForm').addEventListener('submit', async (e) => {
   $('authSubmitBtn').disabled = true;
   try{
     if (authMode === 'signup'){
+      pendingSignupName = name;
       const cred = await auth.createUserWithEmailAndPassword(email, password);
       if (name) await cred.user.updateProfile({ displayName: name });
     } else {
@@ -1008,6 +1007,7 @@ $('authForm').addEventListener('submit', async (e) => {
     }
     // onAuthStateChanged below handles the rest
   }catch(err){
+    pendingSignupName = '';
     $('authError').textContent = authErrorMessage(err);
   }
   $('authSubmitBtn').disabled = false;
@@ -1020,7 +1020,8 @@ $('signOutBtn').addEventListener('click', () => {
 auth.onAuthStateChanged(async (user) => {
   if (user){
     currentUserEmail = user.email;
-    currentUserName = user.displayName || '';
+    currentUserName = user.displayName || pendingSignupName || '';
+    pendingSignupName = '';
     currentUserUid = user.uid;
     await onSignedIn();
   } else {
@@ -1424,6 +1425,7 @@ function renderDashboard(){
 
 const orderStatusLabel = { pending:'PENDING', done:'COMPLETE', cancelled:'CANCELLED' };
 let selectedOrdersYear = new Date().getFullYear();
+let ordersDisplayLimit = 10;
 
 function refreshOrdersYearFilter(){
   const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
@@ -1472,8 +1474,9 @@ function renderOrders(){
     poBadge.style.display = 'none';
   }
 
-  const pageSize = Number($('ordersPageSize').value) || 20;
-  const pagedList = list.slice(0, pageSize);
+  const pagedList = list.slice(0, ordersDisplayLimit);
+  const loadMoreBtn = $('ordersLoadMoreBtn');
+  loadMoreBtn.style.display = list.length > ordersDisplayLimit ? 'inline-block' : 'none';
 
   body.innerHTML = pagedList.length ? pagedList.map(o => {
     const poCell = o.po
@@ -1572,12 +1575,16 @@ $('statActiveWarrantyCard').addEventListener('click', () => showTab('warranty'))
 
 $('ordersYearFilter').addEventListener('change', (e) => {
   selectedOrdersYear = Number(e.target.value);
+  ordersDisplayLimit = 10;
   renderOrders();
 });
 
-$('ordersPageSize').addEventListener('change', () => renderOrders());
-$('ordersSearch').addEventListener('input', () => renderOrders());
-$('ordersStatusFilter').addEventListener('change', () => renderOrders());
+$('ordersLoadMoreBtn').addEventListener('click', () => {
+  ordersDisplayLimit += 10;
+  renderOrders();
+});
+$('ordersSearch').addEventListener('input', () => { ordersDisplayLimit = 10; renderOrders(); });
+$('ordersStatusFilter').addEventListener('change', () => { ordersDisplayLimit = 10; renderOrders(); });
 
 $('orderForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1637,6 +1644,7 @@ async function deleteOrder(id){
 
 /* ====== Customer list ====== */
 let selectedCustomersYear = new Date().getFullYear();
+let customersDisplayLimit = 10;
 
 function refreshCustomersYearFilter(){
   const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
@@ -1681,8 +1689,9 @@ function renderCustomers(){
     customersTotalBadge.style.display = 'none';
   }
 
-  const pageSize = Number($('customersPageSize').value) || 20;
-  const pagedList = list.slice(0, pageSize);
+  const pagedList = list.slice(0, customersDisplayLimit);
+  const loadMoreBtn = $('customersLoadMoreBtn');
+  loadMoreBtn.style.display = list.length > customersDisplayLimit ? 'inline-block' : 'none';
 
   body.innerHTML = pagedList.length ? pagedList.map(c => {
     const currentType = c.type || 'ลูกค้าทั่วไป';
@@ -1715,11 +1724,15 @@ async function setCustomerField(id, field, value){
 
 $('customersYearFilter').addEventListener('change', (e) => {
   selectedCustomersYear = Number(e.target.value);
+  customersDisplayLimit = 10;
   renderCustomers();
 });
 
-$('customersPageSize').addEventListener('change', () => renderCustomers());
-$('customersSearch').addEventListener('input', () => renderCustomers());
+$('customersLoadMoreBtn').addEventListener('click', () => {
+  customersDisplayLimit += 10;
+  renderCustomers();
+});
+$('customersSearch').addEventListener('input', () => { customersDisplayLimit = 10; renderCustomers(); });
 
 $('customerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
