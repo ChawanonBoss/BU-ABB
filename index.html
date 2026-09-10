@@ -493,6 +493,11 @@
   }
   .field input:focus, .field select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
 
+  .autocomplete-wrap input{
+    padding:13px 14px;
+    font-size:15px;
+  }
+
   .locked-input-group{
     display:flex;
     align-items:stretch;
@@ -808,21 +813,14 @@
               <div class="field">
                 <label>เลขที่ใบเสนอราคา (SO)</label>
                 <div class="locked-input-group">
-                  <span class="locked-prefix">SO-</span>
-                  <input type="text" id="ordSO" inputmode="numeric" placeholder="0001" required>
+                  <span class="locked-prefix">SO</span>
+                  <input type="text" id="ordSO" inputmode="numeric" autocomplete="off" placeholder="20261001" required>
                 </div>
               </div>
               <div class="field"><label>ชื่อลูกค้า</label><div class="autocomplete-wrap"><input type="text" id="ordCustomer" autocomplete="off" placeholder="พิมพ์เพื่อค้นหาจากรายชื่อลูกค้า" required></div></div>
               <div class="field"><label>สินค้า</label><div class="autocomplete-wrap"><input type="text" id="ordProduct" autocomplete="off" placeholder="ABB, Philips, Socomec" required></div></div>
               <div class="field"><label>ราคารวม (บาท)</label><input type="number" id="ordPrice" min="0" step="0.01" required></div>
               <div class="field"><label>วันที่สั่งซื้อ</label><input type="date" id="ordDate" required></div>
-              <div class="field"><label>สถานะ</label>
-                <select id="ordStatus">
-                  <option value="pending">PENDING</option>
-                  <option value="done">COMPLETE</option>
-                  <option value="cancelled">CANCELLED</option>
-                </select>
-              </div>
             </div>
             <button type="submit" class="btn">บันทึกคำสั่งซื้อ</button>
           </form>
@@ -837,6 +835,9 @@
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
               <input type="text" id="ordersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า, SO, PO" style="border-color:var(--line); background:var(--paper); width:200px; padding:8px 12px;">
               <select id="ordersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
+              <select id="ordersCreatorFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px; display:none;">
+                <option value="all">ทุกคนที่สร้าง</option>
+              </select>
               <select id="ordersStatusFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
                 <option value="all">ทุกสถานะ</option>
                 <option value="pending">PENDING</option>
@@ -925,6 +926,9 @@
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
               <input type="text" id="customersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า" style="border-color:var(--line); background:var(--paper); width:200px; padding:8px 12px;">
               <select id="customersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
+              <select id="customersCreatorFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px; display:none;">
+                <option value="all">ทุกคนที่สร้าง</option>
+              </select>
               <select id="customersPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
                 <option value="10">แสดง 10</option>
                 <option value="20">แสดง 20</option>
@@ -1229,6 +1233,8 @@ async function resolveUserRole(){
   $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('ordersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('customersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
   updateRoleBadge();
 }
 
@@ -1257,14 +1263,18 @@ function attachRealtimeListeners(){
       setSync('ok');
       refreshDatalists();
       refreshOrdersYearFilter();
+      refreshOrdersCreatorFilter();
       refreshDashboardYearFilter();
       refreshCustomersYearFilter();
+      refreshCustomersCreatorFilter();
       render();
       showTab('dashboard');
       $('loadingOverlay').style.display = 'none';
       return;
     }
     refreshDatalists();
+    refreshOrdersCreatorFilter();
+    refreshCustomersCreatorFilter();
     renderOrders(); renderWarranty(); renderDashboard(); renderCustomers();
     if ($('tab-users').style.display === 'block') renderUsers();
     if ($('tab-cancelled').style.display === 'block') renderCancelledOrders();
@@ -1583,6 +1593,16 @@ function refreshOrdersYearFilter(){
   sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedOrdersYear?'selected':''}>ปี ${y+543}</option>`).join('');
 }
 
+function refreshOrdersCreatorFilter(){
+  if (currentUserRole !== 'admin') return;
+  const sel = $('ordersCreatorFilter');
+  const prevVal = sel.value || 'all';
+  const uids = [...new Set(data.orders.map(o => o.createdBy).filter(Boolean))];
+  const options = uids.map(uid => ({ uid, name: getUserDisplayName(uid) })).sort((a,b)=> a.name.localeCompare(b.name));
+  sel.innerHTML = `<option value="all">ทุกคนที่สร้าง</option>` +
+    options.map(o => `<option value="${o.uid}" ${o.uid===prevVal?'selected':''}>${escapeHtml(o.name)}</option>`).join('');
+}
+
 function renderOrders(){
   const body = $('ordersBody');
   const searchTerm = ($('ordersSearch').value || '').trim().toLowerCase();
@@ -1594,6 +1614,13 @@ function renderOrders(){
 
   if (statusFilter !== 'all'){
     list = list.filter(o => o.status === statusFilter);
+  }
+
+  if (currentUserRole === 'admin'){
+    const creatorFilter = $('ordersCreatorFilter').value;
+    if (creatorFilter && creatorFilter !== 'all'){
+      list = list.filter(o => o.createdBy === creatorFilter);
+    }
   }
 
   if (searchTerm){
@@ -1890,6 +1917,7 @@ $('ordersYearFilter').addEventListener('change', (e) => {
 $('ordersPageSize').addEventListener('change', () => renderOrders());
 $('ordersSearch').addEventListener('input', () => renderOrders());
 $('ordersStatusFilter').addEventListener('change', () => renderOrders());
+$('ordersCreatorFilter').addEventListener('change', () => renderOrders());
 
 $('ordSO').addEventListener('input', (e) => {
   e.target.value = e.target.value.replace(/\D/g, '');
@@ -1906,13 +1934,13 @@ $('orderForm').addEventListener('submit', async (e) => {
   setSync('saving');
   try{
     await db.collection('orders').add({
-      so: 'SO-' + $('ordSO').value.trim(),
+      so: 'SO' + $('ordSO').value.trim(),
       customer: knownCustomer.name,
       product: $('ordProduct').value.trim(),
       price: Number($('ordPrice').value),
       date: $('ordDate').value,
       shipDate: null,
-      status: $('ordStatus').value,
+      status: 'pending',
       po: '',
       gp: null,
       createdBy: currentUserUid
@@ -1982,6 +2010,16 @@ function refreshCustomersYearFilter(){
   sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedCustomersYear?'selected':''}>ปี ${y+543}</option>`).join('');
 }
 
+function refreshCustomersCreatorFilter(){
+  if (currentUserRole !== 'admin') return;
+  const sel = $('customersCreatorFilter');
+  const prevVal = sel.value || 'all';
+  const uids = [...new Set(data.customers.map(c => c.createdBy).filter(Boolean))];
+  const options = uids.map(uid => ({ uid, name: getUserDisplayName(uid) })).sort((a,b)=> a.name.localeCompare(b.name));
+  sel.innerHTML = `<option value="all">ทุกคนที่สร้าง</option>` +
+    options.map(o => `<option value="${o.uid}" ${o.uid===prevVal?'selected':''}>${escapeHtml(o.name)}</option>`).join('');
+}
+
 function customerOrdersInYear(customerName){
   const key = customerName.trim().toLowerCase();
   return getVisibleOrders().filter(o =>
@@ -2002,6 +2040,13 @@ function renderCustomers(){
   const body = $('customersBody');
   const searchTerm = ($('customersSearch').value || '').trim().toLowerCase();
   let list = [...getVisibleCustomers()].sort((a,b)=> a.name.localeCompare(b.name,'th'));
+
+  if (currentUserRole === 'admin'){
+    const creatorFilter = $('customersCreatorFilter').value;
+    if (creatorFilter && creatorFilter !== 'all'){
+      list = list.filter(c => c.createdBy === creatorFilter);
+    }
+  }
 
   if (searchTerm){
     list = list.filter(c => c.name.toLowerCase().includes(searchTerm));
@@ -2059,6 +2104,7 @@ $('customersYearFilter').addEventListener('change', (e) => {
 
 $('customersPageSize').addEventListener('change', () => renderCustomers());
 $('customersSearch').addEventListener('input', () => renderCustomers());
+$('customersCreatorFilter').addEventListener('change', () => renderCustomers());
 
 $('customerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -2131,6 +2177,8 @@ async function setUserField(kind, id, field, value){
       $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
+      $('ordersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
+      $('customersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
       if (currentUserRole !== 'admin') showTab('dashboard');
       render();
     }
