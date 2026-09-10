@@ -731,10 +731,27 @@
       <!-- Users tab (admin only) -->
       <div id="tab-users" class="tab-panel" style="display:none;">
         <div class="panel">
+          <div class="panel-head"><h3>เพิ่มผู้ใช้งาน</h3></div>
+          <form id="userForm">
+            <div class="form-grid">
+              <div class="field"><label>ชื่อ</label><input type="text" id="usrName" placeholder="ไม่บังคับ"></div>
+              <div class="field"><label>อีเมล Google</label><input type="email" id="usrEmail" placeholder="name@gmail.com" required></div>
+              <div class="field"><label>สิทธิ์การใช้งาน</label>
+                <select id="usrRole">
+                  <option value="user">ผู้ใช้งานทั่วไป</option>
+                  <option value="admin">ผู้ดูแลระบบ</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn">บันทึกผู้ใช้งาน</button>
+          </form>
+        </div>
+
+        <div class="panel">
           <div class="panel-head"><h3>ผู้ใช้งานทั้งหมด</h3></div>
-          <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">เมื่อมีคนล็อกอินเข้าเว็บนี้ครั้งแรก ชื่อจะขึ้นในลิสต์นี้อัตโนมัติ (เริ่มต้นเป็น "ผู้ใช้งานทั่วไป") — เปลี่ยนเป็น "ผู้ดูแลระบบ" เพื่อให้เห็นข้อมูลของทุกคน</p>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจะจับคู่ด้วยอีเมล) หรือปล่อยว่างไว้ก็ได้ — เมื่อมีคนล็อกอินเข้าเว็บนี้ครั้งแรกโดยไม่มีชื่ออยู่ในลิสต์ ระบบจะเพิ่มให้อัตโนมัติเป็น "ผู้ใช้งานทั่วไป"</p>
           <table>
-            <thead><tr><th>อีเมล</th><th>สิทธิ์การใช้งาน</th></tr></thead>
+            <thead><tr><th>ชื่อ</th><th>อีเมล</th><th>สิทธิ์การใช้งาน</th><th></th></tr></thead>
             <tbody id="usersBody"></tbody>
           </table>
         </div>
@@ -883,8 +900,11 @@ function resolveUserRole(){
   let entry = data.users.find(u => u.email === currentUserEmail);
   if (!entry){
     const role = data.users.length === 0 ? 'admin' : 'user';
-    entry = { email: currentUserEmail, role };
+    entry = { email: currentUserEmail, role, name: currentUserGoogleName || '' };
     data.users.push(entry);
+    queueSave();
+  } else if (!entry.name && currentUserGoogleName){
+    entry.name = currentUserGoogleName;
     queueSave();
   }
   currentUserRole = entry.role;
@@ -898,6 +918,8 @@ function getVisibleCustomers(){
   return currentUserRole === 'admin' ? data.customers : data.customers.filter(c => c.createdBy === currentUserEmail);
 }
 
+let currentUserGoogleName = '';
+
 async function fetchProfile(){
   try{
     const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -905,6 +927,7 @@ async function fetchProfile(){
     });
     const p = await res.json();
     currentUserEmail = p.email || null;
+    currentUserGoogleName = p.name || '';
     $('userEmail').textContent = p.email || '';
     $('userAvatar').src = p.picture || '';
   }catch(e){ /* non-critical */ }
@@ -1530,26 +1553,33 @@ function deleteCustomer(id){
 /* ====== Users (role management, admin only) ====== */
 function renderUsers(){
   const body = $('usersBody');
-  const list = [...(data.users||[])].sort((a,b)=> a.email.localeCompare(b.email));
+  const list = [...(data.users||[])].sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
   body.innerHTML = list.length ? list.map(u => `
     <tr>
+      <td><input type="text" class="inline-input" value="${escapeHtml(u.name||'')}" placeholder="ไม่ระบุชื่อ" onchange="setUserField('${escapeHtml(u.email)}','name',this.value)"></td>
       <td>${escapeHtml(u.email)}${u.email===currentUserEmail ? ' <span class="badge-count neutral">คุณ</span>' : ''}</td>
       <td>
-        <select class="inline-input badge-select" onchange="setUserRole('${escapeHtml(u.email)}', this.value)">
+        <select class="inline-input badge-select" onchange="setUserField('${escapeHtml(u.email)}','role',this.value)">
           <option value="user" ${u.role==='user'?'selected':''}>ผู้ใช้งานทั่วไป</option>
           <option value="admin" ${u.role==='admin'?'selected':''}>ผู้ดูแลระบบ</option>
         </select>
       </td>
+      <td class="row-actions">
+        ${u.email!==currentUserEmail ? `<button class="icon-btn delete-btn" onclick="deleteUser('${escapeHtml(u.email)}')" title="ลบ">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          DELETE
+        </button>` : ''}
+      </td>
     </tr>
-  `).join('') : `<tr><td colspan="2" class="empty-row">ยังไม่มีใครล็อกอินเข้าใช้งาน</td></tr>`;
+  `).join('') : `<tr><td colspan="4" class="empty-row">ยังไม่มีใครล็อกอินเข้าใช้งาน — เพิ่มได้ด้านบน</td></tr>`;
 }
 
-function setUserRole(email, role){
+function setUserField(email, field, value){
   const u = (data.users||[]).find(u => u.email === email);
   if (!u) return;
-  u.role = role;
-  if (email === currentUserEmail){
-    currentUserRole = role;
+  u[field] = value;
+  if (field === 'role' && email === currentUserEmail){
+    currentUserRole = value;
     updateRoleBadge();
     $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
     if (currentUserRole !== 'admin'){
@@ -1562,6 +1592,39 @@ function setUserRole(email, role){
   render();
   queueSave();
 }
+
+function deleteUser(email){
+  if (email === currentUserEmail) return;
+  data.users = (data.users||[]).filter(u => u.email !== email);
+  renderUsers();
+  queueSave();
+}
+
+$('userForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = $('usrName').value.trim();
+  const email = $('usrEmail').value.trim().toLowerCase();
+  const role = $('usrRole').value;
+  if (!email) return;
+  if (!data.users) data.users = [];
+  const existing = data.users.find(u => u.email === email);
+  if (existing){
+    existing.name = name || existing.name;
+    existing.role = role;
+    toast('อัปเดตผู้ใช้งานที่มีอยู่แล้ว');
+  } else {
+    data.users.push({ email, name, role });
+    toast('เพิ่มผู้ใช้งานใหม่แล้ว');
+  }
+  if (email === currentUserEmail){
+    currentUserRole = role;
+    updateRoleBadge();
+  }
+  e.target.reset();
+  renderUsers();
+  render();
+  queueSave();
+});
 
 $('downloadCustomerTemplateBtn').addEventListener('click', (e) => {
   e.preventDefault();
