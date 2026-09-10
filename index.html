@@ -4,9 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>แดชบอร์ด — คำสั่งซื้อ &amp; การรับประกัน</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ฟอนต์ Arabica (จาก Canva) — วางไฟล์ฟอนต์ที่คุณมีสิทธิ์ใช้งานไว้ในโฟลเดอร์ ./fonts/
      แล้วตั้งชื่อไฟล์ตามนี้ (หรือแก้ path ด้านล่างให้ตรงกับไฟล์จริง)
@@ -20,14 +22,15 @@
     font-display:swap;
   }
   :root{
-    --font-display:'FkAmourBold','Fraunces',serif;
-    --font-body:'FkAmourBold','Noto Sans Thai',sans-serif;
-    --paper: #EDE3D0;
-    --paper-dim: #E0D2B6;
-    --card: #F6F0E3;
+    --font-brand:'FkAmourBold','Fraunces',serif;
+    --font-display:'Fraunces','Noto Sans Thai',serif;
+    --font-body:'Noto Sans Thai','Inter',-apple-system,sans-serif;
+    --paper: #F3EDE0;
+    --paper-dim: #E7DCC5;
+    --card: #FBF8F1;
     --ink: #2E2317;
     --ink-soft: #6E5C46;
-    --line: #C9B893;
+    --line: #D6C9AC;
     --accent: #6D7A52;
     --accent-soft: #DDE1C9;
     --sun: #B8622F;
@@ -64,7 +67,7 @@
     display:flex;
     align-items:center;
     gap:10px;
-    font-family:var(--font-display);
+    font-family:var(--font-brand);
     font-size:19px;
     padding:0 8px 28px;
   }
@@ -86,12 +89,12 @@
     border:none;
     width:100%;
     text-align:left;
-    transition:background .15s ease, color .15s ease;
+    transition:background .15s ease, color .15s ease, transform .15s ease;
   }
-  .nav-item:hover{ background:rgba(0,0,0,0.04); color:var(--ink); }
-  .nav-item.active{ background:var(--card); color:var(--ink); font-weight:500; box-shadow:0 1px 0 var(--line) inset; }
-  .nav-item .dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-soft); flex-shrink:0; }
-  .nav-item.active .dot{ background:var(--accent); }
+  .nav-item:hover{ background:rgba(0,0,0,0.04); color:var(--ink); transform:translateX(2px); }
+  .nav-item.active{ background:var(--card); color:var(--ink); font-weight:500; box-shadow:0 1px 0 var(--line) inset; transform:translateX(0); }
+  .nav-item .dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-soft); flex-shrink:0; transition:background .15s ease, transform .2s ease; }
+  .nav-item.active .dot{ background:var(--accent); transform:scale(1.3); }
 
   .sidebar-footer{
     margin-top:auto;
@@ -134,9 +137,10 @@
     color:var(--paper);
     font-size:13.5px;
     font-weight:500;
-    transition:opacity .15s ease;
+    transition:opacity .15s ease, transform .1s ease;
   }
   .btn:hover{ opacity:.85; }
+  .btn:active{ transform:scale(0.96); }
   .btn.outline{ background:transparent; color:var(--ink); }
   .btn.outline:hover{ background:rgba(0,0,0,0.04); }
   .btn.danger{ border-color:var(--danger); background:transparent; color:var(--danger); }
@@ -144,6 +148,27 @@
   .btn:disabled{ opacity:.5; cursor:not-allowed; }
 
   .content{ padding:32px 36px; flex:1; overflow-y:auto; }
+
+  /* ---- Skeleton loading ---- */
+  @keyframes shimmer{
+    0%{ background-position:-400px 0; }
+    100%{ background-position:400px 0; }
+  }
+  .skeleton-card, .skeleton-panel{
+    background:linear-gradient(90deg, var(--card) 25%, var(--paper-dim) 37%, var(--card) 63%);
+    background-size:800px 100%;
+    animation:shimmer 1.4s linear infinite;
+    border-radius:14px;
+    border:1px solid var(--line);
+  }
+  .skeleton-card{ height:96px; }
+  .skeleton-panel{ height:120px; margin-bottom:24px; }
+
+  .tab-fade-in{ animation:tabFadeIn .25s ease; }
+  @keyframes tabFadeIn{
+    from{ opacity:0; transform:translateY(4px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
 
   /* ---- Gate (signed out) ---- */
   .gate{
@@ -153,7 +178,6 @@
   }
   .gate h2{ font-family:var(--font-display); font-weight:500; font-size:26px; margin-bottom:12px; }
   .gate p{ color:var(--ink-soft); font-size:14.5px; margin-bottom:28px; }
-  #gsi-btn-container{ display:flex; justify-content:center; }
 
   /* ---- Dashboard toolbar & sub-tabs ---- */
   .dash-toolbar{
@@ -193,11 +217,23 @@
     border:1px solid var(--line);
     border-radius:14px;
     padding:20px;
-    transition:border-color .15s ease, transform .15s ease;
+    transition:border-color .15s ease, transform .15s ease, box-shadow .2s ease;
+    animation:cardIn .4s ease backwards;
   }
-  .stat-card[style*="cursor:pointer"]:hover{ border-color:var(--accent); transform:translateY(-1px); }
+  .stat-grid .stat-card:nth-child(1){ animation-delay:0s; }
+  .stat-grid .stat-card:nth-child(2){ animation-delay:.05s; }
+  .stat-grid .stat-card:nth-child(3){ animation-delay:.1s; }
+  .stat-grid .stat-card:nth-child(4){ animation-delay:.15s; }
+  .stat-grid .stat-card:nth-child(5){ animation-delay:.2s; }
+  .stat-grid .stat-card:nth-child(6){ animation-delay:.25s; }
+  @keyframes cardIn{
+    from{ opacity:0; transform:translateY(8px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .stat-card:hover{ border-color:var(--accent); transform:translateY(-2px); box-shadow:0 6px 16px rgba(46,35,23,0.08); }
+  .stat-card[style*="cursor:pointer"]:hover{ border-color:var(--accent); transform:translateY(-2px); }
   .stat-label{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
-  .stat-value{ font-family:var(--font-display); font-size:28px; font-weight:500; }
+  .stat-value{ font-family:var(--font-display); font-size:28px; font-weight:500; transition:color .2s ease; }
   .stat-grid.mixed .stat-card.small .stat-value{ font-size:22px; }
   .stat-sub{ font-size:12px; color:var(--accent); margin-top:6px; }
   .period-indicator{
@@ -220,6 +256,12 @@
     border-radius:14px;
     padding:24px;
     margin-bottom:24px;
+    box-shadow:0 1px 3px rgba(46,35,23,0.04);
+    animation:panelIn .35s ease;
+  }
+  @keyframes panelIn{
+    from{ opacity:0; transform:translateY(6px); }
+    to{ opacity:1; transform:translateY(0); }
   }
   .panel-head{
     display:flex;
@@ -265,6 +307,8 @@
   }
   td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
   tr:last-child td{ border-bottom:none; }
+  tbody tr{ transition:background-color .15s ease; }
+  tbody tr:hover{ background:rgba(109,122,82,0.06); }
 
   .badge{
     display:inline-block;
@@ -399,12 +443,12 @@
     border-radius:10px;
     font-size:13px;
     opacity:0;
-    transform:translateY(8px);
-    transition:opacity .25s ease, transform .25s ease;
+    transform:translateY(8px) scale(0.96);
+    transition:opacity .25s ease, transform .3s cubic-bezier(.34,1.56,.64,1);
     pointer-events:none;
     z-index:100;
   }
-  .toast.show{ opacity:1; transform:translateY(0); }
+  .toast.show{ opacity:1; transform:translateY(0) scale(1); }
 
   a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{
     outline:2px solid var(--accent); outline-offset:2px;
@@ -501,12 +545,49 @@
 
     <div class="content">
 
+      <!-- Skeleton loading overlay -->
+      <div id="loadingOverlay" style="display:none;">
+        <div class="stat-grid">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>
+        <div class="skeleton-panel"></div>
+        <div class="skeleton-panel" style="height:180px;"></div>
+      </div>
+
       <!-- Sign-in gate -->
-      <div class="gate" id="gate">
-        <h2 class="serif">เชื่อมต่อ Google Drive</h2>
-        <p>ลงชื่อเข้าใช้ด้วย Google เพื่อบันทึกและซิงก์ข้อมูลคำสั่งซื้อกับการรับประกันไปยัง Drive ของคุณ ไฟล์ข้อมูลจะถูกสร้างขึ้นในไดรฟ์ของคุณเองเท่านั้น</p>
-        <div id="gsi-btn-container"></div>
-        <p style="margin-top:24px; font-size:12.5px;">ยังไม่ได้ตั้งค่า Client ID? แก้ไขตัวแปร <code>GOOGLE_CLIENT_ID</code> ในไฟล์นี้ก่อนใช้งาน</p>
+      <div class="gate" id="gate" style="max-width:380px;">
+        <h2 class="serif" id="authTitle">เข้าสู่ระบบ</h2>
+        <p id="authSubtitle">เข้าสู่ระบบเพื่อบันทึกและซิงก์ข้อมูลคำสั่งซื้อกับการรับประกัน</p>
+
+        <form id="authForm" style="text-align:left; margin-top:20px;">
+          <div class="field" style="margin-bottom:14px;">
+            <label>อีเมล</label>
+            <input type="email" id="authEmail" placeholder="name@example.com" autocomplete="email" required>
+          </div>
+          <div class="field" id="authNameField" style="margin-bottom:14px; display:none;">
+            <label>ชื่อ</label>
+            <input type="text" id="authName" placeholder="ชื่อของคุณ" autocomplete="name">
+          </div>
+          <div class="field" style="margin-bottom:8px;">
+            <label>รหัสผ่าน</label>
+            <input type="password" id="authPassword" placeholder="อย่างน้อย 6 ตัวอักษร" autocomplete="current-password" required>
+          </div>
+          <p id="authError" style="color:var(--danger); font-size:12.5px; min-height:18px; margin-bottom:8px;"></p>
+          <button type="submit" class="btn" id="authSubmitBtn" style="width:100%;">เข้าสู่ระบบ</button>
+        </form>
+
+        <p style="margin-top:18px; font-size:13px;">
+          <span id="authToggleText">ยังไม่มีบัญชี?</span>
+          <a href="#" id="authToggleLink" style="color:var(--accent); font-weight:500;">สร้างบัญชีใหม่</a>
+        </p>
+        <p style="margin-top:6px; font-size:13px;">
+          <a href="#" id="authForgotLink" style="color:var(--ink-soft);">ลืมรหัสผ่าน?</a>
+        </p>
+
+        <p style="margin-top:24px; font-size:12.5px; color:var(--ink-soft);">ข้อมูลจะถูกเก็บไว้อย่างปลอดภัยบน Firebase</p>
       </div>
 
       <!-- Dashboard tab -->
@@ -807,25 +888,56 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ====== CONFIG — ใส่ Client ID ของคุณตรงนี้ ====== */
-const GOOGLE_CLIENT_ID = "832076884710-gpoa15mg8ff3pmrp5mf3lesh2g44n16c.apps.googleusercontent.com";
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
-const DATA_FILENAME = "order-dashboard-data.json";
+/* ====== CONFIG — Firebase ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyBQPnX541zoj8kCCyqgFXhR-DDwbAG7YQ8",
+  authDomain: "bu-abb.firebaseapp.com",
+  projectId: "bu-abb",
+  storageBucket: "bu-abb.firebasestorage.app",
+  messagingSenderId: "217323290836",
+  appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
 /* ====== State ====== */
-let accessToken = null;
-let fileId = null;
-let data = { orders: [], warranties: [], customers: [], users: [] };
-let saveTimer = null;
+let data = { orders: [], customers: [], users: [], pendingRoles: [] };
 let currentUserEmail = null;
+let currentUserName = '';
+let currentUserUid = null;
 let currentUserRole = 'user';
+let unsubOrders = null, unsubCustomers = null, unsubUsers = null, unsubPendingRoles = null;
+let authMode = 'signin'; // 'signin' | 'signup'
 
 const $ = (id) => document.getElementById(id);
+
+let audioCtx = null;
+function playChime(){
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    [660, 880].forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i*0.08);
+      gain.gain.linearRampToValueAtTime(0.06, now + i*0.08 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + i*0.08 + 0.22);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + i*0.08);
+      osc.stop(now + i*0.08 + 0.25);
+    });
+  }catch(e){ /* audio not critical */ }
+}
 
 function toast(msg){
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
+  playChime();
   setTimeout(()=> t.classList.remove('show'), 2400);
 }
 
@@ -835,101 +947,111 @@ function setSync(state){
   text.textContent = state==='saving' ? 'กำลังบันทึก...' : state==='error' ? 'บันทึกไม่สำเร็จ' : 'ซิงก์แล้ว';
 }
 
-/* ====== Google Identity Services sign-in ====== */
-let tokenClient;
-let refreshTokenClient;
-let pendingRefreshResolve = null;
-
-function refreshAccessTokenSilently(){
-  return new Promise((resolve) => {
-    if (!refreshTokenClient){ resolve(false); return; }
-    pendingRefreshResolve = resolve;
-    refreshTokenClient.requestAccessToken({ prompt: '' });
-  });
+/* ====== Auth: email/password (Firebase) ====== */
+function updateAuthFormMode(){
+  const isSignup = authMode === 'signup';
+  $('authTitle').textContent = isSignup ? 'สร้างบัญชีใหม่' : 'เข้าสู่ระบบ';
+  $('authSubtitle').textContent = isSignup
+    ? 'สร้างบัญชีเพื่อเริ่มใช้งานระบบคำสั่งซื้อและการรับประกัน'
+    : 'เข้าสู่ระบบเพื่อบันทึกและซิงก์ข้อมูลคำสั่งซื้อกับการรับประกัน';
+  $('authNameField').style.display = isSignup ? 'flex' : 'none';
+  $('authSubmitBtn').textContent = isSignup ? 'สร้างบัญชี' : 'เข้าสู่ระบบ';
+  $('authToggleText').textContent = isSignup ? 'มีบัญชีอยู่แล้ว?' : 'ยังไม่มีบัญชี?';
+  $('authToggleLink').textContent = isSignup ? 'เข้าสู่ระบบ' : 'สร้างบัญชีใหม่';
+  $('authError').textContent = '';
 }
-window.addEventListener('load', () => {
-  if (typeof google === 'undefined') return;
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: DRIVE_SCOPE,
-    callback: async (resp) => {
-      if (resp.error) {
-        if (localStorage.getItem('gsi_signed_before')){
-          // silent attempt failed — show the manual button instead of an error toast
-          showSignInButton();
-        } else {
-          toast('เข้าสู่ระบบไม่สำเร็จ');
-        }
-        return;
-      }
-      localStorage.setItem('gsi_signed_before', '1');
-      accessToken = resp.access_token;
-      await onSignedIn();
-    }
-  });
 
-  refreshTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: DRIVE_SCOPE,
-    callback: (resp) => {
-      if (pendingRefreshResolve){
-        if (!resp.error) accessToken = resp.access_token;
-        pendingRefreshResolve(!resp.error);
-        pendingRefreshResolve = null;
-      }
-    }
-  });
+$('authToggleLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  authMode = authMode === 'signin' ? 'signup' : 'signin';
+  updateAuthFormMode();
+});
 
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: () => {}
-  });
+function authErrorMessage(err){
+  const map = {
+    'auth/invalid-email': 'อีเมลไม่ถูกต้อง',
+    'auth/user-not-found': 'ไม่พบบัญชีนี้',
+    'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
+    'auth/email-already-in-use': 'อีเมลนี้มีบัญชีอยู่แล้ว',
+    'auth/weak-password': 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+    'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    'auth/too-many-requests': 'ลองผิดหลายครั้งเกินไป กรุณารอสักครู่'
+  };
+  return map[err.code] || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+}
 
-  if (localStorage.getItem('gsi_signed_before')){
-    // returning visitor — try to sign in silently (no popup) before showing the button
-    $('gsi-btn-container').innerHTML = '<p style="color:var(--ink-soft); font-size:13.5px;">กำลังเข้าสู่ระบบ...</p>';
-    tokenClient.requestAccessToken({ prompt: '' });
-  } else {
-    showSignInButton();
+$('authForgotLink').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const email = $('authEmail').value.trim();
+  if (!email){ $('authError').textContent = 'กรุณากรอกอีเมลก่อนกดลืมรหัสผ่าน'; return; }
+  try{
+    await auth.sendPasswordResetEmail(email);
+    toast('ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมลแล้ว');
+  }catch(err){
+    $('authError').textContent = authErrorMessage(err);
   }
 });
 
-function showSignInButton(){
-  $('gsi-btn-container').innerHTML = '';
-  const btn = document.createElement('button');
-  btn.className = 'btn';
-  btn.textContent = 'ลงชื่อเข้าใช้ด้วย Google';
-  btn.onclick = () => tokenClient.requestAccessToken();
-  $('gsi-btn-container').appendChild(btn);
-}
+$('authForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('authEmail').value.trim();
+  const password = $('authPassword').value;
+  const name = $('authName').value.trim();
+  $('authError').textContent = '';
+  $('authSubmitBtn').disabled = true;
+  try{
+    if (authMode === 'signup'){
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      if (name) await cred.user.updateProfile({ displayName: name });
+    } else {
+      await auth.signInWithEmailAndPassword(email, password);
+    }
+    // onAuthStateChanged below handles the rest
+  }catch(err){
+    $('authError').textContent = authErrorMessage(err);
+  }
+  $('authSubmitBtn').disabled = false;
+});
 
 $('signOutBtn').addEventListener('click', () => {
-  if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
-  accessToken = null; fileId = null;
-  currentUserEmail = null; currentUserRole = 'user';
-  localStorage.removeItem('gsi_signed_before');
-  data = { orders: [], warranties: [], customers: [], users: [] };
-  $('gate').style.display = 'block';
-  $('sidebar').style.display = 'none';
-  $('userBox').style.display = 'none';
-  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
-  showSignInButton();
+  auth.signOut();
+});
+
+auth.onAuthStateChanged(async (user) => {
+  if (user){
+    currentUserEmail = user.email;
+    currentUserName = user.displayName || '';
+    currentUserUid = user.uid;
+    await onSignedIn();
+  } else {
+    if (unsubOrders) unsubOrders();
+    if (unsubCustomers) unsubCustomers();
+    if (unsubUsers) unsubUsers();
+    if (unsubPendingRoles) unsubPendingRoles();
+    currentUserEmail = null; currentUserName = ''; currentUserUid = null; currentUserRole = 'user';
+    data = { orders: [], customers: [], users: [], pendingRoles: [] };
+    $('gate').style.display = 'block';
+    $('sidebar').style.display = 'none';
+    $('userBox').style.display = 'none';
+    $('loadingOverlay').style.display = 'none';
+    document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+    authMode = 'signin';
+    updateAuthFormMode();
+    $('authForm').reset();
+  }
 });
 
 async function onSignedIn(){
   $('gate').style.display = 'none';
   $('sidebar').style.display = 'flex';
   $('userBox').style.display = 'flex';
-  await fetchProfile();
-  await loadOrCreateFile();
-  resolveUserRole();
-  $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
-  refreshDatalists();
-  refreshOrdersYearFilter();
-  refreshDashboardYearFilter();
-  refreshCustomersYearFilter();
-  render();
-  showTab('dashboard');
+  $('loadingOverlay').style.display = 'block';
+  $('userEmail').textContent = currentUserName || currentUserEmail || '';
+  $('userEmail').title = currentUserEmail || '';
+  $('userAvatar').style.display = 'none';
+  setSync('saving');
+  await resolveUserRole();
+  attachRealtimeListeners();
 }
 
 function updateRoleBadge(){
@@ -944,121 +1066,97 @@ function updateRoleBadge(){
   }
 }
 
-function resolveUserRole(){
-  if (!data.users) data.users = [];
-  let entry = data.users.find(u => u.email === currentUserEmail);
-  if (!entry){
-    const role = data.users.length === 0 ? 'admin' : 'user';
-    entry = { email: currentUserEmail, role, name: currentUserGoogleName || '' };
-    data.users.push(entry);
-    queueSave();
-  } else if (!entry.name && currentUserGoogleName){
-    entry.name = currentUserGoogleName;
-    queueSave();
+async function resolveUserRole(){
+  const ref = db.collection('users').doc(currentUserUid);
+  const snap = await ref.get();
+  if (!snap.exists){
+    const emailKey = (currentUserEmail || '').toLowerCase();
+    let role, name;
+    const pendingRef = db.collection('pendingRoles').doc(emailKey);
+    const pendingSnap = await pendingRef.get();
+    if (pendingSnap.exists){
+      const p = pendingSnap.data();
+      role = p.role || 'user';
+      name = p.name || currentUserName || '';
+      await pendingRef.delete();
+    } else {
+      const countSnap = await db.collection('users').limit(1).get();
+      role = countSnap.empty ? 'admin' : 'user';
+      name = currentUserName || '';
+    }
+    await ref.set({ email: currentUserEmail, name, role });
+    currentUserRole = role;
+  } else {
+    const d = snap.data();
+    currentUserRole = d.role || 'user';
+    if (!d.name && currentUserName){
+      await ref.update({ name: currentUserName });
+    }
   }
-  currentUserRole = entry.role;
+  $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
   updateRoleBadge();
 }
 
 function getVisibleOrders(){
-  return currentUserRole === 'admin' ? data.orders : data.orders.filter(o => o.createdBy === currentUserEmail);
+  return currentUserRole === 'admin' ? data.orders : data.orders.filter(o => o.createdBy === currentUserUid);
 }
 function getVisibleCustomers(){
-  return currentUserRole === 'admin' ? data.customers : data.customers.filter(c => c.createdBy === currentUserEmail);
+  return currentUserRole === 'admin' ? data.customers : data.customers.filter(c => c.createdBy === currentUserUid);
 }
 
-let currentUserGoogleName = '';
+/* ====== Firestore realtime sync ====== */
+function attachRealtimeListeners(){
+  const loaded = { orders:false, customers:false, users:false, pendingRoles:false };
+  let firstLoadDone = false;
 
-async function fetchProfile(){
-  try{
-    const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    const p = await res.json();
-    currentUserEmail = p.email || null;
-    currentUserGoogleName = p.name || '';
-    $('userEmail').textContent = p.name || p.email || '';
-    $('userEmail').title = p.email || '';
-    $('userAvatar').src = p.picture || '';
-  }catch(e){ /* non-critical */ }
-}
-
-/* ====== Drive file handling ====== */
-async function loadOrCreateFile(){
-  setSync('saving');
-  try{
-    const q = encodeURIComponent(`name='${DATA_FILENAME}' and trashed=false`);
-    const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    const listJson = await listRes.json();
-
-    if (listJson.files && listJson.files.length > 0){
-      fileId = listJson.files[0].id;
-      const getRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-      data = await getRes.json();
-      if (!data.orders) data.orders = [];
-      if (!data.warranties) data.warranties = [];
-      if (!data.customers) data.customers = [];
-      if (!data.users) data.users = [];
-    } else {
-      data = { orders: [], warranties: [], customers: [], users: [] };
-      const metadata = { name: DATA_FILENAME, mimeType: 'application/json' };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
-      form.append('file', new Blob([JSON.stringify(data)], {type:'application/json'}));
-      const createRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-        method:'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: form
-      });
-      const created = await createRes.json();
-      fileId = created.id;
+  function onAnyUpdate(){
+    if (!firstLoadDone){
+      if (!(loaded.orders && loaded.customers && loaded.users && loaded.pendingRoles)) return;
+      firstLoadDone = true;
+      setSync('ok');
+      refreshDatalists();
+      refreshOrdersYearFilter();
+      refreshDashboardYearFilter();
+      refreshCustomersYearFilter();
+      render();
+      showTab('dashboard');
+      $('loadingOverlay').style.display = 'none';
+      return;
     }
-    setSync('ok');
-  }catch(e){
-    setSync('error');
-    toast('โหลดข้อมูลจาก Drive ไม่สำเร็จ');
+    refreshDatalists();
+    renderOrders(); renderWarranty(); renderDashboard(); renderCustomers();
+    if ($('tab-users').style.display === 'block') renderUsers();
   }
-}
 
-function queueSave(){
-  setSync('saving');
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveToDrive, 700);
+  unsubOrders = db.collection('orders').onSnapshot((snap) => {
+    data.orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loaded.orders = true;
+    onAnyUpdate();
+  }, () => { setSync('error'); toast('โหลดคำสั่งซื้อไม่สำเร็จ'); });
+
+  unsubCustomers = db.collection('customers').onSnapshot((snap) => {
+    data.customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loaded.customers = true;
+    onAnyUpdate();
+  }, () => { setSync('error'); toast('โหลดลูกค้าไม่สำเร็จ'); });
+
+  unsubUsers = db.collection('users').onSnapshot((snap) => {
+    data.users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loaded.users = true;
+    onAnyUpdate();
+  }, () => { setSync('error'); toast('โหลดผู้ใช้งานไม่สำเร็จ'); });
+
+  unsubPendingRoles = db.collection('pendingRoles').onSnapshot((snap) => {
+    data.pendingRoles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loaded.pendingRoles = true;
+    onAnyUpdate();
+  }, () => { setSync('error'); toast('โหลดข้อมูลไม่สำเร็จ'); });
 }
 
 $('syncRetryBtn').addEventListener('click', () => {
-  if (!accessToken){ toast('กรุณาลงชื่อเข้าใช้ก่อน'); return; }
-  saveToDrive();
+  if (!currentUserUid){ toast('กรุณาเข้าสู่ระบบก่อน'); return; }
+  toast('ข้อมูลซิงก์แบบเรียลไทม์อยู่แล้ว ไม่ต้องกดรีเฟรช');
 });
-
-async function saveToDrive(){
-  if (!fileId){ setSync('error'); return; }
-  try{
-    const doSave = () => fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
-      method:'PATCH',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type':'application/json'
-      },
-      body: JSON.stringify(data)
-    });
-
-    let res = await doSave();
-    if (res.status === 401){
-      const refreshed = await refreshAccessTokenSilently();
-      if (refreshed) res = await doSave();
-    }
-    if (!res.ok) throw new Error('save failed: ' + res.status);
-    setSync('ok');
-  }catch(e){
-    setSync('error');
-    toast('บันทึกไปยัง Drive ไม่สำเร็จ — กดปุ่มรีเฟรชด้านล่างซ้ายเพื่อลองใหม่');
-  }
-}
 
 /* ====== Tabs ====== */
 document.querySelectorAll('.nav-item').forEach(btn => {
@@ -1076,7 +1174,11 @@ const titles = {
 function showTab(tab){
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
-  $(`tab-${tab}`).style.display = 'block';
+  const panel = $(`tab-${tab}`);
+  panel.style.display = 'block';
+  panel.classList.remove('tab-fade-in');
+  void panel.offsetWidth;
+  panel.classList.add('tab-fade-in');
   $('pageTitle').textContent = titles[tab][0];
   $('pageSub').textContent = titles[tab][1];
   if (tab==='dashboard') renderDashboard();
@@ -1086,6 +1188,26 @@ function showTab(tab){
 
 /* ====== Rendering ====== */
 function fmtMoney(n){ return '฿' + Number(n||0).toLocaleString('th-TH', {maximumFractionDigits:0}); }
+
+function animateNumber(el, endValue, formatFn){
+  if (!el) return;
+  const startValue = Number(el.dataset.rawValue || 0);
+  if (startValue === endValue){ el.textContent = formatFn ? formatFn(endValue) : Math.round(endValue).toLocaleString('th-TH'); return; }
+  const duration = 550;
+  const startTime = performance.now();
+  function frame(now){
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = startValue + (endValue - startValue) * eased;
+    el.textContent = formatFn ? formatFn(current) : Math.round(current).toLocaleString('th-TH');
+    if (progress < 1){
+      requestAnimationFrame(frame);
+    } else {
+      el.dataset.rawValue = endValue;
+    }
+  }
+  requestAnimationFrame(frame);
+}
 function fmtDate(d){ if(!d) return '-'; const dt = new Date(d); return dt.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'}); }
 function addMonths(dateStr, months){ const d = new Date(dateStr); d.setMonth(d.getMonth()+Number(months)); return d.toISOString().slice(0,10); }
 
@@ -1191,12 +1313,12 @@ function renderDashboardSection(suffix, orders){
     ? orders.filter(o => o.date && new Date(o.date).getMonth() === selMonth)
     : orders;
 
-  $(`statTotalOrders_${suffix}`).textContent = displayOrders.length;
-  $(`statRevenue_${suffix}`).textContent = fmtMoney(displayOrders.reduce((s,o)=>s+Number(o.price||0),0));
+  animateNumber($(`statTotalOrders_${suffix}`), displayOrders.length);
+  animateNumber($(`statRevenue_${suffix}`), displayOrders.reduce((s,o)=>s+Number(o.price||0),0), fmtMoney);
 
   const cancelledEl = $(`statCancelled_${suffix}`);
   if (cancelledEl){
-    cancelledEl.textContent = displayOrders.filter(o=>o.status==='cancelled').length;
+    animateNumber(cancelledEl, displayOrders.filter(o=>o.status==='cancelled').length);
   }
 
   const periodEl = $(`periodIndicator_${suffix}`);
@@ -1221,16 +1343,23 @@ function renderDashboardSection(suffix, orders){
   });
   const max = Math.max(1, ...months.map(m=>m.count));
 
-  $(`monthlyBars_${suffix}`).innerHTML = months.map((m, idx) => {
+  const barsEl = $(`monthlyBars_${suffix}`);
+  barsEl.innerHTML = months.map((m, idx) => {
     const isSelected = selMonth === idx;
     const dim = hasSelection && !isSelected;
+    const targetHeight = (m.count/max*100) || 2;
     return `
     <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)}">
-      <div class="bar ${dim ? 'dim' : ''}" style="height:${(m.count/max*100) || 2}%"></div>
+      <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
       <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
       <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
     </div>
   `; }).join('');
+  requestAnimationFrame(() => {
+    barsEl.querySelectorAll('.bar').forEach(bar => {
+      bar.style.height = bar.dataset.height + '%';
+    });
+  });
 
   const filterBadge = $(`monthFilterBadge_${suffix}`);
   if (hasSelection){
@@ -1284,8 +1413,8 @@ function renderDashboard(){
 
   // Active warranty count is always global — not affected by the dashboard's year or month filter
   const activeWarranty = getVisibleOrders().filter(o=>isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='active').length;
-  $('statActiveWarranty').textContent = activeWarranty;
-  $('statPending').textContent = pendingBase.filter(o=>o.status==='pending').length;
+  animateNumber($('statActiveWarranty'), activeWarranty);
+  animateNumber($('statPending'), pendingBase.filter(o=>o.status==='pending').length);
   renderAlerts();
 
   renderDashboardSection('all', yearOrders);
@@ -1424,8 +1553,6 @@ function escapeHtml(s){
 }
 
 /* ====== Actions ====== */
-function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-
 $('dashboardYearFilter').addEventListener('change', (e) => {
   selectedDashboardYear = Number(e.target.value);
   dashboardRecentPage = { all: 1, orders: 1, shipped: 1 };
@@ -1452,7 +1579,7 @@ $('ordersPageSize').addEventListener('change', () => renderOrders());
 $('ordersSearch').addEventListener('input', () => renderOrders());
 $('ordersStatusFilter').addEventListener('change', () => renderOrders());
 
-$('orderForm').addEventListener('submit', (e) => {
+$('orderForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const customerName = $('ordCustomer').value.trim();
   const knownCustomer = (getVisibleCustomers()).find(c => c.name.trim().toLowerCase() === customerName.toLowerCase());
@@ -1460,47 +1587,52 @@ $('orderForm').addEventListener('submit', (e) => {
     toast('ไม่พบชื่อลูกค้านี้ในรายชื่อลูกค้า — กรุณาเพิ่มลูกค้าที่หน้า "รายชื่อลูกค้า" ก่อน');
     return;
   }
-  data.orders.push({
-    id: uid(),
-    so: $('ordSO').value.trim(),
-    customer: knownCustomer.name,
-    product: $('ordProduct').value.trim(),
-    price: Number($('ordPrice').value),
-    date: $('ordDate').value,
-    shipDate: null,
-    status: $('ordStatus').value,
-    po: '',
-    gp: null,
-    createdBy: currentUserEmail
-  });
-  e.target.reset();
-  refreshDatalists();
-  refreshOrdersYearFilter();
-  refreshDashboardYearFilter();
-  refreshCustomersYearFilter();
-  renderOrders(); renderWarranty(); renderDashboard(); queueSave();
-  toast('บันทึกคำสั่งซื้อแล้ว');
+  setSync('saving');
+  try{
+    await db.collection('orders').add({
+      so: $('ordSO').value.trim(),
+      customer: knownCustomer.name,
+      product: $('ordProduct').value.trim(),
+      price: Number($('ordPrice').value),
+      date: $('ordDate').value,
+      shipDate: null,
+      status: $('ordStatus').value,
+      po: '',
+      gp: null,
+      createdBy: currentUserUid
+    });
+    e.target.reset();
+    setSync('ok');
+    toast('บันทึกคำสั่งซื้อแล้ว');
+  }catch(err){
+    setSync('error');
+    toast('บันทึกไม่สำเร็จ — กดปุ่มรีเฟรชด้านล่างซ้ายเพื่อลองใหม่');
+  }
 });
 
 const NUMERIC_ORDER_FIELDS = ['gp', 'warrantyMonths'];
 $('warrantyPageSize').addEventListener('change', () => renderWarranty());
 
-function setOrderField(id, field, value){
-  const o = data.orders.find(o=>o.id===id);
-  if (!o) return;
-  o[field] = NUMERIC_ORDER_FIELDS.includes(field) ? (value === '' ? null : Number(value)) : value;
-  renderOrders();
-  renderWarranty();
-  renderDashboard();
-  queueSave();
+async function setOrderField(id, field, value){
+  const val = NUMERIC_ORDER_FIELDS.includes(field) ? (value === '' ? null : Number(value)) : value;
+  setSync('saving');
+  try{
+    await db.collection('orders').doc(id).update({ [field]: val });
+    setSync('ok');
+  }catch(err){
+    setSync('error');
+    toast('บันทึกไม่สำเร็จ');
+  }
 }
-function deleteOrder(id){
-  data.orders = data.orders.filter(o=>o.id!==id);
-  refreshDatalists();
-  refreshOrdersYearFilter();
-  refreshDashboardYearFilter();
-  refreshCustomersYearFilter();
-  renderOrders(); renderWarranty(); renderDashboard(); queueSave();
+async function deleteOrder(id){
+  setSync('saving');
+  try{
+    await db.collection('orders').doc(id).delete();
+    setSync('ok');
+  }catch(err){
+    setSync('error');
+    toast('ลบไม่สำเร็จ');
+  }
 }
 
 /* ====== Customer list ====== */
@@ -1570,13 +1702,15 @@ function renderCustomers(){
   `; }).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีรายชื่อลูกค้า — เพิ่มด้านบนหรือนำเข้าจาก Excel</td></tr>`;
 }
 
-function setCustomerField(id, field, value){
-  const c = data.customers.find(c=>c.id===id);
-  if (!c) return;
-  c[field] = value;
-  refreshDatalists();
-  renderCustomers();
-  queueSave();
+async function setCustomerField(id, field, value){
+  setSync('saving');
+  try{
+    await db.collection('customers').doc(id).update({ [field]: value });
+    setSync('ok');
+  }catch(err){
+    setSync('error');
+    toast('บันทึกไม่สำเร็จ');
+  }
 }
 
 $('customersYearFilter').addEventListener('change', (e) => {
@@ -1587,47 +1721,58 @@ $('customersYearFilter').addEventListener('change', (e) => {
 $('customersPageSize').addEventListener('change', () => renderCustomers());
 $('customersSearch').addEventListener('input', () => renderCustomers());
 
-$('customerForm').addEventListener('submit', (e) => {
+$('customerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = $('cusName').value.trim();
   const type = $('cusType').value.trim() || 'ลูกค้าทั่วไป';
   if (!name) return;
-  const existing = getVisibleCustomers().find(c => c.name.trim().toLowerCase()===name.toLowerCase());
-  if (existing){
-    existing.type = type;
-    toast('อัปเดตประเภทลูกค้าที่มีอยู่แล้ว');
-
-  } else {
-    data.customers.push({ id: uid(), name, type, createdBy: currentUserEmail });
-    toast('เพิ่มลูกค้าใหม่แล้ว');
+  setSync('saving');
+  try{
+    const existing = getVisibleCustomers().find(c => c.name.trim().toLowerCase()===name.toLowerCase());
+    if (existing){
+      await db.collection('customers').doc(existing.id).update({ type });
+      toast('อัปเดตประเภทลูกค้าที่มีอยู่แล้ว');
+    } else {
+      await db.collection('customers').add({ name, type, createdBy: currentUserUid });
+      toast('เพิ่มลูกค้าใหม่แล้ว');
+    }
+    e.target.reset();
+    setSync('ok');
+  }catch(err){
+    setSync('error');
+    toast('บันทึกไม่สำเร็จ');
   }
-  e.target.reset();
-  refreshDatalists();
-  renderCustomers(); queueSave();
 });
 
-function deleteCustomer(id){
-  data.customers = data.customers.filter(c=>c.id!==id);
-  refreshDatalists();
-  renderCustomers(); queueSave();
+async function deleteCustomer(id){
+  setSync('saving');
+  try{
+    await db.collection('customers').doc(id).delete();
+    setSync('ok');
+  }catch(err){
+    setSync('error');
+    toast('ลบไม่สำเร็จ');
+  }
 }
 
 /* ====== Users (role management, admin only) ====== */
 function renderUsers(){
   const body = $('usersBody');
-  const list = [...(data.users||[])].sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
+  const real = (data.users||[]).map(u => ({...u, _kind:'user', _id:u.id}));
+  const pending = (data.pendingRoles||[]).map(p => ({...p, email:p.id, _kind:'pending', _id:p.id}));
+  const list = [...real, ...pending].sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
   body.innerHTML = list.length ? list.map(u => `
     <tr>
-      <td><input type="text" class="inline-input" value="${escapeHtml(u.name||'')}" placeholder="ไม่ระบุชื่อ" onchange="setUserField('${escapeHtml(u.email)}','name',this.value)"></td>
-      <td>${escapeHtml(u.email)}${u.email===currentUserEmail ? ' <span class="badge-count neutral">คุณ</span>' : ''}</td>
+      <td><input type="text" class="inline-input" value="${escapeHtml(u.name||'')}" placeholder="ไม่ระบุชื่อ" onchange="setUserField('${u._kind}','${escapeHtml(u._id)}','name',this.value)"></td>
+      <td>${escapeHtml(u.email)}${u._kind==='user' && u._id===currentUserUid ? ' <span class="badge-count neutral">คุณ</span>' : ''}${u._kind==='pending' ? ' <span class="badge-count neutral">รอเข้าสู่ระบบ</span>' : ''}</td>
       <td>
-        <select class="inline-input badge-select" onchange="setUserField('${escapeHtml(u.email)}','role',this.value)">
+        <select class="inline-input badge-select" onchange="setUserField('${u._kind}','${escapeHtml(u._id)}','role',this.value)">
           <option value="user" ${u.role==='user'?'selected':''}>ผู้ใช้งานทั่วไป</option>
           <option value="admin" ${u.role==='admin'?'selected':''}>ผู้ดูแลระบบ</option>
         </select>
       </td>
       <td class="row-actions">
-        ${u.email!==currentUserEmail ? `<button class="icon-btn delete-btn" onclick="deleteUser('${escapeHtml(u.email)}')" title="ลบ">
+        ${!(u._kind==='user' && u._id===currentUserUid) ? `<button class="icon-btn delete-btn" onclick="deleteUser('${u._kind}','${escapeHtml(u._id)}')" title="ลบ">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
           DELETE
         </button>` : ''}
@@ -1636,56 +1781,60 @@ function renderUsers(){
   `).join('') : `<tr><td colspan="4" class="empty-row">ยังไม่มีใครล็อกอินเข้าใช้งาน — เพิ่มได้ด้านบน</td></tr>`;
 }
 
-function setUserField(email, field, value){
-  const u = (data.users||[]).find(u => u.email === email);
-  if (!u) return;
-  u[field] = value;
-  if (field === 'role' && email === currentUserEmail){
-    currentUserRole = value;
-    updateRoleBadge();
-    $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
-    if (currentUserRole !== 'admin'){
-      showTab('dashboard');
-      queueSave();
-      return;
+async function setUserField(kind, id, field, value){
+  setSync('saving');
+  try{
+    const coll = kind === 'user' ? 'users' : 'pendingRoles';
+    await db.collection(coll).doc(id).update({ [field]: value });
+    if (kind==='user' && field==='role' && id === currentUserUid){
+      currentUserRole = value;
+      updateRoleBadge();
+      $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+      if (currentUserRole !== 'admin') showTab('dashboard');
     }
+    setSync('ok');
+  }catch(err){
+    setSync('error');
+    toast('บันทึกไม่สำเร็จ');
   }
-  renderUsers();
-  render();
-  queueSave();
 }
 
-function deleteUser(email){
-  if (email === currentUserEmail) return;
-  data.users = (data.users||[]).filter(u => u.email !== email);
-  renderUsers();
-  queueSave();
+async function deleteUser(kind, id){
+  if (kind==='user' && id===currentUserUid) return;
+  setSync('saving');
+  try{
+    const coll = kind === 'user' ? 'users' : 'pendingRoles';
+    await db.collection(coll).doc(id).delete();
+    setSync('ok');
+  }catch(err){
+    setSync('error');
+    toast('ลบไม่สำเร็จ');
+  }
 }
 
-$('userForm').addEventListener('submit', (e) => {
+$('userForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = $('usrName').value.trim();
   const email = $('usrEmail').value.trim().toLowerCase();
   const role = $('usrRole').value;
   if (!email) return;
-  if (!data.users) data.users = [];
-  const existing = data.users.find(u => u.email === email);
-  if (existing){
-    existing.name = name || existing.name;
-    existing.role = role;
-    toast('อัปเดตผู้ใช้งานที่มีอยู่แล้ว');
-  } else {
-    data.users.push({ email, name, role });
-    toast('เพิ่มผู้ใช้งานใหม่แล้ว');
+  setSync('saving');
+  try{
+    const existingReal = (data.users||[]).find(u => (u.email||'').toLowerCase() === email);
+    if (existingReal){
+      await db.collection('users').doc(existingReal.id).update({ name: name || existingReal.name || '', role });
+      if (existingReal.id === currentUserUid){ currentUserRole = role; updateRoleBadge(); }
+      toast('อัปเดตผู้ใช้งานที่มีอยู่แล้ว');
+    } else {
+      await db.collection('pendingRoles').doc(email).set({ name, role }, { merge:true });
+      toast('เพิ่มผู้ใช้งานใหม่แล้ว (จะมีผลเมื่อเขาล็อกอินครั้งแรก)');
+    }
+    e.target.reset();
+    setSync('ok');
+  }catch(err){
+    setSync('error');
+    toast('บันทึกไม่สำเร็จ');
   }
-  if (email === currentUserEmail){
-    currentUserRole = role;
-    updateRoleBadge();
-  }
-  e.target.reset();
-  renderUsers();
-  render();
-  queueSave();
 });
 
 $('downloadCustomerTemplateBtn').addEventListener('click', (e) => {
@@ -1796,53 +1945,63 @@ $('importCancelBtn').addEventListener('click', () => {
   importRows = []; importHeaders = [];
 });
 
-$('importConfirmBtn').addEventListener('click', () => {
+$('importConfirmBtn').addEventListener('click', async () => {
   const mapping = {};
   document.querySelectorAll('.import-map-select').forEach(sel => {
     if (sel.value !== 'skip') mapping[sel.value] = sel.dataset.header;
   });
 
-  if (importTarget === 'customers'){
-    let added = 0, updated = 0;
-    importRows.forEach(row => {
-      const name = String(row[mapping.name] ?? '').trim();
-      if (!name) return;
-      const type = mapping.type ? normalizeCustomerType(row[mapping.type]) : 'ลูกค้าทั่วไป';
-      const existing = getVisibleCustomers().find(c => c.name.trim().toLowerCase()===name.toLowerCase());
-      if (existing){ existing.type = type; updated++; }
-      else { data.customers.push({ id: uid(), name, type, createdBy: currentUserEmail }); added++; }
-    });
+  setSync('saving');
+  try{
+    if (importTarget === 'customers'){
+      let added = 0, updated = 0;
+      const batch = db.batch();
+      importRows.forEach(row => {
+        const name = String(row[mapping.name] ?? '').trim();
+        if (!name) return;
+        const type = mapping.type ? normalizeCustomerType(row[mapping.type]) : 'ลูกค้าทั่วไป';
+        const existing = getVisibleCustomers().find(c => c.name.trim().toLowerCase()===name.toLowerCase());
+        if (existing){
+          batch.update(db.collection('customers').doc(existing.id), { type });
+          updated++;
+        } else {
+          batch.set(db.collection('customers').doc(), { name, type, createdBy: currentUserUid });
+          added++;
+        }
+      });
+      await batch.commit();
+      $('importModal').style.display = 'none';
+      importRows = []; importHeaders = [];
+      setSync('ok');
+      toast(`นำเข้าลูกค้าใหม่ ${added} ราย อัปเดต ${updated} ราย`);
+      return;
+    }
+
+    const newOrders = importRows.map(row => ({
+      so: String(row[mapping.so] ?? '').trim(),
+      customer: String(row[mapping.customer] ?? '').trim(),
+      product: String(row[mapping.product] ?? '').trim(),
+      price: Number(row[mapping.price]) || 0,
+      po: String(row[mapping.po] ?? '').trim(),
+      gp: mapping.gp && row[mapping.gp] !== '' ? Number(row[mapping.gp]) : null,
+      date: parseImportDate(row[mapping.date]) || new Date().toISOString().slice(0,10),
+      shipDate: parseImportDate(row[mapping.shipDate]),
+      status: mapping.status ? normalizeImportStatus(row[mapping.status]) : 'done',
+      createdBy: currentUserUid
+    })).filter(o => o.customer || o.product);
+
+    const batch = db.batch();
+    newOrders.forEach(o => batch.set(db.collection('orders').doc(), o));
+    await batch.commit();
+
     $('importModal').style.display = 'none';
     importRows = []; importHeaders = [];
-    refreshDatalists();
-    renderCustomers(); queueSave();
-    toast(`นำเข้าลูกค้าใหม่ ${added} ราย อัปเดต ${updated} ราย`);
-    return;
+    setSync('ok');
+    toast(`นำเข้า ${newOrders.length} รายการสำเร็จ`);
+  }catch(err){
+    setSync('error');
+    toast('นำเข้าไม่สำเร็จ');
   }
-
-  const newOrders = importRows.map(row => ({
-    id: uid(),
-    so: String(row[mapping.so] ?? '').trim(),
-    customer: String(row[mapping.customer] ?? '').trim(),
-    product: String(row[mapping.product] ?? '').trim(),
-    price: Number(row[mapping.price]) || 0,
-    po: String(row[mapping.po] ?? '').trim(),
-    gp: mapping.gp && row[mapping.gp] !== '' ? Number(row[mapping.gp]) : null,
-    date: parseImportDate(row[mapping.date]) || new Date().toISOString().slice(0,10),
-    shipDate: parseImportDate(row[mapping.shipDate]),
-    status: mapping.status ? normalizeImportStatus(row[mapping.status]) : 'done',
-    createdBy: currentUserEmail
-  })).filter(o => o.customer || o.product);
-
-  data.orders.push(...newOrders);
-  $('importModal').style.display = 'none';
-  importRows = []; importHeaders = [];
-  refreshDatalists();
-  refreshOrdersYearFilter();
-  refreshDashboardYearFilter();
-  refreshCustomersYearFilter();
-  renderOrders(); renderDashboard(); queueSave();
-  toast(`นำเข้า ${newOrders.length} รายการสำเร็จ`);
 });
 
 /* ====== Order report download (by month or year) ====== */
