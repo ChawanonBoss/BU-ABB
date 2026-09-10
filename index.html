@@ -488,7 +488,7 @@
       </div>
       <div class="user-box" id="userBox" style="display:none;">
         <img class="user-avatar" id="userAvatar" src="" alt="" onerror="this.style.display='none';" onload="this.style.display='';">
-        <span class="user-email" id="userEmail"></span>
+        <span class="user-email" id="userEmail" title=""></span>
         <span class="badge-count neutral" id="userRoleBadge"></span>
         <button class="btn outline" id="signOutBtn">ออกจากระบบ</button>
       </div>
@@ -838,7 +838,16 @@ window.addEventListener('load', () => {
     client_id: GOOGLE_CLIENT_ID,
     scope: DRIVE_SCOPE,
     callback: async (resp) => {
-      if (resp.error) { toast('เข้าสู่ระบบไม่สำเร็จ'); return; }
+      if (resp.error) {
+        if (localStorage.getItem('gsi_signed_before')){
+          // silent attempt failed — show the manual button instead of an error toast
+          showSignInButton();
+        } else {
+          toast('เข้าสู่ระบบไม่สำเร็จ');
+        }
+        return;
+      }
+      localStorage.setItem('gsi_signed_before', '1');
       accessToken = resp.access_token;
       await onSignedIn();
     }
@@ -849,22 +858,35 @@ window.addEventListener('load', () => {
     callback: () => {}
   });
 
+  if (localStorage.getItem('gsi_signed_before')){
+    // returning visitor — try to sign in silently (no popup) before showing the button
+    $('gsi-btn-container').innerHTML = '<p style="color:var(--ink-soft); font-size:13.5px;">กำลังเข้าสู่ระบบ...</p>';
+    tokenClient.requestAccessToken({ prompt: '' });
+  } else {
+    showSignInButton();
+  }
+});
+
+function showSignInButton(){
+  $('gsi-btn-container').innerHTML = '';
   const btn = document.createElement('button');
   btn.className = 'btn';
   btn.textContent = 'ลงชื่อเข้าใช้ด้วย Google';
   btn.onclick = () => tokenClient.requestAccessToken();
   $('gsi-btn-container').appendChild(btn);
-});
+}
 
 $('signOutBtn').addEventListener('click', () => {
   if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
   accessToken = null; fileId = null;
   currentUserEmail = null; currentUserRole = 'user';
+  localStorage.removeItem('gsi_signed_before');
   data = { orders: [], warranties: [], customers: [], users: [] };
   $('gate').style.display = 'block';
   $('sidebar').style.display = 'none';
   $('userBox').style.display = 'none';
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  showSignInButton();
 });
 
 async function onSignedIn(){
@@ -928,7 +950,8 @@ async function fetchProfile(){
     const p = await res.json();
     currentUserEmail = p.email || null;
     currentUserGoogleName = p.name || '';
-    $('userEmail').textContent = p.email || '';
+    $('userEmail').textContent = p.name || p.email || '';
+    $('userEmail').title = p.email || '';
     $('userAvatar').src = p.picture || '';
   }catch(e){ /* non-critical */ }
 }
