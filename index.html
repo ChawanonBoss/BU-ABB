@@ -476,7 +476,12 @@
     <button class="nav-item" data-tab="customers"><span class="dot"></span>รายชื่อลูกค้า</button>
     <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><span class="dot"></span>ผู้ใช้งาน</button>
     <div class="sidebar-footer">
-      <div class="sync-status"><span class="sync-dot" id="syncDot"></span><span id="syncText">ซิงก์แล้ว</span></div>
+      <div class="sync-status">
+        <span class="sync-dot" id="syncDot"></span><span id="syncText">ซิงก์แล้ว</span>
+        <button id="syncRetryBtn" title="รีเฟรช/บันทึกใหม่" style="background:none; border:none; cursor:pointer; color:var(--ink-soft); padding:2px 4px; margin-left:auto;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -832,6 +837,16 @@ function setSync(state){
 
 /* ====== Google Identity Services sign-in ====== */
 let tokenClient;
+let refreshTokenClient;
+let pendingRefreshResolve = null;
+
+function refreshAccessTokenSilently(){
+  return new Promise((resolve) => {
+    if (!refreshTokenClient){ resolve(false); return; }
+    pendingRefreshResolve = resolve;
+    refreshTokenClient.requestAccessToken({ prompt: '' });
+  });
+}
 window.addEventListener('load', () => {
   if (typeof google === 'undefined') return;
   tokenClient = google.accounts.oauth2.initTokenClient({
@@ -850,6 +865,18 @@ window.addEventListener('load', () => {
       localStorage.setItem('gsi_signed_before', '1');
       accessToken = resp.access_token;
       await onSignedIn();
+    }
+  });
+
+  refreshTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: (resp) => {
+      if (pendingRefreshResolve){
+        if (!resp.error) accessToken = resp.access_token;
+        pendingRefreshResolve(!resp.error);
+        pendingRefreshResolve = null;
+      }
     }
   });
 
@@ -1003,10 +1030,15 @@ function queueSave(){
   saveTimer = setTimeout(saveToDrive, 700);
 }
 
+$('syncRetryBtn').addEventListener('click', () => {
+  if (!accessToken){ toast('กรุณาลงชื่อเข้าใช้ก่อน'); return; }
+  saveToDrive();
+});
+
 async function saveToDrive(){
   if (!fileId){ setSync('error'); return; }
   try{
-    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+    const doSave = () => fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
       method:'PATCH',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -1014,10 +1046,17 @@ async function saveToDrive(){
       },
       body: JSON.stringify(data)
     });
+
+    let res = await doSave();
+    if (res.status === 401){
+      const refreshed = await refreshAccessTokenSilently();
+      if (refreshed) res = await doSave();
+    }
+    if (!res.ok) throw new Error('save failed: ' + res.status);
     setSync('ok');
   }catch(e){
     setSync('error');
-    toast('บันทึกไปยัง Drive ไม่สำเร็จ');
+    toast('บันทึกไปยัง Drive ไม่สำเร็จ — กดปุ่มรีเฟรชด้านล่างซ้ายเพื่อลองใหม่');
   }
 }
 
