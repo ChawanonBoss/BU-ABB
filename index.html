@@ -263,6 +263,44 @@
     from{ opacity:0; transform:translateY(6px); }
     to{ opacity:1; transform:translateY(0); }
   }
+
+  /* ---- Custom autocomplete dropdown ---- */
+  .autocomplete-wrap{ position:relative; }
+  .autocomplete-panel{
+    position:fixed;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    box-shadow:0 10px 28px rgba(46,35,23,0.14);
+    max-height:230px;
+    overflow-y:auto;
+    z-index:500;
+    padding:6px;
+    display:none;
+  }
+  .autocomplete-panel.show{ display:block; animation:acPanelIn .15s ease; }
+  @keyframes acPanelIn{
+    from{ opacity:0; transform:translateY(-4px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .autocomplete-item{
+    padding:9px 12px;
+    border-radius:8px;
+    font-size:13.5px;
+    color:var(--ink);
+    cursor:pointer;
+    transition:background .12s ease, color .12s ease;
+  }
+  .autocomplete-item:hover, .autocomplete-item.active{
+    background:var(--accent-soft);
+    color:var(--accent);
+  }
+  .autocomplete-empty{
+    padding:9px 12px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    font-style:italic;
+  }
   .panel-head{
     display:flex;
     align-items:center;
@@ -454,6 +492,39 @@
     color:var(--ink);
   }
   .field input:focus, .field select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+
+  .locked-input-group{
+    display:flex;
+    align-items:stretch;
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    background:var(--paper);
+    transition:outline .1s ease;
+  }
+  .locked-input-group:focus-within{ outline:2px solid var(--accent); outline-offset:1px; }
+  .locked-prefix{
+    display:flex;
+    align-items:center;
+    padding:0 10px;
+    background:var(--paper-dim);
+    color:var(--ink-soft);
+    font-size:13.5px;
+    font-weight:600;
+    border-right:1px solid var(--line);
+    user-select:none;
+    white-space:nowrap;
+  }
+  .locked-input-group input{
+    border:none !important;
+    flex:1;
+    min-width:0;
+    padding:10px 12px;
+    background:transparent;
+    font-size:13.5px;
+    color:var(--ink);
+  }
+  .locked-input-group input:focus{ outline:none !important; }
 
   @media (max-width:760px){
     .sidebar{ display:none; }
@@ -734,9 +805,15 @@
           <div class="panel-head"><h3>เพิ่มคำสั่งซื้อใหม่</h3></div>
           <form id="orderForm">
             <div class="form-grid">
-              <div class="field"><label>เลขที่ใบเสนอราคา (SO)</label><input type="text" id="ordSO" placeholder="บังคับ" required></div>
-              <div class="field"><label>ชื่อลูกค้า</label><input type="text" id="ordCustomer" list="customerOptions" autocomplete="off" placeholder="พิมพ์เพื่อค้นหาจากรายชื่อลูกค้า" required></div>
-              <div class="field"><label>สินค้า</label><input type="text" id="ordProduct" list="productOptions" autocomplete="off" placeholder="ABB, Philips, Socomec" required></div>
+              <div class="field">
+                <label>เลขที่ใบเสนอราคา (SO)</label>
+                <div class="locked-input-group">
+                  <span class="locked-prefix">SO-</span>
+                  <input type="text" id="ordSO" inputmode="numeric" placeholder="0001" required>
+                </div>
+              </div>
+              <div class="field"><label>ชื่อลูกค้า</label><div class="autocomplete-wrap"><input type="text" id="ordCustomer" autocomplete="off" placeholder="พิมพ์เพื่อค้นหาจากรายชื่อลูกค้า" required></div></div>
+              <div class="field"><label>สินค้า</label><div class="autocomplete-wrap"><input type="text" id="ordProduct" autocomplete="off" placeholder="ABB, Philips, Socomec" required></div></div>
               <div class="field"><label>ราคารวม (บาท)</label><input type="number" id="ordPrice" min="0" step="0.01" required></div>
               <div class="field"><label>วันที่สั่งซื้อ</label><input type="date" id="ordDate" required></div>
               <div class="field"><label>สถานะ</label>
@@ -778,7 +855,7 @@
             </div>
           </div>
           <table>
-            <thead><tr><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th></tr></thead>
+            <thead><tr><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th id="ordersCreatorHeader" style="display:none;">สร้างโดย</th></tr></thead>
             <tbody id="ordersBody"></tbody>
           </table>
         </div>
@@ -817,9 +894,9 @@
               <option value="100">แสดง 100</option>
             </select>
           </div>
-          <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">แสดงข้อมูลอย่างเดียว ไม่สามารถแก้ไขได้</p>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">แสดงข้อมูลอย่างเดียว ไม่สามารถแก้ไขได้ (ผู้ดูแลระบบลบรายการได้)</p>
           <table>
-            <thead><tr><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO</th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th></tr></thead>
+            <thead><tr><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO</th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th></th></tr></thead>
             <tbody id="cancelledBody"></tbody>
           </table>
           <div class="pagination" id="cancelledPagination"></div>
@@ -832,10 +909,10 @@
           <div class="panel-head"><h3>เพิ่มลูกค้าใหม่</h3></div>
           <form id="customerForm">
             <div class="form-grid">
-              <div class="field"><label>ชื่อลูกค้า</label><input type="text" id="cusName" list="customerOptions" autocomplete="off" required></div>
+              <div class="field"><label>ชื่อลูกค้า</label><div class="autocomplete-wrap"><input type="text" id="cusName" autocomplete="off" required></div></div>
               <div class="field">
                 <label>ประเภทลูกค้า</label>
-                <input type="text" id="cusType" list="customerTypeOptions" autocomplete="off" placeholder="ประเภทกิจการ เช่น โรงงาน, ตัวแทนจำหน่าย" required>
+                <div class="autocomplete-wrap"><input type="text" id="cusType" autocomplete="off" placeholder="ประเภทกิจการ เช่น โรงงาน, ตัวแทนจำหน่าย" required></div>
               </div>
             </div>
             <button type="submit" class="btn">บันทึกลูกค้า</button>
@@ -859,7 +936,7 @@
             </div>
           </div>
           <table>
-            <thead><tr><th>ชื่อลูกค้า</th><th>ประเภทลูกค้า</th><th>จำนวนคำสั่งซื้อ</th><th>จำนวนเงิน</th><th></th></tr></thead>
+            <thead><tr><th>ชื่อลูกค้า</th><th>ประเภทลูกค้า</th><th>จำนวนคำสั่งซื้อ</th><th>จำนวนเงิน</th><th id="customersCreatorHeader" style="display:none;">สร้างโดย</th><th></th></tr></thead>
             <tbody id="customersBody"></tbody>
           </table>
         </div>
@@ -1150,6 +1227,8 @@ async function resolveUserRole(){
     }
   }
   $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
   updateRoleBadge();
 }
 
@@ -1158,6 +1237,12 @@ function getVisibleOrders(){
 }
 function getVisibleCustomers(){
   return currentUserRole === 'admin' ? data.customers : data.customers.filter(c => c.createdBy === currentUserUid);
+}
+function getUserDisplayName(uid){
+  if (!uid) return '-';
+  const u = (data.users||[]).find(u => u.id === uid);
+  if (!u) return uid;
+  return u.name || u.email || uid;
 }
 
 /* ====== Firestore realtime sync ====== */
@@ -1557,6 +1642,7 @@ function renderOrders(){
           ${o.status==='pending' ? 'PENDING' : 'COMPLETE'}
         </button>
       </td>
+      ${currentUserRole==='admin' ? `<td>${escapeHtml(getUserDisplayName(o.createdBy))}</td>` : ''}
       <td class="row-actions">
         ${o.status!=='cancelled' ? `<button class="icon-btn cancel-btn" onclick="cancelOrder('${o.id}')" title="ยกเลิกคำสั่งซื้อ">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"></line></svg>
@@ -1604,8 +1690,14 @@ function renderCancelledOrders(){
       <td>${fmtDate(o.date)}</td>
       <td>${o.shipDate ? fmtDate(o.shipDate) : '-'}</td>
       <td><span class="badge cancelled">CANCELLED</span></td>
+      <td class="row-actions">
+        ${currentUserRole==='admin' ? `<button class="icon-btn delete-btn" onclick="deleteOrder('${o.id}')" title="ลบ">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          DELETE
+        </button>` : ''}
+      </td>
     </tr>
-  `).join('') : `<tr><td colspan="8" class="empty-row">ยังไม่มีคำสั่งซื้อที่ถูกยกเลิก</td></tr>`;
+  `).join('') : `<tr><td colspan="9" class="empty-row">ยังไม่มีคำสั่งซื้อที่ถูกยกเลิก</td></tr>`;
 
   const paginationEl = $('cancelledPagination');
   if (totalPages <= 1){
@@ -1676,6 +1768,102 @@ function escapeHtml(s){
   return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/* ====== Custom styled autocomplete (replaces native <input list> dropdown) ====== */
+let acPanel = null;
+let acCurrentItems = [];
+let acActiveIndex = -1;
+let acActiveInput = null;
+
+function ensureAutocompletePanel(){
+  if (acPanel) return acPanel;
+  acPanel = document.createElement('div');
+  acPanel.className = 'autocomplete-panel';
+  acPanel.id = 'globalAutocompletePanel';
+  document.body.appendChild(acPanel);
+  acPanel.addEventListener('mousedown', (e) => {
+    const item = e.target.closest('.autocomplete-item');
+    if (!item || !acActiveInput) return;
+    e.preventDefault();
+    const idx = Number(item.dataset.idx);
+    const val = acCurrentItems[idx];
+    acActiveInput.value = val;
+    acActiveInput.dispatchEvent(new Event('change', { bubbles:true }));
+    closeAutocomplete();
+  });
+  return acPanel;
+}
+
+function positionAutocompletePanel(input){
+  const rect = input.getBoundingClientRect();
+  acPanel.style.left = rect.left + 'px';
+  acPanel.style.top = (rect.bottom + 4) + 'px';
+  acPanel.style.width = rect.width + 'px';
+}
+
+function openAutocomplete(input, getOptionsFn){
+  ensureAutocompletePanel();
+  acActiveInput = input;
+  const all = getOptionsFn();
+  const filterText = input.value.trim().toLowerCase();
+  const items = filterText
+    ? all.filter(v => v.toLowerCase().includes(filterText))
+    : all;
+  acCurrentItems = items.slice(0, 50);
+  acActiveIndex = -1;
+  acPanel.innerHTML = acCurrentItems.length
+    ? acCurrentItems.map((v,i) => `<div class="autocomplete-item" data-idx="${i}">${escapeHtml(v)}</div>`).join('')
+    : `<div class="autocomplete-empty">ไม่พบรายการ — พิมพ์เพื่อใช้ค่านี้</div>`;
+  positionAutocompletePanel(input);
+  acPanel.classList.add('show');
+}
+
+function closeAutocomplete(){
+  if (acPanel) acPanel.classList.remove('show');
+  acActiveInput = null;
+  acActiveIndex = -1;
+}
+
+function updateAutocompleteActive(){
+  if (!acPanel) return;
+  acPanel.querySelectorAll('.autocomplete-item').forEach((el,i) => {
+    el.classList.toggle('active', i===acActiveIndex);
+    if (i===acActiveIndex) el.scrollIntoView({ block:'nearest' });
+  });
+}
+
+function attachAutocomplete(input, getOptionsFn){
+  input.addEventListener('focus', () => openAutocomplete(input, getOptionsFn));
+  input.addEventListener('input', () => openAutocomplete(input, getOptionsFn));
+  input.addEventListener('blur', () => setTimeout(closeAutocomplete, 120));
+  input.addEventListener('keydown', (e) => {
+    if (!acPanel || !acPanel.classList.contains('show') || acActiveInput !== input) return;
+    if (e.key === 'ArrowDown'){
+      e.preventDefault();
+      acActiveIndex = Math.min(acActiveIndex + 1, acCurrentItems.length - 1);
+      updateAutocompleteActive();
+    } else if (e.key === 'ArrowUp'){
+      e.preventDefault();
+      acActiveIndex = Math.max(acActiveIndex - 1, 0);
+      updateAutocompleteActive();
+    } else if (e.key === 'Enter'){
+      if (acActiveIndex >= 0 && acCurrentItems[acActiveIndex] !== undefined){
+        e.preventDefault();
+        input.value = acCurrentItems[acActiveIndex];
+        input.dispatchEvent(new Event('change', { bubbles:true }));
+        closeAutocomplete();
+      }
+    } else if (e.key === 'Escape'){
+      closeAutocomplete();
+    }
+  });
+  window.addEventListener('resize', () => { if (acActiveInput === input) positionAutocompletePanel(input); });
+}
+
+attachAutocomplete($('ordCustomer'), () => [...new Set(getVisibleCustomers().map(c=>c.name).filter(Boolean))]);
+attachAutocomplete($('ordProduct'), () => [...new Set(getVisibleOrders().map(o=>o.product).filter(Boolean))]);
+attachAutocomplete($('cusName'), () => [...new Set(getVisibleCustomers().map(c=>c.name).filter(Boolean))]);
+attachAutocomplete($('cusType'), () => [...new Set(getVisibleCustomers().map(c=>c.type).filter(Boolean))]);
+
 /* ====== Actions ====== */
 $('dashboardYearFilter').addEventListener('change', (e) => {
   selectedDashboardYear = Number(e.target.value);
@@ -1703,6 +1891,10 @@ $('ordersPageSize').addEventListener('change', () => renderOrders());
 $('ordersSearch').addEventListener('input', () => renderOrders());
 $('ordersStatusFilter').addEventListener('change', () => renderOrders());
 
+$('ordSO').addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/\D/g, '');
+});
+
 $('orderForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const customerName = $('ordCustomer').value.trim();
@@ -1714,7 +1906,7 @@ $('orderForm').addEventListener('submit', async (e) => {
   setSync('saving');
   try{
     await db.collection('orders').add({
-      so: $('ordSO').value.trim(),
+      so: 'SO-' + $('ordSO').value.trim(),
       customer: knownCustomer.name,
       product: $('ordProduct').value.trim(),
       price: Number($('ordPrice').value),
@@ -1831,9 +2023,10 @@ function renderCustomers(){
     return `
     <tr>
       <td>${escapeHtml(c.name)}</td>
-      <td><input type="text" class="inline-input badge-select" list="customerTypeOptions" value="${escapeHtml(currentType)}" onchange="setCustomerField('${c.id}','type',this.value)"></td>
+      <td><input type="text" class="inline-input badge-select js-type-autocomplete" value="${escapeHtml(currentType)}" onchange="setCustomerField('${c.id}','type',this.value)"></td>
       <td>${customerOrderCount(c.name)}</td>
       <td>${fmtMoney(customerOrderAmount(c.name))}</td>
+      ${currentUserRole==='admin' ? `<td>${escapeHtml(getUserDisplayName(c.createdBy))}</td>` : ''}
       <td class="row-actions">
         <button class="icon-btn delete-btn" onclick="deleteCustomer('${c.id}')" title="ลบ">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
@@ -1841,7 +2034,11 @@ function renderCustomers(){
         </button>
       </td>
     </tr>
-  `; }).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีรายชื่อลูกค้า — เพิ่มด้านบนหรือนำเข้าจาก Excel</td></tr>`;
+  `; }).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่มีรายชื่อลูกค้า — เพิ่มด้านบนหรือนำเข้าจาก Excel</td></tr>`;
+
+  document.querySelectorAll('.js-type-autocomplete').forEach(el => {
+    attachAutocomplete(el, () => [...new Set(getVisibleCustomers().map(c=>c.type).filter(Boolean))]);
+  });
 }
 
 async function setCustomerField(id, field, value){
@@ -1932,7 +2129,10 @@ async function setUserField(kind, id, field, value){
       currentUserRole = value;
       updateRoleBadge();
       $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+      $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
+      $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
       if (currentUserRole !== 'admin') showTab('dashboard');
+      render();
     }
     setSync('ok');
   }catch(err){
