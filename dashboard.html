@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แดชบอร์ด — คำสั่งซื้อ &amp; การรับประกัน</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ฟอนต์ Arabica (จาก Canva) — วางไฟล์ฟอนต์ที่คุณมีสิทธิ์ใช้งานไว้ในโฟลเดอร์ ./fonts/
+     แล้วตั้งชื่อไฟล์ตามนี้ (หรือแก้ path ด้านล่างให้ตรงกับไฟล์จริง)
+     หมายเหตุ: Arabica เป็นฟอนต์ละติน ไม่มีตัวอักษรไทย ข้อความไทยจะยังคงใช้ Noto Sans Thai
+     เป็นฟอนต์สำรองโดยอัตโนมัติ ส่วนตัวเลข/ข้อความอังกฤษจะแสดงเป็น Arabica */
+  @font-face{
+    font-family:'FkAmourBold';
+    src:url('FkAmourBold.ttf') format('truetype');
+    font-weight:400;
+    font-style:normal;
+    font-display:swap;
+  }
+  :root{
+    --font-display:'FkAmourBold','Fraunces',serif;
+    --font-body:'FkAmourBold','Noto Sans Thai',sans-serif;
+    --paper: #EDE3D0;
+    --paper-dim: #E0D2B6;
+    --card: #F6F0E3;
+    --ink: #2E2317;
+    --ink-soft: #6E5C46;
+    --line: #C9B893;
+    --accent: #6D7A52;
+    --accent-soft: #DDE1C9;
+    --sun: #B8622F;
+    --sun-soft: #F0DAC9;
+    --danger: #A8442E;
+    --danger-soft: #F1DAD3;
+    --info: #3E7CA6;
+    --info-soft: #D9E8F0;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    line-height:1.5;
+  }
+  .serif{ font-family:var(--font-display); }
+  button{ font-family:inherit; cursor:pointer; }
+  input, select{ font-family:inherit; }
+
+  /* ---- Layout ---- */
+  .app{ display:flex; min-height:100vh; }
+
+  .sidebar{
+    width:240px;
+    flex-shrink:0;
+    background:var(--paper-dim);
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    padding:24px 16px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:var(--font-display);
+    font-size:19px;
+    padding:0 8px 28px;
+  }
+  .brand-mark{
+    width:18px; height:18px;
+    border-radius:5px;
+    background:var(--accent);
+    flex-shrink:0;
+  }
+  .nav-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:11px 12px;
+    border-radius:10px;
+    font-size:14.5px;
+    color:var(--ink-soft);
+    background:none;
+    border:none;
+    width:100%;
+    text-align:left;
+    transition:background .15s ease, color .15s ease;
+  }
+  .nav-item:hover{ background:rgba(0,0,0,0.04); color:var(--ink); }
+  .nav-item.active{ background:var(--card); color:var(--ink); font-weight:500; box-shadow:0 1px 0 var(--line) inset; }
+  .nav-item .dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-soft); flex-shrink:0; }
+  .nav-item.active .dot{ background:var(--accent); }
+
+  .sidebar-footer{
+    margin-top:auto;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .sync-status{ display:flex; align-items:center; gap:8px; padding:0 8px; }
+  .sync-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); }
+  .sync-dot.saving{ background:var(--sun); animation:pulse 1s ease-in-out infinite; }
+  .sync-dot.error{ background:var(--danger); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.4;} }
+
+  .main{
+    flex:1;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:22px 36px;
+    border-bottom:1px solid var(--line);
+  }
+  .topbar h1{ font-family:var(--font-display); font-weight:500; font-size:24px; }
+  .topbar-sub{ font-size:13px; color:var(--ink-soft); margin-top:4px; }
+
+  .user-box{ display:flex; align-items:center; gap:12px; }
+  .user-avatar{ width:32px; height:32px; border-radius:50%; }
+  .user-email{ font-size:13px; color:var(--ink-soft); }
+
+  .btn{
+    padding:10px 18px;
+    border-radius:100px;
+    border:1px solid var(--ink);
+    background:var(--ink);
+    color:var(--paper);
+    font-size:13.5px;
+    font-weight:500;
+    transition:opacity .15s ease;
+  }
+  .btn:hover{ opacity:.85; }
+  .btn.outline{ background:transparent; color:var(--ink); }
+  .btn.outline:hover{ background:rgba(0,0,0,0.04); }
+  .btn.danger{ border-color:var(--danger); background:transparent; color:var(--danger); }
+  .btn.danger:hover{ background:var(--danger-soft); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+  .content{ padding:32px 36px; flex:1; overflow-y:auto; }
+
+  /* ---- Gate (signed out) ---- */
+  .gate{
+    max-width:420px;
+    margin:80px auto;
+    text-align:center;
+  }
+  .gate h2{ font-family:var(--font-display); font-weight:500; font-size:26px; margin-bottom:12px; }
+  .gate p{ color:var(--ink-soft); font-size:14.5px; margin-bottom:28px; }
+  #gsi-btn-container{ display:flex; justify-content:center; }
+
+  /* ---- Dashboard toolbar & sub-tabs ---- */
+  .dash-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-bottom:20px;
+  }
+  .subtabs{ display:flex; gap:8px; flex-wrap:wrap; }
+  .subtab-item{
+    padding:9px 18px;
+    border-radius:100px;
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--ink-soft);
+    font-size:13.5px;
+    font-weight:500;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .subtab-item:hover{ border-color:var(--accent); color:var(--ink); }
+  .subtab-item.active{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+
+  /* ---- Stat cards ---- */
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:16px;
+    margin-bottom:32px;
+  }
+  .stat-grid.mixed{ grid-template-columns:repeat(7,1fr); }
+  .stat-grid.mixed .stat-card{ grid-column:span 2; }
+  .stat-grid.mixed .stat-card.small{ grid-column:span 1; }
+  .stat-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  .stat-card[style*="cursor:pointer"]:hover{ border-color:var(--accent); transform:translateY(-1px); }
+  .stat-label{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .stat-value{ font-family:var(--font-display); font-size:28px; font-weight:500; }
+  .stat-grid.mixed .stat-card.small .stat-value{ font-size:22px; }
+  .stat-sub{ font-size:12px; color:var(--accent); margin-top:6px; }
+  .period-indicator{
+    font-size:12.5px;
+    color:var(--accent);
+    font-weight:500;
+    margin-bottom:14px;
+  }
+
+  @media (max-width:900px){
+    .stat-grid{ grid-template-columns:repeat(2,1fr); }
+    .stat-grid.mixed{ grid-template-columns:repeat(4,1fr); }
+    .stat-grid.mixed .stat-card{ grid-column:span 2; }
+    .stat-grid.mixed .stat-card.small{ grid-column:span 1; }
+  }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:24px;
+    margin-bottom:24px;
+  }
+  .panel-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:20px;
+  }
+  .panel-head h3{ font-family:var(--font-display); font-weight:500; font-size:17px; }
+
+  /* ---- Bar chart (CSS only) ---- */
+  .bars{
+    display:flex;
+    align-items:flex-end;
+    gap:10px;
+    height:180px;
+    padding-top:10px;
+  }
+  .bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end; cursor:pointer; }
+  .bar-col:hover .bar{ opacity:0.85; }
+  .bar{
+    width:100%;
+    max-width:36px;
+    background:var(--accent);
+    border-radius:6px 6px 0 0;
+    min-height:3px;
+    transition:height .3s ease, background-color .2s ease, opacity .2s ease;
+  }
+  .bar.dim{ background:var(--line); }
+  .bar-label{ font-size:11px; color:var(--ink-soft); }
+  .bar-label.dim-text{ color:var(--line); }
+  .bar-amount{ font-size:9.5px; color:var(--ink-soft); opacity:0.7; margin-top:-4px; white-space:nowrap; }
+  .bar-amount.dim-text{ color:var(--line); }
+
+  /* ---- Tables ---- */
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th{
+    text-align:left;
+    font-weight:500;
+    color:var(--ink-soft);
+    font-size:12px;
+    padding:8px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+
+  .badge{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:100px;
+    font-size:11.5px;
+    font-weight:500;
+  }
+  .badge.active{ background:var(--accent-soft); color:var(--accent); }
+  select.inline-input.badge-select{
+    background:var(--accent-soft);
+    color:var(--accent);
+    border:1px solid transparent;
+    border-radius:100px;
+    padding:4px 10px;
+    font-weight:500;
+    font-size:12.5px;
+    width:auto;
+  }
+  select.inline-input.badge-select:hover{ border-color:var(--accent); background:var(--accent-soft); }
+  .badge.expired{ background:var(--danger-soft); color:var(--danger); }
+  .badge.claimed{ background:var(--sun-soft); color:var(--sun); }
+  .badge.pending{ background:var(--sun-soft); color:var(--sun); }
+  .badge.done{ background:var(--accent-soft); color:var(--accent); }
+  .badge.cancelled{ background:var(--danger-soft); color:var(--danger); }
+
+  .inline-input{
+    width:100%;
+    min-width:80px;
+    padding:6px 4px;
+    border:1px solid transparent;
+    border-radius:6px;
+    background:transparent;
+    font-size:13.5px;
+    color:var(--ink);
+    font-family:inherit;
+    display:block;
+  }
+  .inline-input:hover{ border-color:var(--line); background:var(--paper); }
+  .inline-input:focus{ border-color:var(--accent); background:var(--paper); outline:none; }
+  .inline-input.po-filled{ background:var(--accent-soft); border-color:var(--accent); }
+  .inline-input.po-filled:hover{ background:var(--accent-soft); }
+  select.inline-input.status-pending{ background:var(--info-soft); border-color:var(--info); color:var(--ink); }
+  select.inline-input.status-done{ background:var(--accent-soft); border-color:var(--accent); color:var(--ink); }
+  select.inline-input.status-cancelled{ background:var(--danger-soft); border-color:var(--danger); color:var(--ink); }
+
+  .badge-count{
+    display:inline-block;
+    background:var(--sun-soft);
+    color:var(--sun);
+    font-size:11px;
+    font-weight:600;
+    padding:1px 7px;
+    border-radius:100px;
+    margin-left:4px;
+    vertical-align:middle;
+  }
+  .badge-count.neutral{ background:var(--accent-soft); color:var(--accent); }
+
+  .row-actions{ display:flex; gap:8px; }
+  .icon-btn{
+    background:none; border:none; color:var(--ink-soft);
+    font-size:12.5px; padding:4px 8px; border-radius:6px;
+  }
+  .icon-btn:hover{ background:rgba(0,0,0,0.05); color:var(--ink); }
+
+  .delete-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    color:var(--danger);
+    font-weight:600;
+    font-size:11px;
+    letter-spacing:0.03em;
+  }
+  .delete-btn:hover{ background:var(--danger-soft); color:var(--danger); }
+  .delete-btn svg{ flex-shrink:0; }
+
+  .empty-row{ text-align:center; color:var(--ink-soft); padding:32px 0; font-size:13.5px; }
+
+  .pagination{
+    display:flex;
+    justify-content:center;
+    gap:6px;
+    margin-top:18px;
+    flex-wrap:wrap;
+  }
+  .page-btn{
+    min-width:32px;
+    padding:6px 10px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--ink-soft);
+    font-size:13px;
+    font-weight:500;
+  }
+  .page-btn:hover{ border-color:var(--accent); color:var(--ink); }
+  .page-btn.active{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+
+  /* ---- Forms ---- */
+  .form-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+    margin-bottom:16px;
+  }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12px; color:var(--ink-soft); }
+  .field input, .field select{
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:var(--paper);
+    font-size:13.5px;
+    color:var(--ink);
+  }
+  .field input:focus, .field select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+
+  @media (max-width:760px){
+    .sidebar{ display:none; }
+    .form-grid{ grid-template-columns:1fr 1fr; }
+    .stat-grid{ grid-template-columns:1fr 1fr; }
+  }
+
+  .toast{
+    position:fixed;
+    bottom:24px; right:24px;
+    background:var(--ink);
+    color:var(--paper);
+    padding:12px 20px;
+    border-radius:10px;
+    font-size:13px;
+    opacity:0;
+    transform:translateY(8px);
+    transition:opacity .25s ease, transform .25s ease;
+    pointer-events:none;
+    z-index:100;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  /* ---- Alert banner (warranty expiring soon) ---- */
+  .alert-banner{
+    background:var(--sun-soft);
+    border:1px solid var(--sun);
+    color:var(--sun);
+    border-radius:12px;
+    padding:14px 18px;
+    font-size:13.5px;
+    margin-bottom:24px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .alert-banner b{ color:var(--ink); }
+
+  .badge.soon{ background:var(--sun-soft); color:var(--sun); }
+  .countdown{ font-size:12.5px; color:var(--ink-soft); }
+  .countdown.soon{ color:var(--sun); font-weight:500; }
+  .countdown.expired{ color:var(--danger); font-weight:500; }
+
+  /* ---- Import modal ---- */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(46,35,23,0.45);
+    display:flex; align-items:center; justify-content:center;
+    z-index:200;
+    padding:20px;
+  }
+  .modal{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:28px;
+    width:100%;
+    max-width:560px;
+  }
+  .import-map-row{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px;
+    padding:8px 0;
+    border-bottom:1px solid var(--line);
+    font-size:13px;
+  }
+  .import-map-row select{
+    padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+    background:var(--paper); font-size:13px; color:var(--ink);
+  }
+  .modal-actions{
+    display:flex; justify-content:flex-end; gap:10px;
+    margin-top:20px;
+  }
+</style>
+</head>
+<body>
+
+<div id="app" class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar" style="display:none;">
+    <div class="brand"><span class="brand-mark"></span>BU-ABB</div>
+    <button class="nav-item active" data-tab="dashboard"><span class="dot"></span>แดชบอร์ด</button>
+    <button class="nav-item" data-tab="orders"><span class="dot"></span>คำสั่งซื้อ</button>
+    <button class="nav-item" data-tab="warranty"><span class="dot"></span>การรับประกัน</button>
+    <button class="nav-item" data-tab="customers"><span class="dot"></span>รายชื่อลูกค้า</button>
+    <div class="sidebar-footer">
+      <div class="sync-status"><span class="sync-dot" id="syncDot"></span><span id="syncText">ซิงก์แล้ว</span></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="pageTitle">BU-ABB</h1>
+        <div class="topbar-sub" id="pageSub">สรุปคำสั่งซื้อและการรับประกันทั้งหมด</div>
+      </div>
+      <div class="user-box" id="userBox" style="display:none;">
+        <img class="user-avatar" id="userAvatar" src="" alt="">
+        <span class="user-email" id="userEmail"></span>
+        <button class="btn outline" id="signOutBtn">ออกจากระบบ</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Sign-in gate -->
+      <div class="gate" id="gate">
+        <h2 class="serif">เชื่อมต่อ Google Drive</h2>
+        <p>ลงชื่อเข้าใช้ด้วย Google เพื่อบันทึกและซิงก์ข้อมูลคำสั่งซื้อกับการรับประกันไปยัง Drive ของคุณ ไฟล์ข้อมูลจะถูกสร้างขึ้นในไดรฟ์ของคุณเองเท่านั้น</p>
+        <div id="gsi-btn-container"></div>
+        <p style="margin-top:24px; font-size:12.5px;">ยังไม่ได้ตั้งค่า Client ID? แก้ไขตัวแปร <code>GOOGLE_CLIENT_ID</code> ในไฟล์นี้ก่อนใช้งาน</p>
+      </div>
+
+      <!-- Dashboard tab -->
+      <div id="tab-dashboard" class="tab-panel" style="display:none;">
+        <div class="dash-toolbar">
+          <div class="subtabs">
+            <button class="subtab-item active" data-dashsub="all">สรุปรวม</button>
+            <button class="subtab-item" data-dashsub="orders">สรุปคำสั่งซื้อ</button>
+            <button class="subtab-item" data-dashsub="shipped">สรุปการส่งสินค้า</button>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <select id="dashboardYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
+            <button class="btn outline" id="dashboardClearBtn" type="button">เคลียร์ตัวกรอง</button>
+          </div>
+        </div>
+
+        <div class="alert-banner" id="dashboardAlert" style="display:none;"></div>
+
+        <!-- สรุปรวม: all orders regardless of status -->
+        <div id="dashSub-all" class="dash-subpanel">
+          <div class="period-indicator" id="periodIndicator_all"></div>
+          <div class="stat-grid mixed">
+            <div class="stat-card">
+              <div class="stat-label">คำสั่งซื้อทั้งหมด</div>
+              <div class="stat-value" id="statTotalOrders_all">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">ยอดขายรวม</div>
+              <div class="stat-value" id="statRevenue_all">฿0</div>
+            </div>
+            <div class="stat-card small" id="statActiveWarrantyCard" style="cursor:pointer;" title="ไปที่หน้าการรับประกัน">
+              <div class="stat-label">รับประกันที่ใช้งานอยู่</div>
+              <div class="stat-value" id="statActiveWarranty">0</div>
+            </div>
+            <div class="stat-card small">
+              <div class="stat-label">ใบเสนอราคา</div>
+              <div class="stat-value" id="statPending">0</div>
+            </div>
+            <div class="stat-card small">
+              <div class="stat-label">ยกเลิกคำสั่งซื้อ</div>
+              <div class="stat-value" id="statCancelled_all">0</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>คำสั่งซื้อรายเดือน</h3></div>
+            <div class="bars" id="monthlyBars_all"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>คำสั่งซื้อล่าสุด</h3><span class="badge-count neutral" id="monthFilterBadge_all" style="display:none; cursor:pointer;" title="คลิกเพื่อล้างตัวกรองเดือน" onclick="clearDashboardMonth('all')"></span></div>
+            <table>
+              <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>วันที่สั่งซื้อ</th><th>ยอดเงิน</th><th>สถานะ</th></tr></thead>
+              <tbody id="recentOrdersBody_all"></tbody>
+            </table>
+            <div class="pagination" id="recentPagination_all"></div>
+          </div>
+        </div>
+
+        <!-- สรุปคำสั่งซื้อ: all orders except cancelled -->
+        <div id="dashSub-orders" class="dash-subpanel" style="display:none;">
+          <div class="period-indicator" id="periodIndicator_orders"></div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-label">คำสั่งซื้อ (ไม่รวมยกเลิก)</div>
+              <div class="stat-value" id="statTotalOrders_orders">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">ยอดขายรวม</div>
+              <div class="stat-value" id="statRevenue_orders">฿0</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>คำสั่งซื้อรายเดือน</h3></div>
+            <div class="bars" id="monthlyBars_orders"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>คำสั่งซื้อล่าสุด</h3><span class="badge-count neutral" id="monthFilterBadge_orders" style="display:none; cursor:pointer;" title="คลิกเพื่อล้างตัวกรองเดือน" onclick="clearDashboardMonth('orders')"></span></div>
+            <table>
+              <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>วันที่สั่งซื้อ</th><th>ยอดเงิน</th><th>สถานะ</th></tr></thead>
+              <tbody id="recentOrdersBody_orders"></tbody>
+            </table>
+            <div class="pagination" id="recentPagination_orders"></div>
+          </div>
+        </div>
+
+        <!-- สรุปการส่งสินค้า: only status = done (Complete) -->
+        <div id="dashSub-shipped" class="dash-subpanel" style="display:none;">
+          <div class="period-indicator" id="periodIndicator_shipped"></div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-label">คำสั่งซื้อที่จัดส่งแล้ว</div>
+              <div class="stat-value" id="statTotalOrders_shipped">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">ยอดขายรวม</div>
+              <div class="stat-value" id="statRevenue_shipped">฿0</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>คำสั่งซื้อรายเดือน</h3></div>
+            <div class="bars" id="monthlyBars_shipped"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>คำสั่งซื้อล่าสุด</h3><span class="badge-count neutral" id="monthFilterBadge_shipped" style="display:none; cursor:pointer;" title="คลิกเพื่อล้างตัวกรองเดือน" onclick="clearDashboardMonth('shipped')"></span></div>
+            <table>
+              <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>วันที่สั่งซื้อ</th><th>ยอดเงิน</th><th>สถานะ</th></tr></thead>
+              <tbody id="recentOrdersBody_shipped"></tbody>
+            </table>
+            <div class="pagination" id="recentPagination_shipped"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orders tab -->
+      <div id="tab-orders" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head"><h3>เพิ่มคำสั่งซื้อใหม่</h3></div>
+          <form id="orderForm">
+            <div class="form-grid">
+              <div class="field"><label>เลขที่ใบเสนอราคา (SO)</label><input type="text" id="ordSO" placeholder="บังคับ" required></div>
+              <div class="field"><label>ชื่อลูกค้า</label><input type="text" id="ordCustomer" list="customerOptions" autocomplete="off" placeholder="พิมพ์เพื่อค้นหาจากรายชื่อลูกค้า" required></div>
+              <div class="field"><label>สินค้า</label><input type="text" id="ordProduct" list="productOptions" autocomplete="off" placeholder="ABB, Philips, Socomec" required></div>
+              <div class="field"><label>ราคารวม (บาท)</label><input type="number" id="ordPrice" min="0" step="0.01" required></div>
+              <div class="field"><label>วันที่สั่งซื้อ</label><input type="date" id="ordDate" required></div>
+              <div class="field"><label>สถานะ</label>
+                <select id="ordStatus">
+                  <option value="pending">PENDING</option>
+                  <option value="done">COMPLETE</option>
+                  <option value="cancelled">CANCELLED</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn">บันทึกคำสั่งซื้อ</button>
+          </form>
+          <datalist id="customerOptions"></datalist>
+          <datalist id="customerTypeOptions"></datalist>
+          <datalist id="productOptions"></datalist>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>รายการคำสั่งซื้อทั้งหมด <span class="badge-count neutral" id="ordersTotalCount" style="display:none;"></span></h3>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <input type="text" id="ordersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า, SO, PO" style="border-color:var(--line); background:var(--paper); width:200px; padding:8px 12px;">
+              <select id="ordersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
+              <select id="ordersStatusFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+                <option value="all">ทุกสถานะ</option>
+                <option value="pending">PENDING</option>
+                <option value="done">COMPLETE</option>
+                <option value="cancelled">CANCELLED</option>
+              </select>
+              <select id="ordersPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+                <option value="20">แสดง 20</option>
+                <option value="50">แสดง 50</option>
+                <option value="100">แสดง 100</option>
+              </select>
+              <button class="btn outline" id="downloadReportBtn" type="button">ดาวน์โหลดรายงาน</button>
+              <button class="btn outline" id="importExcelBtn">นำเข้าจาก Excel</button>
+              <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+            </div>
+          </div>
+          <table>
+            <thead><tr><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th></tr></thead>
+            <tbody id="ordersBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Warranty tab -->
+      <div id="tab-warranty" class="tab-panel" style="display:none;">
+        <div class="alert-banner" id="warrantyAlert" style="display:none;"></div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>รายการรับประกันทั้งหมด <span class="badge-count neutral" id="warrantyTotalCount" style="display:none;"></span></h3>
+            <select id="warrantyPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+              <option value="20">แสดง 20</option>
+              <option value="50">แสดง 50</option>
+              <option value="100">แสดง 100</option>
+            </select>
+          </div>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">แสดงเฉพาะคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน — นับประกันมาตรฐาน 12 เดือนจากวันที่ส่งสินค้า แก้ระยะเวลาและประเภทได้ในตาราง</p>
+          <table>
+            <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>PO</th><th>ส่งสินค้า</th><th>ประเภทการรับประกัน</th><th>ระยะเวลา (เดือน)</th><th>หมดอายุ</th><th>เหลือเวลา</th><th>สถานะ</th><th>หมายเหตุ</th><th></th></tr></thead>
+            <tbody id="warrantyBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Customer list tab -->
+      <div id="tab-customers" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head"><h3>เพิ่มลูกค้าใหม่</h3></div>
+          <form id="customerForm">
+            <div class="form-grid">
+              <div class="field"><label>ชื่อลูกค้า</label><input type="text" id="cusName" list="customerOptions" autocomplete="off" required></div>
+              <div class="field">
+                <label>ประเภทลูกค้า</label>
+                <input type="text" id="cusType" list="customerTypeOptions" autocomplete="off" placeholder="ประเภทกิจการ เช่น โรงงาน, ตัวแทนจำหน่าย" required>
+              </div>
+            </div>
+            <button type="submit" class="btn">บันทึกลูกค้า</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>รายชื่อลูกค้าทั้งหมด <span class="badge-count neutral" id="customersTotalCount" style="display:none;"></span></h3>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <input type="text" id="customersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า" style="border-color:var(--line); background:var(--paper); width:200px; padding:8px 12px;">
+              <select id="customersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
+              <select id="customersPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+                <option value="20">แสดง 20</option>
+                <option value="50">แสดง 50</option>
+                <option value="100">แสดง 100</option>
+              </select>
+              <a class="btn outline" id="downloadCustomerTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
+              <button class="btn outline" id="importCustomerBtn" type="button">นำเข้าจาก Excel</button>
+            </div>
+          </div>
+          <table>
+            <thead><tr><th>ชื่อลูกค้า</th><th>ประเภทลูกค้า</th><th>จำนวนคำสั่งซื้อ</th><th>จำนวนเงิน</th><th></th></tr></thead>
+            <tbody id="customersBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+<!-- Excel import mapping modal -->
+<div class="modal-overlay" id="importModal" style="display:none;">
+  <div class="modal">
+    <h3 class="serif" style="font-size:18px; margin-bottom:6px;">นำเข้าข้อมูลจาก Excel</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px;">จับคู่คอลัมน์ในไฟล์กับข้อมูลของระบบ แล้วกดนำเข้า</p>
+    <div id="importMappingRows" style="display:flex; flex-direction:column; gap:10px; max-height:320px; overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn outline" id="importCancelBtn" type="button">ยกเลิก</button>
+      <button class="btn" id="importConfirmBtn" type="button">นำเข้า (<span id="importRowCount">0</span> แถว)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report download modal -->
+<div class="modal-overlay" id="reportModal" style="display:none;">
+  <div class="modal">
+    <h3 class="serif" style="font-size:18px; margin-bottom:6px;">ดาวน์โหลดรายงานคำสั่งซื้อ</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px;">เลือกช่วงเวลาที่ต้องการออกรายงาน</p>
+    <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="field">
+        <label>ประเภท</label>
+        <select id="reportType">
+          <option value="month">รายเดือน</option>
+          <option value="year">รายปี</option>
+        </select>
+      </div>
+      <div class="field" id="reportMonthField">
+        <label>เดือน</label>
+        <input type="month" id="reportMonth">
+      </div>
+      <div class="field" id="reportYearField" style="display:none;">
+        <label>ปี</label>
+        <select id="reportYear"></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn outline" id="reportCancelBtn" type="button">ยกเลิก</button>
+      <button class="btn" id="reportDownloadBtn" type="button">ดาวน์โหลด</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== CONFIG — ใส่ Client ID ของคุณตรงนี้ ====== */
+const GOOGLE_CLIENT_ID = "832076884710-gpoa15mg8ff3pmrp5mf3lesh2g44n16c.apps.googleusercontent.com";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const DATA_FILENAME = "order-dashboard-data.json";
+
+/* ====== State ====== */
+let accessToken = null;
+let fileId = null;
+let data = { orders: [], warranties: [], customers: [] };
+let saveTimer = null;
+
+const $ = (id) => document.getElementById(id);
+
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2400);
+}
+
+function setSync(state){
+  const dot = $('syncDot'); const text = $('syncText');
+  dot.className = 'sync-dot' + (state==='saving' ? ' saving' : state==='error' ? ' error' : '');
+  text.textContent = state==='saving' ? 'กำลังบันทึก...' : state==='error' ? 'บันทึกไม่สำเร็จ' : 'ซิงก์แล้ว';
+}
+
+/* ====== Google Identity Services sign-in ====== */
+let tokenClient;
+window.addEventListener('load', () => {
+  if (typeof google === 'undefined') return;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: DRIVE_SCOPE,
+    callback: async (resp) => {
+      if (resp.error) { toast('เข้าสู่ระบบไม่สำเร็จ'); return; }
+      accessToken = resp.access_token;
+      await onSignedIn();
+    }
+  });
+
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: () => {}
+  });
+
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.textContent = 'ลงชื่อเข้าใช้ด้วย Google';
+  btn.onclick = () => tokenClient.requestAccessToken();
+  $('gsi-btn-container').appendChild(btn);
+});
+
+$('signOutBtn').addEventListener('click', () => {
+  if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
+  accessToken = null; fileId = null;
+  data = { orders: [], warranties: [], customers: [] };
+  $('gate').style.display = 'block';
+  $('sidebar').style.display = 'none';
+  $('userBox').style.display = 'none';
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+});
+
+async function onSignedIn(){
+  $('gate').style.display = 'none';
+  $('sidebar').style.display = 'flex';
+  $('userBox').style.display = 'flex';
+  await fetchProfile();
+  await loadOrCreateFile();
+  refreshDatalists();
+  refreshOrdersYearFilter();
+  refreshDashboardYearFilter();
+  refreshCustomersYearFilter();
+  render();
+  showTab('dashboard');
+}
+
+async function fetchProfile(){
+  try{
+    const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const p = await res.json();
+    $('userEmail').textContent = p.email || '';
+    $('userAvatar').src = p.picture || '';
+  }catch(e){ /* non-critical */ }
+}
+
+/* ====== Drive file handling ====== */
+async function loadOrCreateFile(){
+  setSync('saving');
+  try{
+    const q = encodeURIComponent(`name='${DATA_FILENAME}' and trashed=false`);
+    const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const listJson = await listRes.json();
+
+    if (listJson.files && listJson.files.length > 0){
+      fileId = listJson.files[0].id;
+      const getRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      data = await getRes.json();
+      if (!data.orders) data.orders = [];
+      if (!data.warranties) data.warranties = [];
+      if (!data.customers) data.customers = [];
+    } else {
+      data = { orders: [], warranties: [], customers: [] };
+      const metadata = { name: DATA_FILENAME, mimeType: 'application/json' };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
+      form.append('file', new Blob([JSON.stringify(data)], {type:'application/json'}));
+      const createRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+        method:'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form
+      });
+      const created = await createRes.json();
+      fileId = created.id;
+    }
+    setSync('ok');
+  }catch(e){
+    setSync('error');
+    toast('โหลดข้อมูลจาก Drive ไม่สำเร็จ');
+  }
+}
+
+function queueSave(){
+  setSync('saving');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToDrive, 700);
+}
+
+async function saveToDrive(){
+  if (!fileId){ setSync('error'); return; }
+  try{
+    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+      method:'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type':'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    setSync('ok');
+  }catch(e){
+    setSync('error');
+    toast('บันทึกไปยัง Drive ไม่สำเร็จ');
+  }
+}
+
+/* ====== Tabs ====== */
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => showTab(btn.dataset.tab));
+});
+
+const titles = {
+  dashboard: ['แดชบอร์ดประจำปี','สรุปคำสั่งซื้อและการรับประกันทั้งหมด'],
+  orders: ['คำสั่งซื้อ','บันทึกและติดตามคำสั่งซื้อทั้งหมด'],
+  warranty: ['การรับประกัน','ติดตามสถานะการรับประกันสินค้า'],
+  customers: ['รายชื่อลูกค้า','ข้อมูลลูกค้าและจำนวนคำสั่งซื้อที่จัดส่งแล้ว']
+};
+
+function showTab(tab){
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  $(`tab-${tab}`).style.display = 'block';
+  $('pageTitle').textContent = titles[tab][0];
+  $('pageSub').textContent = titles[tab][1];
+  if (tab==='dashboard') renderDashboard();
+  if (tab==='customers') renderCustomers();
+}
+
+/* ====== Rendering ====== */
+function fmtMoney(n){ return '฿' + Number(n||0).toLocaleString('th-TH', {maximumFractionDigits:0}); }
+function fmtDate(d){ if(!d) return '-'; const dt = new Date(d); return dt.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'}); }
+function addMonths(dateStr, months){ const d = new Date(dateStr); d.setMonth(d.getMonth()+Number(months)); return d.toISOString().slice(0,10); }
+
+/* ---- Warranty helpers (auto-derived from orders with shipDate + PO) ---- */
+function isWarrantyCandidate(o){ return !!(o.shipDate && o.po); }
+function warrantyMonthsOf(o){ return o.warrantyMonths ?? 12; }
+function warrantyExpiry(o){ return addMonths(o.shipDate, warrantyMonthsOf(o)); }
+function warrantyDaysLeft(o){
+  const exp = warrantyExpiry(o);
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.round((new Date(exp) - today) / 86400000);
+}
+function warrantyDisplayStatus(o){
+  if (o.warrantyClaimed) return 'claimed';
+  const days = warrantyDaysLeft(o);
+  if (days < 0) return 'expired';
+  if (days <= 30) return 'soon';
+  return 'active';
+}
+function warrantyCountdownText(o){
+  const status = warrantyDisplayStatus(o);
+  if (status==='claimed') return 'เคลมแล้ว';
+  const days = warrantyDaysLeft(o);
+  if (days < 0) return `หมดอายุแล้ว ${Math.abs(days)} วัน`;
+  if (days === 0) return 'หมดอายุวันนี้';
+  return `เหลือ ${days} วัน`;
+}
+
+function refreshDatalists(){
+  const customers = [...new Set((data.customers||[]).map(c=>c.name).filter(Boolean))];
+  const products = [...new Set(data.orders.map(o=>o.product).filter(Boolean))];
+  $('customerOptions').innerHTML = customers.map(c=>`<option value="${escapeHtml(c)}">`).join('');
+  $('productOptions').innerHTML = products.map(p=>`<option value="${escapeHtml(p)}">`).join('');
+  const types = [...new Set((data.customers||[]).map(c=>c.type).filter(Boolean))];
+  $('customerTypeOptions').innerHTML = types.map(t=>`<option value="${escapeHtml(t)}">`).join('');
+}
+
+function renderAlerts(){
+  const soon = data.orders.filter(o => isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='soon');
+  const banners = [$('warrantyAlert'), $('dashboardAlert')].filter(Boolean);
+  banners.forEach(el=>{
+    if (soon.length){
+      el.style.display = 'flex';
+      el.innerHTML = `🔔 <span><b>มีคำสั่งจำนวน ${soon.length} กำลังจะหมดประกัน</b> (ภายใน 30 วัน)</span>`;
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+function render(){
+  renderDashboard();
+  renderOrders();
+  renderWarranty();
+  renderCustomers();
+}
+
+let selectedDashboardYear = new Date().getFullYear();
+
+function refreshDashboardYearFilter(){
+  const years = [...new Set(data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
+  const currentYear = new Date().getFullYear();
+  if (!years.includes(currentYear)) years.push(currentYear);
+  years.sort((a,b) => b-a);
+  if (!years.includes(selectedDashboardYear)) selectedDashboardYear = currentYear;
+  const sel = $('dashboardYearFilter');
+  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedDashboardYear?'selected':''}>ปี ${y+543}</option>`).join('');
+}
+
+document.querySelectorAll('.subtab-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.subtab-item').forEach(b => b.classList.toggle('active', b===btn));
+    document.querySelectorAll('.dash-subpanel').forEach(p => p.style.display = 'none');
+    $(`dashSub-${btn.dataset.dashsub}`).style.display = 'block';
+  });
+});
+
+let selectedDashboardMonth = { all: null, orders: null, shipped: null };
+let dashboardRecentPage = { all: 1, orders: 1, shipped: 1 };
+const RECENT_PAGE_SIZE = 10;
+
+function selectDashboardMonth(suffix, idx){
+  selectedDashboardMonth[suffix] = (selectedDashboardMonth[suffix] === idx) ? null : idx;
+  dashboardRecentPage[suffix] = 1;
+  renderDashboard();
+}
+function clearDashboardMonth(suffix){
+  selectedDashboardMonth[suffix] = null;
+  dashboardRecentPage[suffix] = 1;
+  renderDashboard();
+}
+function goToDashboardPage(suffix, page){
+  dashboardRecentPage[suffix] = page;
+  renderDashboard();
+}
+
+const monthShortLabels = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+function renderDashboardSection(suffix, orders){
+  const selMonth = selectedDashboardMonth[suffix];
+  const hasSelection = selMonth !== null && selMonth !== undefined;
+  const displayOrders = hasSelection
+    ? orders.filter(o => o.date && new Date(o.date).getMonth() === selMonth)
+    : orders;
+
+  $(`statTotalOrders_${suffix}`).textContent = displayOrders.length;
+  $(`statRevenue_${suffix}`).textContent = fmtMoney(displayOrders.reduce((s,o)=>s+Number(o.price||0),0));
+
+  const cancelledEl = $(`statCancelled_${suffix}`);
+  if (cancelledEl){
+    cancelledEl.textContent = displayOrders.filter(o=>o.status==='cancelled').length;
+  }
+
+  const periodEl = $(`periodIndicator_${suffix}`);
+  if (periodEl){
+    periodEl.textContent = hasSelection
+      ? `กำลังแสดง: เดือน${monthShortLabels[selMonth]} ปี ${selectedDashboardYear+543}`
+      : `กำลังแสดง: ทั้งปี ${selectedDashboardYear+543}`;
+  }
+
+  // Monthly bars — all 12 months of the selected year, with per-month sales amount
+  const months = [];
+  for(let m=0; m<12; m++){
+    months.push({ label: monthShortLabels[m], count:0, amount:0 });
+  }
+  orders.forEach(o=>{
+    if(!o.date) return;
+    const d = new Date(o.date);
+    if (d.getFullYear() !== selectedDashboardYear) return;
+    const m = months[d.getMonth()];
+    m.count++;
+    m.amount += Number(o.price||0);
+  });
+  const max = Math.max(1, ...months.map(m=>m.count));
+
+  $(`monthlyBars_${suffix}`).innerHTML = months.map((m, idx) => {
+    const isSelected = selMonth === idx;
+    const dim = hasSelection && !isSelected;
+    return `
+    <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)}">
+      <div class="bar ${dim ? 'dim' : ''}" style="height:${(m.count/max*100) || 2}%"></div>
+      <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
+      <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
+    </div>
+  `; }).join('');
+
+  const filterBadge = $(`monthFilterBadge_${suffix}`);
+  if (hasSelection){
+    filterBadge.textContent = `${monthShortLabels[selMonth]} ✕`;
+    filterBadge.style.display = 'inline-block';
+  } else {
+    filterBadge.style.display = 'none';
+  }
+
+  const sortedRecent = [...displayOrders].sort((a,b)=> new Date(b.date)-new Date(a.date));
+
+  const totalPages = Math.max(1, Math.ceil(sortedRecent.length / RECENT_PAGE_SIZE));
+  if (dashboardRecentPage[suffix] > totalPages) dashboardRecentPage[suffix] = totalPages;
+  if (dashboardRecentPage[suffix] < 1) dashboardRecentPage[suffix] = 1;
+  const page = dashboardRecentPage[suffix];
+  const startIdx = (page - 1) * RECENT_PAGE_SIZE;
+  const pageItems = sortedRecent.slice(startIdx, startIdx + RECENT_PAGE_SIZE);
+
+  $(`recentOrdersBody_${suffix}`).innerHTML = pageItems.length ? pageItems.map(o=>`
+    <tr>
+      <td>${escapeHtml(o.customer)}</td>
+      <td>${escapeHtml(o.product)}</td>
+      <td>${fmtDate(o.date)}</td>
+      <td>${fmtMoney(o.price)}</td>
+      <td><span class="badge ${o.status}">${orderStatusLabel[o.status] || o.status}</span></td>
+    </tr>
+  `).join('') : `<tr><td colspan="5" class="empty-row">${hasSelection ? `ไม่มีคำสั่งซื้อในเดือน ${monthShortLabels[selMonth]}` : `ไม่มีคำสั่งซื้อในปี ${selectedDashboardYear+543}`}</td></tr>`;
+
+  const paginationEl = $(`recentPagination_${suffix}`);
+  if (totalPages <= 1){
+    paginationEl.innerHTML = '';
+  } else {
+    let btns = '';
+    for (let p = 1; p <= totalPages; p++){
+      btns += `<button class="page-btn ${p===page?'active':''}" onclick="goToDashboardPage('${suffix}', ${p})">${p}</button>`;
+    }
+    paginationEl.innerHTML = btns;
+  }
+}
+
+function renderDashboard(){
+  const yearOrders = data.orders.filter(o => o.date && new Date(o.date).getFullYear() === selectedDashboardYear);
+  const ordersSet = yearOrders.filter(o => o.status !== 'cancelled');
+  const shippedSet = yearOrders.filter(o => o.status === 'done');
+
+  const allSelMonth = selectedDashboardMonth.all;
+  const allHasSelection = allSelMonth !== null && allSelMonth !== undefined;
+  const pendingBase = allHasSelection
+    ? yearOrders.filter(o => o.date && new Date(o.date).getMonth() === allSelMonth)
+    : yearOrders;
+
+  // Active warranty count is always global — not affected by the dashboard's year or month filter
+  const activeWarranty = data.orders.filter(o=>isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='active').length;
+  $('statActiveWarranty').textContent = activeWarranty;
+  $('statPending').textContent = pendingBase.filter(o=>o.status==='pending').length;
+  renderAlerts();
+
+  renderDashboardSection('all', yearOrders);
+  renderDashboardSection('orders', ordersSet);
+  renderDashboardSection('shipped', shippedSet);
+}
+
+const orderStatusLabel = { pending:'PENDING', done:'COMPLETE', cancelled:'CANCELLED' };
+let selectedOrdersYear = new Date().getFullYear();
+
+function refreshOrdersYearFilter(){
+  const years = [...new Set(data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
+  const currentYear = new Date().getFullYear();
+  if (!years.includes(currentYear)) years.push(currentYear);
+  years.sort((a,b) => b-a);
+  if (!years.includes(selectedOrdersYear)) selectedOrdersYear = currentYear;
+  const sel = $('ordersYearFilter');
+  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedOrdersYear?'selected':''}>ปี ${y+543}</option>`).join('');
+}
+
+function renderOrders(){
+  const body = $('ordersBody');
+  const searchTerm = ($('ordersSearch').value || '').trim().toLowerCase();
+  const statusFilter = $('ordersStatusFilter').value;
+  let list = data.orders
+    .filter(o => o.date && new Date(o.date).getFullYear() === selectedOrdersYear)
+    .sort((a,b)=> new Date(b.date)-new Date(a.date));
+
+  if (statusFilter !== 'all'){
+    list = list.filter(o => o.status === statusFilter);
+  }
+
+  if (searchTerm){
+    list = list.filter(o =>
+      (o.customer||'').toLowerCase().includes(searchTerm) ||
+      (o.so||'').toLowerCase().includes(searchTerm) ||
+      (o.po||'').toLowerCase().includes(searchTerm)
+    );
+  }
+
+  const totalBadge = $('ordersTotalCount');
+  if (list.length){
+    totalBadge.textContent = `(${list.length})`;
+    totalBadge.style.display = 'inline-block';
+  } else {
+    totalBadge.style.display = 'none';
+  }
+
+  const emptyPoCount = list.filter(o => !o.po).length;
+  const poBadge = $('poEmptyBadge');
+  if (emptyPoCount > 0){
+    poBadge.textContent = `(${emptyPoCount})`;
+    poBadge.style.display = 'inline-block';
+  } else {
+    poBadge.style.display = 'none';
+  }
+
+  const pageSize = Number($('ordersPageSize').value) || 20;
+  const pagedList = list.slice(0, pageSize);
+
+  body.innerHTML = pagedList.length ? pagedList.map(o => {
+    const poCell = o.po
+      ? `<input type="text" class="inline-input po-filled" value="${escapeHtml(o.po)}" onchange="setOrderField('${o.id}','po',this.value)">`
+      : `<input type="text" class="inline-input" value="" placeholder="กรอก PO" onchange="setOrderField('${o.id}','po',this.value)">`;
+    return `
+    <tr>
+      <td>${escapeHtml(o.so||'-')}</td>
+      <td>${escapeHtml(o.customer)}</td>
+      <td>${escapeHtml(o.product)}</td>
+      <td>${fmtMoney(o.price)}</td>
+      <td>${poCell}</td>
+      <td>${fmtDate(o.date)}</td>
+      <td><input type="date" class="inline-input" value="${o.shipDate || ''}" onchange="setOrderField('${o.id}','shipDate',this.value)"></td>
+      <td>
+        <select class="inline-input status-${o.status}" onchange="setOrderField('${o.id}','status',this.value)">
+          <option value="pending" ${o.status==='pending'?'selected':''}>PENDING</option>
+          <option value="done" ${o.status==='done'?'selected':''}>COMPLETE</option>
+          <option value="cancelled" ${o.status==='cancelled'?'selected':''}>CANCELLED</option>
+        </select>
+      </td>
+      <td class="row-actions">
+        <button class="icon-btn delete-btn" onclick="deleteOrder('${o.id}')" title="ลบ">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          DELETE
+        </button>
+      </td>
+    </tr>
+  `; }).join('') : `<tr><td colspan="10" class="empty-row">ไม่มีคำสั่งซื้อในปี ${selectedOrdersYear+543} — เพิ่มรายการหรือเปลี่ยนปีที่เลือก</td></tr>`;
+}
+
+const warrantyStatusLabel = { active:'ใช้งานอยู่', soon:'ใกล้หมดอายุ', claimed:'เคลมแล้ว', expired:'หมดอายุ' };
+const warrantyTypeOptions = ['สั่งซื้อใหม่','งานซ่อม','งานบำรุงรักษา'];
+
+function renderWarranty(){
+  const body = $('warrantyBody');
+  const list = data.orders.filter(isWarrantyCandidate).sort((a,b)=> warrantyDaysLeft(a) - warrantyDaysLeft(b));
+
+  const warrantyTotalBadge = $('warrantyTotalCount');
+  if (list.length){
+    warrantyTotalBadge.textContent = `(${list.length})`;
+    warrantyTotalBadge.style.display = 'inline-block';
+  } else {
+    warrantyTotalBadge.style.display = 'none';
+  }
+
+  const pageSize = Number($('warrantyPageSize').value) || 20;
+  const pagedList = list.slice(0, pageSize);
+  body.innerHTML = pagedList.length ? pagedList.map(o => {
+    const status = warrantyDisplayStatus(o);
+    const countdownClass = status==='soon' ? 'soon' : status==='expired' ? 'expired' : '';
+    const typeVal = o.warrantyType || warrantyTypeOptions[0];
+    const typeOpts = warrantyTypeOptions.map(t=>`<option value="${t}" ${t===typeVal?'selected':''}>${t}</option>`).join('');
+    return `
+    <tr>
+      <td>${escapeHtml(o.customer)}</td>
+      <td>${escapeHtml(o.product)}</td>
+      <td>${escapeHtml(o.po)}</td>
+      <td>${fmtDate(o.shipDate)}</td>
+      <td><select class="inline-input" onchange="setOrderField('${o.id}','warrantyType',this.value)">${typeOpts}</select></td>
+      <td><input type="number" min="1" class="inline-input" value="${warrantyMonthsOf(o)}" onchange="setOrderField('${o.id}','warrantyMonths',this.value)"></td>
+      <td>${fmtDate(warrantyExpiry(o))}</td>
+      <td><span class="countdown ${countdownClass}">${warrantyCountdownText(o)}</span></td>
+      <td><span class="badge ${status}">${warrantyStatusLabel[status]}</span></td>
+      <td><input type="text" class="inline-input" value="${escapeHtml(o.warrantyNotes||'')}" placeholder="หมายเหตุ" onchange="setOrderField('${o.id}','warrantyNotes',this.value)"></td>
+      <td class="row-actions">
+        ${status!=='claimed'
+          ? `<button class="icon-btn" onclick="setOrderField('${o.id}','warrantyClaimed',true)">เคลม</button>`
+          : `<button class="icon-btn" onclick="setOrderField('${o.id}','warrantyClaimed',false)">ยกเลิกเคลม</button>`}
+      </td>
+    </tr>
+  `; }).join('') : `<tr><td colspan="11" class="empty-row">ยังไม่มีคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน</td></tr>`;
+}
+
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ====== Actions ====== */
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+$('dashboardYearFilter').addEventListener('change', (e) => {
+  selectedDashboardYear = Number(e.target.value);
+  dashboardRecentPage = { all: 1, orders: 1, shipped: 1 };
+  renderDashboard();
+});
+
+$('dashboardClearBtn').addEventListener('click', () => {
+  selectedDashboardYear = new Date().getFullYear();
+  selectedDashboardMonth = { all: null, orders: null, shipped: null };
+  dashboardRecentPage = { all: 1, orders: 1, shipped: 1 };
+  refreshDashboardYearFilter();
+  renderDashboard();
+  toast('เคลียร์ตัวกรองแล้ว');
+});
+
+$('statActiveWarrantyCard').addEventListener('click', () => showTab('warranty'));
+
+$('ordersYearFilter').addEventListener('change', (e) => {
+  selectedOrdersYear = Number(e.target.value);
+  renderOrders();
+});
+
+$('ordersPageSize').addEventListener('change', () => renderOrders());
+$('ordersSearch').addEventListener('input', () => renderOrders());
+$('ordersStatusFilter').addEventListener('change', () => renderOrders());
+
+$('orderForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const customerName = $('ordCustomer').value.trim();
+  const knownCustomer = (data.customers||[]).find(c => c.name.trim().toLowerCase() === customerName.toLowerCase());
+  if (!knownCustomer){
+    toast('ไม่พบชื่อลูกค้านี้ในรายชื่อลูกค้า — กรุณาเพิ่มลูกค้าที่หน้า "รายชื่อลูกค้า" ก่อน');
+    return;
+  }
+  data.orders.push({
+    id: uid(),
+    so: $('ordSO').value.trim(),
+    customer: knownCustomer.name,
+    product: $('ordProduct').value.trim(),
+    price: Number($('ordPrice').value),
+    date: $('ordDate').value,
+    shipDate: null,
+    status: $('ordStatus').value,
+    po: '',
+    gp: null
+  });
+  e.target.reset();
+  refreshDatalists();
+  refreshOrdersYearFilter();
+  refreshDashboardYearFilter();
+  refreshCustomersYearFilter();
+  renderOrders(); renderWarranty(); renderDashboard(); queueSave();
+  toast('บันทึกคำสั่งซื้อแล้ว');
+});
+
+const NUMERIC_ORDER_FIELDS = ['gp', 'warrantyMonths'];
+$('warrantyPageSize').addEventListener('change', () => renderWarranty());
+
+function setOrderField(id, field, value){
+  const o = data.orders.find(o=>o.id===id);
+  if (!o) return;
+  o[field] = NUMERIC_ORDER_FIELDS.includes(field) ? (value === '' ? null : Number(value)) : value;
+  renderOrders();
+  renderWarranty();
+  renderDashboard();
+  queueSave();
+}
+function deleteOrder(id){
+  data.orders = data.orders.filter(o=>o.id!==id);
+  refreshDatalists();
+  refreshOrdersYearFilter();
+  refreshDashboardYearFilter();
+  refreshCustomersYearFilter();
+  renderOrders(); renderWarranty(); renderDashboard(); queueSave();
+}
+
+/* ====== Customer list ====== */
+let selectedCustomersYear = new Date().getFullYear();
+
+function refreshCustomersYearFilter(){
+  const years = [...new Set(data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
+  const currentYear = new Date().getFullYear();
+  if (!years.includes(currentYear)) years.push(currentYear);
+  years.sort((a,b) => b-a);
+  if (!years.includes(selectedCustomersYear)) selectedCustomersYear = currentYear;
+  const sel = $('customersYearFilter');
+  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedCustomersYear?'selected':''}>ปี ${y+543}</option>`).join('');
+}
+
+function customerOrdersInYear(customerName){
+  const key = customerName.trim().toLowerCase();
+  return data.orders.filter(o =>
+    o.customer.trim().toLowerCase()===key &&
+    o.date && new Date(o.date).getFullYear() === selectedCustomersYear
+  );
+}
+function customerOrderCount(customerName){
+  return customerOrdersInYear(customerName).length;
+}
+function customerOrderAmount(customerName){
+  return customerOrdersInYear(customerName)
+    .filter(o => o.status !== 'cancelled')
+    .reduce((sum,o) => sum + Number(o.price||0), 0);
+}
+
+function renderCustomers(){
+  const body = $('customersBody');
+  const searchTerm = ($('customersSearch').value || '').trim().toLowerCase();
+  let list = [...data.customers].sort((a,b)=> a.name.localeCompare(b.name,'th'));
+
+  if (searchTerm){
+    list = list.filter(c => c.name.toLowerCase().includes(searchTerm));
+  }
+
+  const customersTotalBadge = $('customersTotalCount');
+  if (list.length){
+    customersTotalBadge.textContent = `(${list.length})`;
+    customersTotalBadge.style.display = 'inline-block';
+  } else {
+    customersTotalBadge.style.display = 'none';
+  }
+
+  const pageSize = Number($('customersPageSize').value) || 20;
+  const pagedList = list.slice(0, pageSize);
+
+  body.innerHTML = pagedList.length ? pagedList.map(c => {
+    const currentType = c.type || 'ลูกค้าทั่วไป';
+    return `
+    <tr>
+      <td>${escapeHtml(c.name)}</td>
+      <td><input type="text" class="inline-input badge-select" list="customerTypeOptions" value="${escapeHtml(currentType)}" onchange="setCustomerField('${c.id}','type',this.value)"></td>
+      <td>${customerOrderCount(c.name)}</td>
+      <td>${fmtMoney(customerOrderAmount(c.name))}</td>
+      <td class="row-actions">
+        <button class="icon-btn delete-btn" onclick="deleteCustomer('${c.id}')" title="ลบ">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          DELETE
+        </button>
+      </td>
+    </tr>
+  `; }).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีรายชื่อลูกค้า — เพิ่มด้านบนหรือนำเข้าจาก Excel</td></tr>`;
+}
+
+function setCustomerField(id, field, value){
+  const c = data.customers.find(c=>c.id===id);
+  if (!c) return;
+  c[field] = value;
+  refreshDatalists();
+  renderCustomers();
+  queueSave();
+}
+
+$('customersYearFilter').addEventListener('change', (e) => {
+  selectedCustomersYear = Number(e.target.value);
+  renderCustomers();
+});
+
+$('customersPageSize').addEventListener('change', () => renderCustomers());
+$('customersSearch').addEventListener('input', () => renderCustomers());
+
+$('customerForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = $('cusName').value.trim();
+  const type = $('cusType').value.trim() || 'ลูกค้าทั่วไป';
+  if (!name) return;
+  const existing = data.customers.find(c => c.name.trim().toLowerCase()===name.toLowerCase());
+  if (existing){
+    existing.type = type;
+    toast('อัปเดตประเภทลูกค้าที่มีอยู่แล้ว');
+
+  } else {
+    data.customers.push({ id: uid(), name, type });
+    toast('เพิ่มลูกค้าใหม่แล้ว');
+  }
+  e.target.reset();
+  refreshDatalists();
+  renderCustomers(); queueSave();
+});
+
+function deleteCustomer(id){
+  data.customers = data.customers.filter(c=>c.id!==id);
+  refreshDatalists();
+  renderCustomers(); queueSave();
+}
+
+$('downloadCustomerTemplateBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  const rows = [
+    ['ชื่อลูกค้า','ประเภทลูกค้า'],
+
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch:28 }, { wch:20 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'รายชื่อลูกค้า');
+  XLSX.writeFile(wb, 'customer-list-template.xlsx');
+});
+
+/* ====== Excel import (shared by Orders and Customer list) ====== */
+const IMPORT_FIELD_SETS = {
+  orders: {
+    skip: 'ข้าม', so: 'เลขที่ SO', customer: 'ชื่อลูกค้า', product: 'สินค้า',
+    price: 'ราคารวม', po: 'เลขที่ PO',
+    date: 'วันที่สั่งซื้อ', shipDate: 'วันที่ส่งสินค้า', status: 'สถานะ'
+  },
+  customers: {
+    skip: 'ข้าม', name: 'ชื่อลูกค้า', type: 'ประเภทลูกค้า'
+  }
+};
+let importTarget = 'orders';
+let importRows = [];
+let importHeaders = [];
+
+$('importExcelBtn').addEventListener('click', () => { importTarget = 'orders'; $('importFileInput').click(); });
+$('importCustomerBtn').addEventListener('click', () => { importTarget = 'customers'; $('importFileInput').click(); });
+
+$('importFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try{
+      const wb = XLSX.read(ev.target.result, { type:'binary', cellDates:true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(sheet, { defval:'' });
+      if (!json.length){ toast('ไม่พบข้อมูลในไฟล์'); return; }
+      importRows = json;
+      importHeaders = Object.keys(json[0]);
+      renderImportMapping();
+      $('importModal').style.display = 'flex';
+    }catch(err){
+      toast('อ่านไฟล์ไม่สำเร็จ — ตรวจสอบว่าเป็นไฟล์ Excel/CSV ที่ถูกต้อง');
+    }
+    $('importFileInput').value = '';
+  };
+  reader.readAsBinaryString(file);
+});
+
+function guessImportField(header){
+  const h = header.toLowerCase();
+  if (importTarget === 'customers'){
+    if (/ประเภท|type|กลุ่ม|group/.test(h)) return 'type';
+    if (/ชื่อ|ลูกค้า|customer|name/.test(h)) return 'name';
+    return 'skip';
+  }
+  if (/ลูกค้า|customer|name/.test(h)) return 'customer';
+  if (/สินค้า|product|item/.test(h)) return 'product';
+  if (/^so\b|เสนอราคา/.test(h)) return 'so';
+  if (/^po\b|ใบสั่งซื้อ/.test(h)) return 'po';
+  if (/ราคา|price|amount|total|ยอด/.test(h)) return 'price';
+  if (/ส่ง|ship/.test(h)) return 'shipDate';
+  if (/วันที่|date|order/.test(h)) return 'date';
+  if (/สถานะ|status/.test(h)) return 'status';
+  return 'skip';
+}
+
+function renderImportMapping(){
+  const fields = IMPORT_FIELD_SETS[importTarget];
+  $('importMappingRows').innerHTML = importHeaders.map(h => {
+    const guess = guessImportField(h);
+    const options = Object.entries(fields).map(([val,label]) =>
+      `<option value="${val}" ${val===guess?'selected':''}>${label}</option>`).join('');
+    return `<div class="import-map-row">
+      <span>${escapeHtml(h)}</span>
+      <select class="import-map-select" data-header="${escapeHtml(h)}">${options}</select>
+    </div>`;
+  }).join('');
+  $('importRowCount').textContent = importRows.length;
+}
+
+function parseImportDate(v){
+  if (!v) return null;
+  if (v instanceof Date) return v.toISOString().slice(0,10);
+  const d = new Date(v);
+  return isNaN(d) ? null : d.toISOString().slice(0,10);
+}
+
+function normalizeImportStatus(v){
+  const s = String(v||'').toLowerCase();
+  if (/จัดส่ง|done|shipped|complete/.test(s)) return 'done';
+  return 'pending';
+}
+
+function normalizeCustomerType(v){
+  const s = String(v||'').trim();
+  return s || 'ลูกค้าทั่วไป';
+}
+
+$('importCancelBtn').addEventListener('click', () => {
+  $('importModal').style.display = 'none';
+  importRows = []; importHeaders = [];
+});
+
+$('importConfirmBtn').addEventListener('click', () => {
+  const mapping = {};
+  document.querySelectorAll('.import-map-select').forEach(sel => {
+    if (sel.value !== 'skip') mapping[sel.value] = sel.dataset.header;
+  });
+
+  if (importTarget === 'customers'){
+    let added = 0, updated = 0;
+    importRows.forEach(row => {
+      const name = String(row[mapping.name] ?? '').trim();
+      if (!name) return;
+      const type = mapping.type ? normalizeCustomerType(row[mapping.type]) : 'ลูกค้าทั่วไป';
+      const existing = data.customers.find(c => c.name.trim().toLowerCase()===name.toLowerCase());
+      if (existing){ existing.type = type; updated++; }
+      else { data.customers.push({ id: uid(), name, type }); added++; }
+    });
+    $('importModal').style.display = 'none';
+    importRows = []; importHeaders = [];
+    refreshDatalists();
+    renderCustomers(); queueSave();
+    toast(`นำเข้าลูกค้าใหม่ ${added} ราย อัปเดต ${updated} ราย`);
+    return;
+  }
+
+  const newOrders = importRows.map(row => ({
+    id: uid(),
+    so: String(row[mapping.so] ?? '').trim(),
+    customer: String(row[mapping.customer] ?? '').trim(),
+    product: String(row[mapping.product] ?? '').trim(),
+    price: Number(row[mapping.price]) || 0,
+    po: String(row[mapping.po] ?? '').trim(),
+    gp: mapping.gp && row[mapping.gp] !== '' ? Number(row[mapping.gp]) : null,
+    date: parseImportDate(row[mapping.date]) || new Date().toISOString().slice(0,10),
+    shipDate: parseImportDate(row[mapping.shipDate]),
+    status: mapping.status ? normalizeImportStatus(row[mapping.status]) : 'done'
+  })).filter(o => o.customer || o.product);
+
+  data.orders.push(...newOrders);
+  $('importModal').style.display = 'none';
+  importRows = []; importHeaders = [];
+  refreshDatalists();
+  refreshOrdersYearFilter();
+  refreshDashboardYearFilter();
+  refreshCustomersYearFilter();
+  renderOrders(); renderDashboard(); queueSave();
+  toast(`นำเข้า ${newOrders.length} รายการสำเร็จ`);
+});
+
+/* ====== Order report download (by month or year) ====== */
+$('downloadReportBtn').addEventListener('click', () => {
+  const years = [...new Set(data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))].sort((a,b)=>b-a);
+  const currentYear = new Date().getFullYear();
+  if (!years.includes(currentYear)) years.unshift(currentYear);
+  $('reportYear').innerHTML = years.map(y => `<option value="${y}">${y+543}</option>`).join('');
+
+  const now = new Date();
+  $('reportMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  $('reportType').value = 'month';
+  $('reportMonthField').style.display = 'flex';
+  $('reportYearField').style.display = 'none';
+  $('reportModal').style.display = 'flex';
+});
+
+$('reportType').addEventListener('change', (e) => {
+  const isMonth = e.target.value === 'month';
+  $('reportMonthField').style.display = isMonth ? 'flex' : 'none';
+  $('reportYearField').style.display = isMonth ? 'none' : 'flex';
+});
+
+$('reportCancelBtn').addEventListener('click', () => { $('reportModal').style.display = 'none'; });
+
+$('reportDownloadBtn').addEventListener('click', () => {
+  const type = $('reportType').value;
+  let filtered, label;
+
+  if (type === 'month'){
+    const val = $('reportMonth').value;
+    if (!val){ toast('กรุณาเลือกเดือน'); return; }
+    const [y, m] = val.split('-').map(Number);
+    filtered = data.orders.filter(o => {
+      if (!o.date) return false;
+      const d = new Date(o.date);
+      return d.getFullYear()===y && (d.getMonth()+1)===m;
+    });
+    label = `${y}-${String(m).padStart(2,'0')}`;
+  } else {
+    const y = Number($('reportYear').value);
+    filtered = data.orders.filter(o => o.date && new Date(o.date).getFullYear()===y);
+    label = `${y}`;
+  }
+
+  if (!filtered.length){ toast('ไม่พบคำสั่งซื้อในช่วงเวลาที่เลือก'); return; }
+
+  const rows = filtered
+    .sort((a,b)=> new Date(a.date) - new Date(b.date))
+    .map(o => ({
+      'SO': o.so || '',
+      'PO': o.po || '',
+      'ชื่อลูกค้า': o.customer,
+      'สินค้า': o.product,
+      'ยอดเงิน': o.price,
+      'วันที่สั่งซื้อ': o.date,
+      'วันที่ส่งสินค้า': o.shipDate || '',
+      'สถานะ': orderStatusLabel[o.status] || o.status
+    }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'คำสั่งซื้อ');
+  XLSX.writeFile(wb, `order-report-${label}.xlsx`);
+  $('reportModal').style.display = 'none';
+  toast('ดาวน์โหลดรายงานแล้ว');
+});
+</script>
+</body>
+</html>
