@@ -489,6 +489,7 @@
       <div class="user-box" id="userBox" style="display:none;">
         <img class="user-avatar" id="userAvatar" src="" alt="" onerror="this.style.display='none';" onload="this.style.display='';">
         <span class="user-email" id="userEmail"></span>
+        <span class="badge-count neutral" id="userRoleBadge"></span>
         <button class="btn outline" id="signOutBtn">ออกจากระบบ</button>
       </div>
     </div>
@@ -865,6 +866,18 @@ async function onSignedIn(){
   showTab('dashboard');
 }
 
+function updateRoleBadge(){
+  const badge = $('userRoleBadge');
+  if (!badge) return;
+  if (currentUserRole === 'admin'){
+    badge.textContent = 'ผู้ดูแลระบบ';
+    badge.className = 'badge-count';
+  } else {
+    badge.textContent = 'ผู้ใช้งานทั่วไป';
+    badge.className = 'badge-count neutral';
+  }
+}
+
 function resolveUserRole(){
   if (!data.users) data.users = [];
   let entry = data.users.find(u => u.email === currentUserEmail);
@@ -875,6 +888,7 @@ function resolveUserRole(){
     queueSave();
   }
   currentUserRole = entry.role;
+  updateRoleBadge();
 }
 
 function getVisibleOrders(){
@@ -1536,6 +1550,7 @@ function setUserRole(email, role){
   u.role = role;
   if (email === currentUserEmail){
     currentUserRole = role;
+    updateRoleBadge();
     $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
     if (currentUserRole !== 'admin'){
       showTab('dashboard');
