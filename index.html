@@ -314,10 +314,10 @@
     display:flex;
     align-items:flex-end;
     gap:10px;
-    height:180px;
+    height:200px;
     padding-top:10px;
   }
-  .bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end; cursor:pointer; }
+  .bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; height:100%; justify-content:flex-end; cursor:pointer; }
   .bar-col:hover .bar{ opacity:0.85; }
   .bar{
     width:100%;
@@ -328,10 +328,20 @@
     transition:height .3s ease, background-color .2s ease, opacity .2s ease;
   }
   .bar.dim{ background:var(--line); }
-  .bar-label{ font-size:11px; color:var(--ink-soft); }
+  .bar-label{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
   .bar-label.dim-text{ color:var(--line); }
-  .bar-amount{ font-size:9.5px; color:var(--ink-soft); opacity:0.7; margin-top:-4px; white-space:nowrap; }
+  .bar-amount{ font-size:9.5px; color:var(--ink-soft); opacity:0.7; white-space:nowrap; }
   .bar-amount.dim-text{ color:var(--line); }
+  .bar-gp{
+    font-size:9px;
+    font-weight:600;
+    color:var(--sun);
+    background:var(--sun-soft);
+    padding:1px 6px;
+    border-radius:100px;
+    white-space:nowrap;
+  }
+  .bar-gp.dim-text{ color:var(--ink-soft); background:transparent; }
 
   /* ---- Tables ---- */
   table{ width:100%; border-collapse:collapse; font-size:13.5px; }
@@ -493,10 +503,8 @@
   }
   .field input:focus, .field select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
 
-  .autocomplete-wrap input{
-    padding:13px 14px;
-    font-size:15px;
-  }
+  .autocomplete-wrap{ width:100%; }
+  .autocomplete-wrap input{ width:100%; }
 
   .locked-input-group{
     display:flex;
@@ -726,11 +734,11 @@
               <div class="stat-label">รับประกันที่ใช้งานอยู่</div>
               <div class="stat-value" id="statActiveWarranty">0</div>
             </div>
-            <div class="stat-card small">
+            <div class="stat-card small" id="statPendingCard" style="cursor:pointer;" title="ไปที่หน้าคำสั่งซื้อ (กรองรอดำเนินการ)">
               <div class="stat-label">ใบเสนอราคา</div>
               <div class="stat-value" id="statPending">0</div>
             </div>
-            <div class="stat-card small">
+            <div class="stat-card small" id="statCancelledCard" style="cursor:pointer;" title="ไปที่หน้ายกเลิกการสั่งซื้อ">
               <div class="stat-label">ยกเลิกคำสั่งซื้อ</div>
               <div class="stat-value" id="statCancelled_all">0</div>
             </div>
@@ -833,7 +841,22 @@
           <div class="panel-head">
             <h3>รายการคำสั่งซื้อทั้งหมด <span class="badge-count neutral" id="ordersTotalCount" style="display:none;"></span></h3>
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <input type="text" id="ordersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า, SO, PO" style="border-color:var(--line); background:var(--paper); width:200px; padding:8px 12px;">
+              <input type="text" id="ordersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า, สินค้า, SO, PO" style="border-color:var(--line); background:var(--paper); width:220px; padding:8px 12px;">
+              <select id="ordersMonthFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+                <option value="all">ทุกเดือน</option>
+                <option value="0">ม.ค.</option>
+                <option value="1">ก.พ.</option>
+                <option value="2">มี.ค.</option>
+                <option value="3">เม.ย.</option>
+                <option value="4">พ.ค.</option>
+                <option value="5">มิ.ย.</option>
+                <option value="6">ก.ค.</option>
+                <option value="7">ส.ค.</option>
+                <option value="8">ก.ย.</option>
+                <option value="9">ต.ค.</option>
+                <option value="10">พ.ย.</option>
+                <option value="11">ธ.ค.</option>
+              </select>
               <select id="ordersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
               <select id="ordersCreatorFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px; display:none;">
                 <option value="all">ทุกคนที่สร้าง</option>
@@ -1251,6 +1274,20 @@ function getUserDisplayName(uid){
   return u.name || u.email || uid;
 }
 
+function getUserInitials(uid){
+  if (!uid) return '-';
+  const u = (data.users||[]).find(u => u.id === uid);
+  if (!u) return uid;
+  const source = (u.name || u.email || '').trim();
+  if (!source) return uid;
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2){
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  // single word (e.g. an email or one-word name) — use first two letters
+  return source.slice(0, 2).toUpperCase();
+}
+
 /* ====== Firestore realtime sync ====== */
 function attachRealtimeListeners(){
   const loaded = { orders:false, customers:false, users:false, pendingRoles:false };
@@ -1485,10 +1522,10 @@ function renderDashboardSection(suffix, orders){
       : `กำลังแสดง: ทั้งปี ${selectedDashboardYear+543}`;
   }
 
-  // Monthly bars — all 12 months of the selected year, with per-month sales amount
+  // Monthly bars — all 12 months of the selected year, with per-month sales amount and profit
   const months = [];
   for(let m=0; m<12; m++){
-    months.push({ label: monthShortLabels[m], count:0, amount:0 });
+    months.push({ label: monthShortLabels[m], count:0, amount:0, gp:0 });
   }
   orders.forEach(o=>{
     if(!o.date) return;
@@ -1497,6 +1534,7 @@ function renderDashboardSection(suffix, orders){
     const m = months[d.getMonth()];
     m.count++;
     m.amount += Number(o.price||0);
+    m.gp += Number(o.gp||0);
   });
   const max = Math.max(1, ...months.map(m=>m.count));
 
@@ -1506,10 +1544,11 @@ function renderDashboardSection(suffix, orders){
     const dim = hasSelection && !isSelected;
     const targetHeight = (m.count/max*100) || 2;
     return `
-    <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)} (คลิกเพื่อเลือกหลายเดือน)">
+    <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)} / กำไร ${fmtMoney(m.gp)} (คลิกเพื่อเลือกหลายเดือน)">
       <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
       <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
       <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
+      <div class="bar-gp ${dim ? 'dim-text' : ''}">กำไร ${fmtMoney(m.gp)}</div>
     </div>
   `; }).join('');
   requestAnimationFrame(() => {
@@ -1607,6 +1646,7 @@ function renderOrders(){
   const body = $('ordersBody');
   const searchTerm = ($('ordersSearch').value || '').trim().toLowerCase();
   const statusFilter = $('ordersStatusFilter').value;
+  const monthFilter = $('ordersMonthFilter').value;
   let list = getVisibleOrders()
     .filter(o => o.status !== 'cancelled')
     .filter(o => o.date && new Date(o.date).getFullYear() === selectedOrdersYear)
@@ -1614,6 +1654,10 @@ function renderOrders(){
 
   if (statusFilter !== 'all'){
     list = list.filter(o => o.status === statusFilter);
+  }
+
+  if (monthFilter !== 'all'){
+    list = list.filter(o => o.date && new Date(o.date).getMonth() === Number(monthFilter));
   }
 
   if (currentUserRole === 'admin'){
@@ -1626,6 +1670,7 @@ function renderOrders(){
   if (searchTerm){
     list = list.filter(o =>
       (o.customer||'').toLowerCase().includes(searchTerm) ||
+      (o.product||'').toLowerCase().includes(searchTerm) ||
       (o.so||'').toLowerCase().includes(searchTerm) ||
       (o.po||'').toLowerCase().includes(searchTerm)
     );
@@ -1669,7 +1714,7 @@ function renderOrders(){
           ${o.status==='pending' ? 'PENDING' : 'COMPLETE'}
         </button>
       </td>
-      ${currentUserRole==='admin' ? `<td>${escapeHtml(getUserDisplayName(o.createdBy))}</td>` : ''}
+      ${currentUserRole==='admin' ? `<td title="${escapeHtml(getUserDisplayName(o.createdBy))}">${escapeHtml(getUserInitials(o.createdBy))}</td>` : ''}
       <td class="row-actions">
         ${o.status!=='cancelled' ? `<button class="icon-btn cancel-btn" onclick="cancelOrder('${o.id}')" title="ยกเลิกคำสั่งซื้อ">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"></line></svg>
@@ -1908,6 +1953,12 @@ $('dashboardClearBtn').addEventListener('click', () => {
 });
 
 $('statActiveWarrantyCard').addEventListener('click', () => showTab('warranty'));
+$('statPendingCard').addEventListener('click', () => {
+  showTab('orders');
+  $('ordersStatusFilter').value = 'pending';
+  renderOrders();
+});
+$('statCancelledCard').addEventListener('click', () => showTab('cancelled'));
 
 $('ordersYearFilter').addEventListener('change', (e) => {
   selectedOrdersYear = Number(e.target.value);
@@ -1917,6 +1968,7 @@ $('ordersYearFilter').addEventListener('change', (e) => {
 $('ordersPageSize').addEventListener('change', () => renderOrders());
 $('ordersSearch').addEventListener('input', () => renderOrders());
 $('ordersStatusFilter').addEventListener('change', () => renderOrders());
+$('ordersMonthFilter').addEventListener('change', () => renderOrders());
 $('ordersCreatorFilter').addEventListener('change', () => renderOrders());
 
 $('ordSO').addEventListener('input', (e) => {
@@ -2071,7 +2123,7 @@ function renderCustomers(){
       <td><input type="text" class="inline-input badge-select js-type-autocomplete" value="${escapeHtml(currentType)}" onchange="setCustomerField('${c.id}','type',this.value)"></td>
       <td>${customerOrderCount(c.name)}</td>
       <td>${fmtMoney(customerOrderAmount(c.name))}</td>
-      ${currentUserRole==='admin' ? `<td>${escapeHtml(getUserDisplayName(c.createdBy))}</td>` : ''}
+      ${currentUserRole==='admin' ? `<td title="${escapeHtml(getUserDisplayName(c.createdBy))}">${escapeHtml(getUserInitials(c.createdBy))}</td>` : ''}
       <td class="row-actions">
         <button class="icon-btn delete-btn" onclick="deleteCustomer('${c.id}')" title="ลบ">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
