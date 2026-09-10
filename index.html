@@ -474,6 +474,7 @@
     <button class="nav-item" data-tab="orders"><span class="dot"></span>คำสั่งซื้อ</button>
     <button class="nav-item" data-tab="warranty"><span class="dot"></span>การรับประกัน</button>
     <button class="nav-item" data-tab="customers"><span class="dot"></span>รายชื่อลูกค้า</button>
+    <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><span class="dot"></span>ผู้ใช้งาน</button>
     <div class="sidebar-footer">
       <div class="sync-status"><span class="sync-dot" id="syncDot"></span><span id="syncText">ซิงก์แล้ว</span></div>
     </div>
@@ -726,6 +727,18 @@
         </div>
       </div>
 
+      <!-- Users tab (admin only) -->
+      <div id="tab-users" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head"><h3>ผู้ใช้งานทั้งหมด</h3></div>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">เมื่อมีคนล็อกอินเข้าเว็บนี้ครั้งแรก ชื่อจะขึ้นในลิสต์นี้อัตโนมัติ (เริ่มต้นเป็น "ผู้ใช้งานทั่วไป") — เปลี่ยนเป็น "ผู้ดูแลระบบ" เพื่อให้เห็นข้อมูลของทุกคน</p>
+          <table>
+            <thead><tr><th>อีเมล</th><th>สิทธิ์การใช้งาน</th></tr></thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+      </div>
+
 <!-- Excel import mapping modal -->
 <div class="modal-overlay" id="importModal" style="display:none;">
   <div class="modal">
@@ -773,14 +786,16 @@
 <script>
 /* ====== CONFIG — ใส่ Client ID ของคุณตรงนี้ ====== */
 const GOOGLE_CLIENT_ID = "832076884710-gpoa15mg8ff3pmrp5mf3lesh2g44n16c.apps.googleusercontent.com";
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
 const DATA_FILENAME = "order-dashboard-data.json";
 
 /* ====== State ====== */
 let accessToken = null;
 let fileId = null;
-let data = { orders: [], warranties: [], customers: [] };
+let data = { orders: [], warranties: [], customers: [], users: [] };
 let saveTimer = null;
+let currentUserEmail = null;
+let currentUserRole = 'user';
 
 const $ = (id) => document.getElementById(id);
 
@@ -826,7 +841,8 @@ window.addEventListener('load', () => {
 $('signOutBtn').addEventListener('click', () => {
   if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
   accessToken = null; fileId = null;
-  data = { orders: [], warranties: [], customers: [] };
+  currentUserEmail = null; currentUserRole = 'user';
+  data = { orders: [], warranties: [], customers: [], users: [] };
   $('gate').style.display = 'block';
   $('sidebar').style.display = 'none';
   $('userBox').style.display = 'none';
@@ -839,6 +855,8 @@ async function onSignedIn(){
   $('userBox').style.display = 'flex';
   await fetchProfile();
   await loadOrCreateFile();
+  resolveUserRole();
+  $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
   refreshDatalists();
   refreshOrdersYearFilter();
   refreshDashboardYearFilter();
@@ -847,12 +865,32 @@ async function onSignedIn(){
   showTab('dashboard');
 }
 
+function resolveUserRole(){
+  if (!data.users) data.users = [];
+  let entry = data.users.find(u => u.email === currentUserEmail);
+  if (!entry){
+    const role = data.users.length === 0 ? 'admin' : 'user';
+    entry = { email: currentUserEmail, role };
+    data.users.push(entry);
+    queueSave();
+  }
+  currentUserRole = entry.role;
+}
+
+function getVisibleOrders(){
+  return currentUserRole === 'admin' ? data.orders : data.orders.filter(o => o.createdBy === currentUserEmail);
+}
+function getVisibleCustomers(){
+  return currentUserRole === 'admin' ? data.customers : data.customers.filter(c => c.createdBy === currentUserEmail);
+}
+
 async function fetchProfile(){
   try{
     const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     const p = await res.json();
+    currentUserEmail = p.email || null;
     $('userEmail').textContent = p.email || '';
     $('userAvatar').src = p.picture || '';
   }catch(e){ /* non-critical */ }
@@ -877,8 +915,9 @@ async function loadOrCreateFile(){
       if (!data.orders) data.orders = [];
       if (!data.warranties) data.warranties = [];
       if (!data.customers) data.customers = [];
+      if (!data.users) data.users = [];
     } else {
-      data = { orders: [], warranties: [], customers: [] };
+      data = { orders: [], warranties: [], customers: [], users: [] };
       const metadata = { name: DATA_FILENAME, mimeType: 'application/json' };
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], {type:'application/json'}));
@@ -931,7 +970,8 @@ const titles = {
   dashboard: ['แดชบอร์ดประจำปี','สรุปคำสั่งซื้อและการรับประกันทั้งหมด'],
   orders: ['คำสั่งซื้อ','บันทึกและติดตามคำสั่งซื้อทั้งหมด'],
   warranty: ['การรับประกัน','ติดตามสถานะการรับประกันสินค้า'],
-  customers: ['รายชื่อลูกค้า','ข้อมูลลูกค้าและจำนวนคำสั่งซื้อที่จัดส่งแล้ว']
+  customers: ['รายชื่อลูกค้า','ข้อมูลลูกค้าและจำนวนคำสั่งซื้อที่จัดส่งแล้ว'],
+  users: ['ผู้ใช้งาน','กำหนดสิทธิ์การเข้าถึงของแต่ละคน']
 };
 
 function showTab(tab){
@@ -942,6 +982,7 @@ function showTab(tab){
   $('pageSub').textContent = titles[tab][1];
   if (tab==='dashboard') renderDashboard();
   if (tab==='customers') renderCustomers();
+  if (tab==='users') renderUsers();
 }
 
 /* ====== Rendering ====== */
@@ -975,16 +1016,16 @@ function warrantyCountdownText(o){
 }
 
 function refreshDatalists(){
-  const customers = [...new Set((data.customers||[]).map(c=>c.name).filter(Boolean))];
-  const products = [...new Set(data.orders.map(o=>o.product).filter(Boolean))];
+  const customers = [...new Set((getVisibleCustomers()).map(c=>c.name).filter(Boolean))];
+  const products = [...new Set(getVisibleOrders().map(o=>o.product).filter(Boolean))];
   $('customerOptions').innerHTML = customers.map(c=>`<option value="${escapeHtml(c)}">`).join('');
   $('productOptions').innerHTML = products.map(p=>`<option value="${escapeHtml(p)}">`).join('');
-  const types = [...new Set((data.customers||[]).map(c=>c.type).filter(Boolean))];
+  const types = [...new Set((getVisibleCustomers()).map(c=>c.type).filter(Boolean))];
   $('customerTypeOptions').innerHTML = types.map(t=>`<option value="${escapeHtml(t)}">`).join('');
 }
 
 function renderAlerts(){
-  const soon = data.orders.filter(o => isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='soon');
+  const soon = getVisibleOrders().filter(o => isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='soon');
   const banners = [$('warrantyAlert'), $('dashboardAlert')].filter(Boolean);
   banners.forEach(el=>{
     if (soon.length){
@@ -1006,7 +1047,7 @@ function render(){
 let selectedDashboardYear = new Date().getFullYear();
 
 function refreshDashboardYearFilter(){
-  const years = [...new Set(data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
+  const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
   const currentYear = new Date().getFullYear();
   if (!years.includes(currentYear)) years.push(currentYear);
   years.sort((a,b) => b-a);
@@ -1132,7 +1173,7 @@ function renderDashboardSection(suffix, orders){
 }
 
 function renderDashboard(){
-  const yearOrders = data.orders.filter(o => o.date && new Date(o.date).getFullYear() === selectedDashboardYear);
+  const yearOrders = getVisibleOrders().filter(o => o.date && new Date(o.date).getFullYear() === selectedDashboardYear);
   const ordersSet = yearOrders.filter(o => o.status !== 'cancelled');
   const shippedSet = yearOrders.filter(o => o.status === 'done');
 
@@ -1143,7 +1184,7 @@ function renderDashboard(){
     : yearOrders;
 
   // Active warranty count is always global — not affected by the dashboard's year or month filter
-  const activeWarranty = data.orders.filter(o=>isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='active').length;
+  const activeWarranty = getVisibleOrders().filter(o=>isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='active').length;
   $('statActiveWarranty').textContent = activeWarranty;
   $('statPending').textContent = pendingBase.filter(o=>o.status==='pending').length;
   renderAlerts();
@@ -1157,7 +1198,7 @@ const orderStatusLabel = { pending:'PENDING', done:'COMPLETE', cancelled:'CANCEL
 let selectedOrdersYear = new Date().getFullYear();
 
 function refreshOrdersYearFilter(){
-  const years = [...new Set(data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
+  const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
   const currentYear = new Date().getFullYear();
   if (!years.includes(currentYear)) years.push(currentYear);
   years.sort((a,b) => b-a);
@@ -1170,7 +1211,7 @@ function renderOrders(){
   const body = $('ordersBody');
   const searchTerm = ($('ordersSearch').value || '').trim().toLowerCase();
   const statusFilter = $('ordersStatusFilter').value;
-  let list = data.orders
+  let list = getVisibleOrders()
     .filter(o => o.date && new Date(o.date).getFullYear() === selectedOrdersYear)
     .sort((a,b)=> new Date(b.date)-new Date(a.date));
 
@@ -1241,7 +1282,7 @@ const warrantyTypeOptions = ['สั่งซื้อใหม่','งาน�
 
 function renderWarranty(){
   const body = $('warrantyBody');
-  const list = data.orders.filter(isWarrantyCandidate).sort((a,b)=> warrantyDaysLeft(a) - warrantyDaysLeft(b));
+  const list = getVisibleOrders().filter(isWarrantyCandidate).sort((a,b)=> warrantyDaysLeft(a) - warrantyDaysLeft(b));
 
   const warrantyTotalBadge = $('warrantyTotalCount');
   if (list.length){
@@ -1315,7 +1356,7 @@ $('ordersStatusFilter').addEventListener('change', () => renderOrders());
 $('orderForm').addEventListener('submit', (e) => {
   e.preventDefault();
   const customerName = $('ordCustomer').value.trim();
-  const knownCustomer = (data.customers||[]).find(c => c.name.trim().toLowerCase() === customerName.toLowerCase());
+  const knownCustomer = (getVisibleCustomers()).find(c => c.name.trim().toLowerCase() === customerName.toLowerCase());
   if (!knownCustomer){
     toast('ไม่พบชื่อลูกค้านี้ในรายชื่อลูกค้า — กรุณาเพิ่มลูกค้าที่หน้า "รายชื่อลูกค้า" ก่อน');
     return;
@@ -1330,7 +1371,8 @@ $('orderForm').addEventListener('submit', (e) => {
     shipDate: null,
     status: $('ordStatus').value,
     po: '',
-    gp: null
+    gp: null,
+    createdBy: currentUserEmail
   });
   e.target.reset();
   refreshDatalists();
@@ -1366,7 +1408,7 @@ function deleteOrder(id){
 let selectedCustomersYear = new Date().getFullYear();
 
 function refreshCustomersYearFilter(){
-  const years = [...new Set(data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
+  const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
   const currentYear = new Date().getFullYear();
   if (!years.includes(currentYear)) years.push(currentYear);
   years.sort((a,b) => b-a);
@@ -1377,7 +1419,7 @@ function refreshCustomersYearFilter(){
 
 function customerOrdersInYear(customerName){
   const key = customerName.trim().toLowerCase();
-  return data.orders.filter(o =>
+  return getVisibleOrders().filter(o =>
     o.customer.trim().toLowerCase()===key &&
     o.date && new Date(o.date).getFullYear() === selectedCustomersYear
   );
@@ -1394,7 +1436,7 @@ function customerOrderAmount(customerName){
 function renderCustomers(){
   const body = $('customersBody');
   const searchTerm = ($('customersSearch').value || '').trim().toLowerCase();
-  let list = [...data.customers].sort((a,b)=> a.name.localeCompare(b.name,'th'));
+  let list = [...getVisibleCustomers()].sort((a,b)=> a.name.localeCompare(b.name,'th'));
 
   if (searchTerm){
     list = list.filter(c => c.name.toLowerCase().includes(searchTerm));
@@ -1451,13 +1493,13 @@ $('customerForm').addEventListener('submit', (e) => {
   const name = $('cusName').value.trim();
   const type = $('cusType').value.trim() || 'ลูกค้าทั่วไป';
   if (!name) return;
-  const existing = data.customers.find(c => c.name.trim().toLowerCase()===name.toLowerCase());
+  const existing = getVisibleCustomers().find(c => c.name.trim().toLowerCase()===name.toLowerCase());
   if (existing){
     existing.type = type;
     toast('อัปเดตประเภทลูกค้าที่มีอยู่แล้ว');
 
   } else {
-    data.customers.push({ id: uid(), name, type });
+    data.customers.push({ id: uid(), name, type, createdBy: currentUserEmail });
     toast('เพิ่มลูกค้าใหม่แล้ว');
   }
   e.target.reset();
@@ -1469,6 +1511,41 @@ function deleteCustomer(id){
   data.customers = data.customers.filter(c=>c.id!==id);
   refreshDatalists();
   renderCustomers(); queueSave();
+}
+
+/* ====== Users (role management, admin only) ====== */
+function renderUsers(){
+  const body = $('usersBody');
+  const list = [...(data.users||[])].sort((a,b)=> a.email.localeCompare(b.email));
+  body.innerHTML = list.length ? list.map(u => `
+    <tr>
+      <td>${escapeHtml(u.email)}${u.email===currentUserEmail ? ' <span class="badge-count neutral">คุณ</span>' : ''}</td>
+      <td>
+        <select class="inline-input badge-select" onchange="setUserRole('${escapeHtml(u.email)}', this.value)">
+          <option value="user" ${u.role==='user'?'selected':''}>ผู้ใช้งานทั่วไป</option>
+          <option value="admin" ${u.role==='admin'?'selected':''}>ผู้ดูแลระบบ</option>
+        </select>
+      </td>
+    </tr>
+  `).join('') : `<tr><td colspan="2" class="empty-row">ยังไม่มีใครล็อกอินเข้าใช้งาน</td></tr>`;
+}
+
+function setUserRole(email, role){
+  const u = (data.users||[]).find(u => u.email === email);
+  if (!u) return;
+  u.role = role;
+  if (email === currentUserEmail){
+    currentUserRole = role;
+    $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+    if (currentUserRole !== 'admin'){
+      showTab('dashboard');
+      queueSave();
+      return;
+    }
+  }
+  renderUsers();
+  render();
+  queueSave();
 }
 
 $('downloadCustomerTemplateBtn').addEventListener('click', (e) => {
@@ -1591,9 +1668,9 @@ $('importConfirmBtn').addEventListener('click', () => {
       const name = String(row[mapping.name] ?? '').trim();
       if (!name) return;
       const type = mapping.type ? normalizeCustomerType(row[mapping.type]) : 'ลูกค้าทั่วไป';
-      const existing = data.customers.find(c => c.name.trim().toLowerCase()===name.toLowerCase());
+      const existing = getVisibleCustomers().find(c => c.name.trim().toLowerCase()===name.toLowerCase());
       if (existing){ existing.type = type; updated++; }
-      else { data.customers.push({ id: uid(), name, type }); added++; }
+      else { data.customers.push({ id: uid(), name, type, createdBy: currentUserEmail }); added++; }
     });
     $('importModal').style.display = 'none';
     importRows = []; importHeaders = [];
@@ -1613,7 +1690,8 @@ $('importConfirmBtn').addEventListener('click', () => {
     gp: mapping.gp && row[mapping.gp] !== '' ? Number(row[mapping.gp]) : null,
     date: parseImportDate(row[mapping.date]) || new Date().toISOString().slice(0,10),
     shipDate: parseImportDate(row[mapping.shipDate]),
-    status: mapping.status ? normalizeImportStatus(row[mapping.status]) : 'done'
+    status: mapping.status ? normalizeImportStatus(row[mapping.status]) : 'done',
+    createdBy: currentUserEmail
   })).filter(o => o.customer || o.product);
 
   data.orders.push(...newOrders);
@@ -1629,7 +1707,7 @@ $('importConfirmBtn').addEventListener('click', () => {
 
 /* ====== Order report download (by month or year) ====== */
 $('downloadReportBtn').addEventListener('click', () => {
-  const years = [...new Set(data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))].sort((a,b)=>b-a);
+  const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))].sort((a,b)=>b-a);
   const currentYear = new Date().getFullYear();
   if (!years.includes(currentYear)) years.unshift(currentYear);
   $('reportYear').innerHTML = years.map(y => `<option value="${y}">${y+543}</option>`).join('');
@@ -1658,7 +1736,7 @@ $('reportDownloadBtn').addEventListener('click', () => {
     const val = $('reportMonth').value;
     if (!val){ toast('กรุณาเลือกเดือน'); return; }
     const [y, m] = val.split('-').map(Number);
-    filtered = data.orders.filter(o => {
+    filtered = getVisibleOrders().filter(o => {
       if (!o.date) return false;
       const d = new Date(o.date);
       return d.getFullYear()===y && (d.getMonth()+1)===m;
@@ -1666,7 +1744,7 @@ $('reportDownloadBtn').addEventListener('click', () => {
     label = `${y}-${String(m).padStart(2,'0')}`;
   } else {
     const y = Number($('reportYear').value);
-    filtered = data.orders.filter(o => o.date && new Date(o.date).getFullYear()===y);
+    filtered = getVisibleOrders().filter(o => o.date && new Date(o.date).getFullYear()===y);
     label = `${y}`;
   }
 
