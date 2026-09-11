@@ -75,6 +75,46 @@
   }
   .stat-grid.mixed .stat-card.small .stat-icon-badge{ width:32px; height:32px; border-radius:10px; margin-bottom:8px; }
 
+  /* ---- Dashboard "สรุปรวม" layout: left quad-grid + right donut card ---- */
+  .dash-top-grid{
+    display:grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap:16px;
+    margin-bottom:20px;
+  }
+  .dash-quad-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:1fr 1fr;
+    gap:14px;
+  }
+  .stat-card.quad{ padding:18px; display:flex; flex-direction:column; justify-content:center; }
+  .stat-card.quad.filled{ border:none; }
+  .stat-card.quad.filled:hover{ box-shadow:0 10px 24px rgba(0,0,0,0.16); }
+  .dash-donut-card{ display:flex; flex-direction:column; }
+  .donut-row{ display:flex; align-items:center; gap:22px; margin:6px 0 18px; }
+  .donut-chart-outer{ position:relative; width:118px; height:118px; flex-shrink:0; }
+  .donut-chart{ width:100%; height:100%; border-radius:50%; }
+  .donut-center{
+    position:absolute; inset:16px;
+    background:var(--card);
+    border-radius:50%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .donut-center span{ font-family:var(--font-display); font-size:22px; font-weight:600; color:var(--ink); line-height:1.1; }
+  .donut-center small{ font-size:10px; color:var(--ink-soft); margin-top:2px; }
+  .donut-legend{ display:flex; flex-direction:column; gap:12px; font-size:13px; color:var(--ink-soft); }
+  .legend-item{ display:flex; align-items:center; gap:8px; }
+  .legend-item b{ color:var(--ink); margin-left:auto; padding-left:14px; }
+  .legend-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .dash-mini-stats{ margin-top:auto; border-top:1px solid var(--line); padding-top:14px; display:flex; flex-direction:column; gap:10px; }
+  .mini-stat-row{ display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--ink-soft); transition:opacity .15s ease; }
+  .mini-stat-row:hover{ opacity:0.7; }
+  .mini-stat-row b{ font-family:var(--font-display); font-size:16px; color:var(--ink); font-weight:600; }
+  @media (max-width:900px){
+    .dash-top-grid{ grid-template-columns:1fr; }
+  }
+
   *{ margin:0; padding:0; box-sizing:border-box; }
   body{
     background:var(--paper);
@@ -807,50 +847,68 @@
         <!-- สรุปรวม: all orders regardless of status -->
         <div id="dashSub-all" class="dash-subpanel">
           <div class="period-indicator" id="periodIndicator_all"></div>
-          <div class="stat-grid mixed">
-            <div class="stat-card">
-              <div class="stat-icon-badge" style="background:#EDE9FE; color:#7C6FF0;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="M8 12h8M8 8h8M8 16h5"></path></svg>
+
+          <div class="dash-top-grid">
+            <div class="dash-quad-grid">
+              <div class="stat-card quad">
+                <div class="stat-icon-badge" style="background:#EDE9FE; color:#7C6FF0;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="M8 12h8M8 8h8M8 16h5"></path></svg>
+                </div>
+                <div class="stat-label">คำสั่งซื้อทั้งหมด</div>
+                <div class="stat-value" id="statTotalOrders_all">0</div>
               </div>
-              <div class="stat-label">คำสั่งซื้อทั้งหมด</div>
-              <div class="stat-value" id="statTotalOrders_all">0</div>
+              <div class="stat-card quad filled" id="statPendingCard" style="cursor:pointer; background:#FF9F43;" title="ไปที่หน้าคำสั่งซื้อ (กรองรอดำเนินการ)">
+                <div class="stat-icon-badge" style="background:rgba(255,255,255,0.28); color:#fff;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                </div>
+                <div class="stat-label" style="color:rgba(255,255,255,0.9);">ใบเสนอราคา</div>
+                <div class="stat-value" style="color:#fff;" id="statPending">0</div>
+              </div>
+              <div class="stat-card quad" id="statShippedCard" style="cursor:pointer;" title="ไปที่หน้าคำสั่งซื้อ (กรองจัดส่งแล้ว)">
+                <div class="stat-icon-badge" style="background:#FDF0D5; color:#F5C543;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7 9 18l-5-5"></path></svg>
+                </div>
+                <div class="stat-label">คำสั่งซื้อที่ส่งแล้ว</div>
+                <div class="stat-value" id="statShipped_all">0</div>
+              </div>
+              <div class="stat-card quad filled" id="statCancelledCard" style="cursor:pointer; background:#F0618B;" title="ไปที่หน้ายกเลิกการสั่งซื้อ">
+                <div class="stat-icon-badge" style="background:rgba(255,255,255,0.28); color:#fff;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                </div>
+                <div class="stat-label" style="color:rgba(255,255,255,0.9);">ยกเลิกคำสั่งซื้อ</div>
+                <div class="stat-value" style="color:#fff;" id="statCancelled_all">0</div>
+              </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon-badge" style="background:#FFEEDC; color:#FF9F43;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+
+            <div class="panel dash-donut-card">
+              <div class="panel-head"><h3>สัดส่วนสถานะคำสั่งซื้อ</h3></div>
+              <div class="donut-row">
+                <div class="donut-chart-outer">
+                  <div class="donut-chart" id="statusDonut"></div>
+                  <div class="donut-center">
+                    <span id="donutCenterPct">0%</span>
+                    <small>จัดส่งแล้ว</small>
+                  </div>
+                </div>
+                <div class="donut-legend">
+                  <div class="legend-item"><span class="legend-dot" style="background:#FF9F43;"></span>รอดำเนินการ <b id="donutPendingPct">0%</b></div>
+                  <div class="legend-item"><span class="legend-dot" style="background:#7C6FF0;"></span>จัดส่งแล้ว <b id="donutDonePct">0%</b></div>
+                  <div class="legend-item"><span class="legend-dot" style="background:#F0618B;"></span>ยกเลิก <b id="donutCancelledPct">0%</b></div>
+                </div>
               </div>
-              <div class="stat-label">ยอดขายรวม</div>
-              <div class="stat-value" id="statRevenue_all">฿0</div>
-            </div>
-            <div class="stat-card small" id="statPendingCard" style="cursor:pointer;" title="ไปที่หน้าคำสั่งซื้อ (กรองรอดำเนินการ)">
-              <div class="stat-icon-badge" style="background:#E4F2FE; color:#4FA8F5;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <div class="dash-mini-stats">
+                <div class="mini-stat-row">
+                  <span>ยอดขายรวม</span>
+                  <b id="statRevenue_all">฿0</b>
+                </div>
+                <div class="mini-stat-row" id="statActiveWarrantyCard" style="cursor:pointer;" title="ไปที่หน้าการรับประกัน">
+                  <span>รับประกันที่ใช้งานอยู่</span>
+                  <b id="statActiveWarranty">0</b>
+                </div>
               </div>
-              <div class="stat-label">ใบเสนอราคา</div>
-              <div class="stat-value" id="statPending">0</div>
-            </div>
-            <div class="stat-card small" id="statShippedCard" style="cursor:pointer;" title="ไปที่หน้าคำสั่งซื้อ (กรองจัดส่งแล้ว)">
-              <div class="stat-icon-badge" style="background:#FDF0D5; color:#F5C543;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7 9 18l-5-5"></path></svg>
-              </div>
-              <div class="stat-label">คำสั่งซื้อที่ส่งแล้ว</div>
-              <div class="stat-value" id="statShipped_all">0</div>
-            </div>
-            <div class="stat-card small" id="statActiveWarrantyCard" style="cursor:pointer;" title="ไปที่หน้าการรับประกัน">
-              <div class="stat-icon-badge" style="background:#E9E5FC; color:#8B7CF6;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path></svg>
-              </div>
-              <div class="stat-label">รับประกันที่ใช้งานอยู่</div>
-              <div class="stat-value" id="statActiveWarranty">0</div>
-            </div>
-            <div class="stat-card small" id="statCancelledCard" style="cursor:pointer;" title="ไปที่หน้ายกเลิกการสั่งซื้อ">
-              <div class="stat-icon-badge" style="background:#FDE3EC; color:#F0618B;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-              </div>
-              <div class="stat-label">ยกเลิกคำสั่งซื้อ</div>
-              <div class="stat-value" id="statCancelled_all">0</div>
             </div>
           </div>
+
           <div class="panel">
             <div class="panel-head"><h3>คำสั่งซื้อรายเดือน</h3></div>
             <div class="bars" id="monthlyBars_all"></div>
@@ -1691,6 +1749,32 @@ function renderDashboardSection(suffix, orders){
   const cancelledEl = $(`statCancelled_${suffix}`);
   if (cancelledEl){
     animateNumber(cancelledEl, displayOrders.filter(o=>o.status==='cancelled').length);
+  }
+
+  if (suffix === 'all'){
+    const total = displayOrders.length;
+    const pendingCount = displayOrders.filter(o=>o.status==='pending').length;
+    const doneCount = displayOrders.filter(o=>o.status==='done').length;
+    const cancelledCount = displayOrders.filter(o=>o.status==='cancelled').length;
+    const pendingPct = total ? (pendingCount/total*100) : 0;
+    const donePct = total ? (doneCount/total*100) : 0;
+    const cancelledPct = total ? (cancelledCount/total*100) : 0;
+
+    const donutEl = $('statusDonut');
+    if (donutEl){
+      if (total === 0){
+        donutEl.style.background = 'var(--line)';
+      } else {
+        const p1 = pendingPct;
+        const p2 = pendingPct + donePct;
+        donutEl.style.background = `conic-gradient(#FF9F43 0% ${p1}%, #7C6FF0 ${p1}% ${p2}%, #F0618B ${p2}% 100%)`;
+      }
+    }
+    const centerEl = $('donutCenterPct');
+    if (centerEl) centerEl.textContent = Math.round(donePct) + '%';
+    const pEl = $('donutPendingPct'); if (pEl) pEl.textContent = Math.round(pendingPct) + '%';
+    const dEl = $('donutDonePct'); if (dEl) dEl.textContent = Math.round(donePct) + '%';
+    const cEl = $('donutCancelledPct'); if (cEl) cEl.textContent = Math.round(cancelledPct) + '%';
   }
 
   const periodEl = $(`periodIndicator_${suffix}`);
