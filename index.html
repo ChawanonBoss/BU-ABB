@@ -470,6 +470,33 @@
   .inline-input.po-filled{ background:var(--accent-soft); border-color:var(--accent); }
   .inline-input.po-filled:hover{ background:var(--accent-soft); }
 
+  .filter-control{
+    width:auto;
+    min-width:0;
+    height:36px;
+    padding:0 14px;
+    border:1px solid var(--line);
+    border-radius:100px;
+    background:var(--card);
+    color:var(--ink);
+    font-size:13px;
+    font-weight:500;
+    box-shadow:0 1px 2px rgba(20,24,34,0.04);
+    transition:border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+  }
+  .filter-control:hover{ border-color:var(--accent); background:var(--card); transform:translateY(-1px); }
+  .filter-control:focus{ border-color:var(--accent); background:var(--card); box-shadow:0 0 0 3px var(--accent-soft); outline:none; }
+  select.filter-control{ cursor:pointer; }
+  .filter-bar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    background:var(--paper-dim);
+    padding:8px;
+    border-radius:14px;
+  }
+
   /* Overlay a readable formatted date on top of a native <input type=date>,
      so it matches the plain-text date columns instead of showing mm/dd/yyyy */
   .date-edit-wrap{ position:relative; width:100%; }
@@ -883,7 +910,7 @@
             <button class="subtab-item" data-dashsub="shipped">สรุปการส่งสินค้า</button>
           </div>
           <div style="display:flex; align-items:center; gap:10px;">
-            <select id="dashboardYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
+            <select id="dashboardYearFilter" class="inline-input filter-control"></select>
             <button class="btn outline" id="dashboardClearBtn" type="button">เคลียร์ตัวกรอง</button>
           </div>
         </div>
@@ -938,7 +965,7 @@
             <div class="panel dash-donut-card">
               <div class="panel-head">
                 <h3>เป้าหมายประจำปี</h3>
-                <select id="targetUserFilter" class="inline-input" style="display:none; width:auto; padding:6px 10px; font-size:12.5px; border-color:var(--line); background:var(--paper);">
+                <select id="targetUserFilter" class="inline-input filter-control" style="display:none; font-size:12.5px;">
                   <option value="all">ทั้งหมด</option>
                 </select>
               </div>
@@ -1059,9 +1086,9 @@
         <div class="panel">
           <div class="panel-head">
             <h3>รายการคำสั่งซื้อทั้งหมด <span class="badge-count neutral" id="ordersTotalCount" style="display:none;"></span></h3>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <input type="text" id="ordersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า, สินค้า, SO, PO" style="border-color:var(--line); background:var(--paper); width:220px; padding:8px 12px;">
-              <select id="ordersMonthFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+            <div class="filter-bar">
+              <input type="text" id="ordersSearch" class="inline-input filter-control" placeholder="ค้นหาชื่อลูกค้า, สินค้า, SO, PO" style="width:220px;">
+              <select id="ordersMonthFilter" class="inline-input filter-control">
                 <option value="all">เดือนสั่งซื้อ: ทุกเดือน</option>
                 <option value="0">เดือนสั่งซื้อ: ม.ค.</option>
                 <option value="1">เดือนสั่งซื้อ: ก.พ.</option>
@@ -1076,7 +1103,7 @@
                 <option value="10">เดือนสั่งซื้อ: พ.ย.</option>
                 <option value="11">เดือนสั่งซื้อ: ธ.ค.</option>
               </select>
-              <select id="ordersShipMonthFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+              <select id="ordersShipMonthFilter" class="inline-input filter-control">
                 <option value="all">เดือนส่งสินค้า: ทุกเดือน</option>
                 <option value="0">เดือนส่งสินค้า: ม.ค.</option>
                 <option value="1">เดือนส่งสินค้า: ก.พ.</option>
@@ -1091,16 +1118,16 @@
                 <option value="10">เดือนส่งสินค้า: พ.ย.</option>
                 <option value="11">เดือนส่งสินค้า: ธ.ค.</option>
               </select>
-              <select id="ordersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
-              <select id="ordersCreatorFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px; display:none;">
+              <select id="ordersYearFilter" class="inline-input filter-control"></select>
+              <select id="ordersCreatorFilter" class="inline-input filter-control" style="display:none;">
                 <option value="all">ทุกคนที่สร้าง</option>
               </select>
-              <select id="ordersStatusFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+              <select id="ordersStatusFilter" class="inline-input filter-control">
                 <option value="all">ทุกสถานะ</option>
                 <option value="pending">PENDING</option>
                 <option value="done">COMPLETE</option>
               </select>
-              <select id="ordersPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+              <select id="ordersPageSize" class="inline-input filter-control">
                 <option value="10">แสดง 10</option>
                 <option value="20">แสดง 20</option>
                 <option value="50">แสดง 50</option>
@@ -1124,8 +1151,8 @@
         <div class="panel">
           <div class="panel-head">
             <h3>รายการรับประกันทั้งหมด <span class="badge-count neutral" id="warrantyTotalCount" style="display:none;"></span></h3>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <select id="warrantyPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+            <div class="filter-bar">
+              <select id="warrantyPageSize" class="inline-input filter-control">
                 <option value="20">แสดง 20</option>
                 <option value="50">แสดง 50</option>
                 <option value="100">แสดง 100</option>
@@ -1147,8 +1174,8 @@
         <div class="panel">
           <div class="panel-head">
             <h3>รายการยกเลิกการสั่งซื้อ <span class="badge-count neutral" id="cancelledTotalCount" style="display:none;"></span></h3>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <select id="cancelledPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+            <div class="filter-bar">
+              <select id="cancelledPageSize" class="inline-input filter-control">
                 <option value="10">แสดง 10</option>
                 <option value="20">แสดง 20</option>
                 <option value="50">แสดง 50</option>
@@ -1186,9 +1213,9 @@
         <div class="panel">
           <div class="panel-head">
             <h3>รายชื่อลูกค้าทั้งหมด <span class="badge-count neutral" id="customersTotalCount" style="display:none;"></span></h3>
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <input type="text" id="customersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า" style="border-color:var(--line); background:var(--paper); width:200px; padding:8px 12px;">
-              <select id="customersSortFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+            <div class="filter-bar">
+              <input type="text" id="customersSearch" class="inline-input filter-control" placeholder="ค้นหาชื่อลูกค้า" style="width:200px;">
+              <select id="customersSortFilter" class="inline-input filter-control">
                 <option value="name_asc">ชื่อลูกค้า (ก-ฮ)</option>
                 <option value="name_desc">ชื่อลูกค้า (ฮ-ก)</option>
                 <option value="count_asc">จำนวนคำสั่งซื้อ (น้อย-มาก)</option>
@@ -1196,11 +1223,11 @@
                 <option value="amount_asc">จำนวนเงิน (น้อย-มาก)</option>
                 <option value="amount_desc">จำนวนเงิน (มาก-น้อย)</option>
               </select>
-              <select id="customersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
-              <select id="customersCreatorFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px; display:none;">
+              <select id="customersYearFilter" class="inline-input filter-control"></select>
+              <select id="customersCreatorFilter" class="inline-input filter-control" style="display:none;">
                 <option value="all">ทุกคนที่สร้าง</option>
               </select>
-              <select id="customersPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+              <select id="customersPageSize" class="inline-input filter-control">
                 <option value="10">แสดง 10</option>
                 <option value="20">แสดง 20</option>
                 <option value="50">แสดง 50</option>
@@ -1249,7 +1276,7 @@
         <div class="panel">
           <div class="panel-head">
             <h3>เป้าหมายประจำปี</h3>
-            <select id="targetYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
+            <select id="targetYearFilter" class="inline-input filter-control"></select>
           </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">กำหนดเป้าหมายยอดขาย (บาท) ของคำสั่งซื้อและของยอดที่ส่งแล้ว ของแต่ละคนในแต่ละปี ใช้เทียบผลงานจริงในหน้าแดชบอร์ด — เฉพาะคนที่เคยล็อกอินแล้วเท่านั้นที่ตั้งเป้าหมายได้</p>
           <table>
