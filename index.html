@@ -209,7 +209,7 @@
     gap:16px;
     margin-bottom:32px;
   }
-  .stat-grid.mixed{ grid-template-columns:repeat(7,1fr); }
+  .stat-grid.mixed{ grid-template-columns:repeat(8,1fr); }
   .stat-grid.mixed .stat-card{ grid-column:span 2; }
   .stat-grid.mixed .stat-card.small{ grid-column:span 1; }
   .stat-card{
@@ -773,13 +773,17 @@
               <div class="stat-label">ยอดขายรวม</div>
               <div class="stat-value" id="statRevenue_all">฿0</div>
             </div>
-            <div class="stat-card small" id="statActiveWarrantyCard" style="cursor:pointer;" title="ไปที่หน้าการรับประกัน">
-              <div class="stat-label">รับประกันที่ใช้งานอยู่</div>
-              <div class="stat-value" id="statActiveWarranty">0</div>
-            </div>
             <div class="stat-card small" id="statPendingCard" style="cursor:pointer;" title="ไปที่หน้าคำสั่งซื้อ (กรองรอดำเนินการ)">
               <div class="stat-label">ใบเสนอราคา</div>
               <div class="stat-value" id="statPending">0</div>
+            </div>
+            <div class="stat-card small" id="statShippedCard" style="cursor:pointer;" title="ไปที่หน้าคำสั่งซื้อ (กรองจัดส่งแล้ว)">
+              <div class="stat-label">คำสั่งซื้อที่ส่งแล้ว</div>
+              <div class="stat-value" id="statShipped_all">0</div>
+            </div>
+            <div class="stat-card small" id="statActiveWarrantyCard" style="cursor:pointer;" title="ไปที่หน้าการรับประกัน">
+              <div class="stat-label">รับประกันที่ใช้งานอยู่</div>
+              <div class="stat-value" id="statActiveWarranty">0</div>
             </div>
             <div class="stat-card small" id="statCancelledCard" style="cursor:pointer;" title="ไปที่หน้ายกเลิกการสั่งซื้อ">
               <div class="stat-label">ยกเลิกคำสั่งซื้อ</div>
@@ -881,7 +885,12 @@
               <div class="field"><label>ชื่อลูกค้า</label><div class="autocomplete-wrap"><input type="text" id="ordCustomer" autocomplete="off" placeholder="พิมพ์เพื่อค้นหาจากรายชื่อลูกค้า" required></div></div>
               <div class="field"><label>สินค้า</label><div class="autocomplete-wrap"><input type="text" id="ordProduct" autocomplete="off" placeholder="ABB, Philips, Socomec" required></div></div>
               <div class="field"><label>ราคารวม (บาท)</label><input type="number" id="ordPrice" min="0" step="0.01" required></div>
-              <div class="field"><label>วันที่สั่งซื้อ</label><input type="date" id="ordDate" required></div>
+              <div class="field"><label>วันที่สั่งซื้อ</label>
+                <div class="date-edit-wrap">
+                  <input type="date" id="ordDate" required>
+                  <span class="date-display-text" id="ordDateDisplay">วัน/เดือน/ปี</span>
+                </div>
+              </div>
             </div>
             <button type="submit" class="btn">บันทึกคำสั่งซื้อ</button>
           </form>
@@ -945,6 +954,7 @@
                 <option value="50">แสดง 50</option>
                 <option value="100">แสดง 100</option>
               </select>
+              <button class="btn outline" id="ordersClearBtn" type="button">เคลียร์ตัวกรอง</button>
             </div>
           </div>
           <table>
@@ -962,11 +972,14 @@
         <div class="panel">
           <div class="panel-head">
             <h3>รายการรับประกันทั้งหมด <span class="badge-count neutral" id="warrantyTotalCount" style="display:none;"></span></h3>
-            <select id="warrantyPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
-              <option value="20">แสดง 20</option>
-              <option value="50">แสดง 50</option>
-              <option value="100">แสดง 100</option>
-            </select>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <select id="warrantyPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+                <option value="20">แสดง 20</option>
+                <option value="50">แสดง 50</option>
+                <option value="100">แสดง 100</option>
+              </select>
+              <button class="btn outline" id="warrantyClearBtn" type="button">เคลียร์ตัวกรอง</button>
+            </div>
           </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">แสดงเฉพาะคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน — นับประกันมาตรฐาน 12 เดือนจากวันที่ส่งสินค้า แก้ระยะเวลาและประเภทได้ในตาราง</p>
           <table>
@@ -982,12 +995,15 @@
         <div class="panel">
           <div class="panel-head">
             <h3>รายการยกเลิกการสั่งซื้อ <span class="badge-count neutral" id="cancelledTotalCount" style="display:none;"></span></h3>
-            <select id="cancelledPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
-              <option value="10">แสดง 10</option>
-              <option value="20">แสดง 20</option>
-              <option value="50">แสดง 50</option>
-              <option value="100">แสดง 100</option>
-            </select>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <select id="cancelledPageSize" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+                <option value="10">แสดง 10</option>
+                <option value="20">แสดง 20</option>
+                <option value="50">แสดง 50</option>
+                <option value="100">แสดง 100</option>
+              </select>
+              <button class="btn outline" id="cancelledClearBtn" type="button">เคลียร์ตัวกรอง</button>
+            </div>
           </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">แสดงข้อมูลอย่างเดียว ไม่สามารถแก้ไขได้ (ผู้ดูแลระบบลบรายการได้)</p>
           <table>
@@ -1025,6 +1041,7 @@
                 <option value="50">แสดง 50</option>
                 <option value="100">แสดง 100</option>
               </select>
+              <button class="btn outline" id="customersClearBtn" type="button">เคลียร์ตัวกรอง</button>
               <a class="btn outline" id="downloadCustomerTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
               <button class="btn outline" id="importCustomerBtn" type="button">นำเข้าจาก Excel</button>
             </div>
@@ -1532,12 +1549,18 @@ function render(){
 
 let selectedDashboardYear = new Date().getFullYear();
 
-function refreshDashboardYearFilter(){
-  const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
+function buildYearOptionsList(){
   const currentYear = new Date().getFullYear();
-  if (!years.includes(currentYear)) years.push(currentYear);
+  const dataYears = data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean);
+  const rangeYears = [];
+  for (let y = currentYear - 3; y <= currentYear + 1; y++) rangeYears.push(y);
+  const years = [...new Set([...dataYears, ...rangeYears])];
   years.sort((a,b) => b-a);
-  if (!years.includes(selectedDashboardYear)) selectedDashboardYear = currentYear;
+  return years;
+}
+
+function refreshDashboardYearFilter(){
+  const years = buildYearOptionsList();
   const sel = $('dashboardYearFilter');
   sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedDashboardYear?'selected':''}>ปี ${y+543}</option>`).join('');
 }
@@ -1720,6 +1743,7 @@ function renderDashboard(){
   const activeWarranty = getVisibleOrders().filter(o=>isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='active').length;
   animateNumber($('statActiveWarranty'), activeWarranty);
   animateNumber($('statPending'), pendingBase.filter(o=>o.status==='pending').length);
+  animateNumber($('statShipped_all'), pendingBase.filter(o=>o.status==='done').length);
   renderAlerts();
 
   renderDashboardSection('all', yearOrders);
@@ -1732,11 +1756,7 @@ let selectedOrdersYear = new Date().getFullYear();
 let ordersCurrentPage = 1;
 
 function refreshOrdersYearFilter(){
-  const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
-  const currentYear = new Date().getFullYear();
-  if (!years.includes(currentYear)) years.push(currentYear);
-  years.sort((a,b) => b-a);
-  if (!years.includes(selectedOrdersYear)) selectedOrdersYear = currentYear;
+  const years = buildYearOptionsList();
   const sel = $('ordersYearFilter');
   sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedOrdersYear?'selected':''}>ปี ${y+543}</option>`).join('');
 }
@@ -1829,7 +1849,7 @@ function renderOrders(){
       <td>
         <div class="date-edit-wrap">
           <input type="date" class="inline-input" value="${o.shipDate || ''}" onchange="setOrderField('${o.id}','shipDate',this.value)">
-          <span class="date-display-text">${o.shipDate ? fmtDate(o.shipDate) : 'ยังไม่ส่ง'}</span>
+          <span class="date-display-text">${o.shipDate ? fmtDate(o.shipDate) : 'วัน/เดือน/ปี'}</span>
         </div>
       </td>
       <td>
@@ -2114,10 +2134,54 @@ $('dashboardClearBtn').addEventListener('click', () => {
   toast('เคลียร์ตัวกรองแล้ว');
 });
 
+$('ordersClearBtn').addEventListener('click', () => {
+  $('ordersSearch').value = '';
+  $('ordersMonthFilter').value = 'all';
+  $('ordersShipMonthFilter').value = 'all';
+  $('ordersStatusFilter').value = 'all';
+  $('ordersCreatorFilter').value = 'all';
+  $('ordersPageSize').value = '10';
+  selectedOrdersYear = new Date().getFullYear();
+  ordersCurrentPage = 1;
+  refreshOrdersYearFilter();
+  renderOrders();
+  toast('เคลียร์ตัวกรองแล้ว');
+});
+
+$('customersClearBtn').addEventListener('click', () => {
+  $('customersSearch').value = '';
+  $('customersCreatorFilter').value = 'all';
+  $('customersPageSize').value = '10';
+  selectedCustomersYear = new Date().getFullYear();
+  customersCurrentPage = 1;
+  refreshCustomersYearFilter();
+  renderCustomers();
+  toast('เคลียร์ตัวกรองแล้ว');
+});
+
+$('warrantyClearBtn').addEventListener('click', () => {
+  $('warrantyPageSize').value = '20';
+  warrantyCurrentPage = 1;
+  renderWarranty();
+  toast('เคลียร์ตัวกรองแล้ว');
+});
+
+$('cancelledClearBtn').addEventListener('click', () => {
+  $('cancelledPageSize').value = '10';
+  cancelledCurrentPage = 1;
+  renderCancelledOrders();
+  toast('เคลียร์ตัวกรองแล้ว');
+});
+
 $('statActiveWarrantyCard').addEventListener('click', () => showTab('warranty'));
 $('statPendingCard').addEventListener('click', () => {
   showTab('orders');
   $('ordersStatusFilter').value = 'pending';
+  renderOrders();
+});
+$('statShippedCard').addEventListener('click', () => {
+  showTab('orders');
+  $('ordersStatusFilter').value = 'done';
   renderOrders();
 });
 $('statCancelledCard').addEventListener('click', () => showTab('cancelled'));
@@ -2140,6 +2204,9 @@ $('ordSOMain').addEventListener('input', (e) => {
 });
 $('ordSOSeq').addEventListener('input', (e) => {
   e.target.value = e.target.value.replace(/\D/g, '');
+});
+$('ordDate').addEventListener('change', (e) => {
+  $('ordDateDisplay').textContent = e.target.value ? fmtDate(e.target.value) : 'วัน/เดือน/ปี';
 });
 
 $('orderForm').addEventListener('submit', async (e) => {
@@ -2166,6 +2233,7 @@ $('orderForm').addEventListener('submit', async (e) => {
       createdBy: currentUserUid
     });
     e.target.reset();
+    $('ordDateDisplay').textContent = 'วัน/เดือน/ปี';
     if (newOrderDate){
       const newOrderYear = new Date(newOrderDate).getFullYear();
       if (newOrderYear !== selectedOrdersYear){
@@ -2234,11 +2302,7 @@ let selectedCustomersYear = new Date().getFullYear();
 let customersCurrentPage = 1;
 
 function refreshCustomersYearFilter(){
-  const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
-  const currentYear = new Date().getFullYear();
-  if (!years.includes(currentYear)) years.push(currentYear);
-  years.sort((a,b) => b-a);
-  if (!years.includes(selectedCustomersYear)) selectedCustomersYear = currentYear;
+  const years = buildYearOptionsList();
   const sel = $('customersYearFilter');
   sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedCustomersYear?'selected':''}>ปี ${y+543}</option>`).join('');
 }
