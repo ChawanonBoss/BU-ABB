@@ -895,6 +895,7 @@
             <thead><tr><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th id="ordersCreatorHeader" style="display:none;">สร้างโดย</th></tr></thead>
             <tbody id="ordersBody"></tbody>
           </table>
+          <div class="pagination" id="ordersPagination"></div>
         </div>
       </div>
 
@@ -916,6 +917,7 @@
             <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>PO</th><th>ส่งสินค้า</th><th>ประเภทการรับประกัน</th><th>ระยะเวลา (เดือน)</th><th>หมดอายุ</th><th>เหลือเวลา</th><th>สถานะ</th><th>หมายเหตุ</th><th></th></tr></thead>
             <tbody id="warrantyBody"></tbody>
           </table>
+          <div class="pagination" id="warrantyPagination"></div>
         </div>
       </div>
 
@@ -975,6 +977,7 @@
             <thead><tr><th>ชื่อลูกค้า</th><th>จำนวนคำสั่งซื้อ</th><th>จำนวนเงิน</th><th id="customersCreatorHeader" style="display:none;">สร้างโดย</th><th></th></tr></thead>
             <tbody id="customersBody"></tbody>
           </table>
+          <div class="pagination" id="customersPagination"></div>
         </div>
       </div>
 
@@ -1004,6 +1007,7 @@
             <thead><tr><th>ชื่อ</th><th>อีเมล</th><th>สิทธิ์การใช้งาน</th><th></th></tr></thead>
             <tbody id="usersBody"></tbody>
           </table>
+          <div class="pagination" id="usersPagination"></div>
         </div>
       </div>
 
@@ -1669,6 +1673,7 @@ function renderDashboard(){
 
 const orderStatusLabel = { pending:'PENDING', done:'COMPLETE', cancelled:'CANCELLED' };
 let selectedOrdersYear = new Date().getFullYear();
+let ordersCurrentPage = 1;
 
 function refreshOrdersYearFilter(){
   const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
@@ -1742,7 +1747,11 @@ function renderOrders(){
   }
 
   const pageSize = Number($('ordersPageSize').value) || 10;
-  const pagedList = list.slice(0, pageSize);
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  if (ordersCurrentPage > totalPages) ordersCurrentPage = totalPages;
+  if (ordersCurrentPage < 1) ordersCurrentPage = 1;
+  const startIdx = (ordersCurrentPage - 1) * pageSize;
+  const pagedList = list.slice(startIdx, startIdx + pageSize);
 
   body.innerHTML = pagedList.length ? pagedList.map(o => {
     const poCell = o.po
@@ -1775,6 +1784,22 @@ function renderOrders(){
       </td>
     </tr>
   `; }).join('') : `<tr><td colspan="10" class="empty-row">ไม่มีคำสั่งซื้อในปี ${selectedOrdersYear+543} — เพิ่มรายการหรือเปลี่ยนปีที่เลือก</td></tr>`;
+
+  const ordersPaginationEl = $('ordersPagination');
+  if (totalPages <= 1){
+    ordersPaginationEl.innerHTML = '';
+  } else {
+    let btns = '';
+    for (let p = 1; p <= totalPages; p++){
+      btns += `<button class="page-btn ${p===ordersCurrentPage?'active':''}" onclick="goToOrdersPage(${p})">${p}</button>`;
+    }
+    ordersPaginationEl.innerHTML = btns;
+  }
+}
+
+function goToOrdersPage(page){
+  ordersCurrentPage = page;
+  renderOrders();
 }
 
 let cancelledCurrentPage = 1;
@@ -1857,7 +1882,11 @@ function renderWarranty(){
   }
 
   const pageSize = Number($('warrantyPageSize').value) || 20;
-  const pagedList = list.slice(0, pageSize);
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  if (warrantyCurrentPage > totalPages) warrantyCurrentPage = totalPages;
+  if (warrantyCurrentPage < 1) warrantyCurrentPage = 1;
+  const startIdx = (warrantyCurrentPage - 1) * pageSize;
+  const pagedList = list.slice(startIdx, startIdx + pageSize);
   body.innerHTML = pagedList.length ? pagedList.map(o => {
     const status = warrantyDisplayStatus(o);
     const countdownClass = status==='soon' ? 'soon' : status==='expired' ? 'expired' : '';
@@ -1882,6 +1911,22 @@ function renderWarranty(){
       </td>
     </tr>
   `; }).join('') : `<tr><td colspan="11" class="empty-row">ยังไม่มีคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน</td></tr>`;
+
+  const warrantyPaginationEl = $('warrantyPagination');
+  if (totalPages <= 1){
+    warrantyPaginationEl.innerHTML = '';
+  } else {
+    let btns = '';
+    for (let p = 1; p <= totalPages; p++){
+      btns += `<button class="page-btn ${p===warrantyCurrentPage?'active':''}" onclick="goToWarrantyPage(${p})">${p}</button>`;
+    }
+    warrantyPaginationEl.innerHTML = btns;
+  }
+}
+
+function goToWarrantyPage(page){
+  warrantyCurrentPage = page;
+  renderWarranty();
 }
 
 function escapeHtml(s){
@@ -2009,14 +2054,15 @@ $('statCancelledCard').addEventListener('click', () => showTab('cancelled'));
 
 $('ordersYearFilter').addEventListener('change', (e) => {
   selectedOrdersYear = Number(e.target.value);
+  ordersCurrentPage = 1;
   renderOrders();
 });
 
-$('ordersPageSize').addEventListener('change', () => renderOrders());
-$('ordersSearch').addEventListener('input', () => renderOrders());
-$('ordersStatusFilter').addEventListener('change', () => renderOrders());
-$('ordersMonthFilter').addEventListener('change', () => renderOrders());
-$('ordersCreatorFilter').addEventListener('change', () => renderOrders());
+$('ordersPageSize').addEventListener('change', () => { ordersCurrentPage = 1; renderOrders(); });
+$('ordersSearch').addEventListener('input', () => { ordersCurrentPage = 1; renderOrders(); });
+$('ordersStatusFilter').addEventListener('change', () => { ordersCurrentPage = 1; renderOrders(); });
+$('ordersMonthFilter').addEventListener('change', () => { ordersCurrentPage = 1; renderOrders(); });
+$('ordersCreatorFilter').addEventListener('change', () => { ordersCurrentPage = 1; renderOrders(); });
 
 $('ordSO').addEventListener('input', (e) => {
   e.target.value = e.target.value.replace(/\D/g, '');
@@ -2054,7 +2100,8 @@ $('orderForm').addEventListener('submit', async (e) => {
 });
 
 const NUMERIC_ORDER_FIELDS = ['gp', 'warrantyMonths'];
-$('warrantyPageSize').addEventListener('change', () => renderWarranty());
+let warrantyCurrentPage = 1;
+$('warrantyPageSize').addEventListener('change', () => { warrantyCurrentPage = 1; renderWarranty(); });
 
 async function setOrderField(id, field, value){
   const val = NUMERIC_ORDER_FIELDS.includes(field) ? (value === '' ? null : Number(value)) : value;
@@ -2098,6 +2145,7 @@ async function cancelOrder(id){
 
 /* ====== Customer list ====== */
 let selectedCustomersYear = new Date().getFullYear();
+let customersCurrentPage = 1;
 
 function refreshCustomersYearFilter(){
   const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
@@ -2160,7 +2208,11 @@ function renderCustomers(){
   }
 
   const pageSize = Number($('customersPageSize').value) || 10;
-  const pagedList = list.slice(0, pageSize);
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  if (customersCurrentPage > totalPages) customersCurrentPage = totalPages;
+  if (customersCurrentPage < 1) customersCurrentPage = 1;
+  const startIdx = (customersCurrentPage - 1) * pageSize;
+  const pagedList = list.slice(startIdx, startIdx + pageSize);
 
   body.innerHTML = pagedList.length ? pagedList.map(c => {
     return `
@@ -2177,6 +2229,22 @@ function renderCustomers(){
       </td>
     </tr>
   `; }).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีรายชื่อลูกค้า — เพิ่มด้านบนหรือนำเข้าจาก Excel</td></tr>`;
+
+  const paginationEl = $('customersPagination');
+  if (totalPages <= 1){
+    paginationEl.innerHTML = '';
+  } else {
+    let btns = '';
+    for (let p = 1; p <= totalPages; p++){
+      btns += `<button class="page-btn ${p===customersCurrentPage?'active':''}" onclick="goToCustomersPage(${p})">${p}</button>`;
+    }
+    paginationEl.innerHTML = btns;
+  }
+}
+
+function goToCustomersPage(page){
+  customersCurrentPage = page;
+  renderCustomers();
 }
 
 async function setCustomerField(id, field, value){
@@ -2192,12 +2260,13 @@ async function setCustomerField(id, field, value){
 
 $('customersYearFilter').addEventListener('change', (e) => {
   selectedCustomersYear = Number(e.target.value);
+  customersCurrentPage = 1;
   renderCustomers();
 });
 
-$('customersPageSize').addEventListener('change', () => renderCustomers());
-$('customersSearch').addEventListener('input', () => renderCustomers());
-$('customersCreatorFilter').addEventListener('change', () => renderCustomers());
+$('customersPageSize').addEventListener('change', () => { customersCurrentPage = 1; renderCustomers(); });
+$('customersSearch').addEventListener('input', () => { customersCurrentPage = 1; renderCustomers(); });
+$('customersCreatorFilter').addEventListener('change', () => { customersCurrentPage = 1; renderCustomers(); });
 
 $('customerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -2233,12 +2302,22 @@ async function deleteCustomer(id){
 }
 
 /* ====== Users (role management, admin only) ====== */
+let usersCurrentPage = 1;
+const USERS_PAGE_SIZE = 10;
+
 function renderUsers(){
   const body = $('usersBody');
   const real = (data.users||[]).map(u => ({...u, _kind:'user', _id:u.id}));
   const pending = (data.pendingRoles||[]).map(p => ({...p, email:p.id, _kind:'pending', _id:p.id}));
   const list = [...real, ...pending].sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
-  body.innerHTML = list.length ? list.map(u => `
+
+  const totalPages = Math.max(1, Math.ceil(list.length / USERS_PAGE_SIZE));
+  if (usersCurrentPage > totalPages) usersCurrentPage = totalPages;
+  if (usersCurrentPage < 1) usersCurrentPage = 1;
+  const startIdx = (usersCurrentPage - 1) * USERS_PAGE_SIZE;
+  const pagedList = list.slice(startIdx, startIdx + USERS_PAGE_SIZE);
+
+  body.innerHTML = pagedList.length ? pagedList.map(u => `
     <tr>
       <td><input type="text" class="inline-input" value="${escapeHtml(u.name||'')}" placeholder="ไม่ระบุชื่อ" onchange="setUserField('${u._kind}','${escapeHtml(u._id)}','name',this.value)"></td>
       <td>${escapeHtml(u.email)}${u._kind==='user' && u._id===currentUserUid ? ' <span class="badge-count neutral">คุณ</span>' : ''}${u._kind==='pending' ? ' <span class="badge-count neutral">รอเข้าสู่ระบบ</span>' : ''}</td>
@@ -2256,6 +2335,22 @@ function renderUsers(){
       </td>
     </tr>
   `).join('') : `<tr><td colspan="4" class="empty-row">ยังไม่มีใครล็อกอินเข้าใช้งาน — เพิ่มได้ด้านบน</td></tr>`;
+
+  const usersPaginationEl = $('usersPagination');
+  if (totalPages <= 1){
+    usersPaginationEl.innerHTML = '';
+  } else {
+    let btns = '';
+    for (let p = 1; p <= totalPages; p++){
+      btns += `<button class="page-btn ${p===usersCurrentPage?'active':''}" onclick="goToUsersPage(${p})">${p}</button>`;
+    }
+    usersPaginationEl.innerHTML = btns;
+  }
+}
+
+function goToUsersPage(page){
+  usersCurrentPage = page;
+  renderUsers();
 }
 
 async function setUserField(kind, id, field, value){
