@@ -363,6 +363,8 @@
   tr:last-child td{ border-bottom:none; }
   tbody tr{ transition:background-color .15s ease; }
   tbody tr:hover{ background:rgba(109,122,82,0.06); }
+  .warranty-expired-row{ opacity:0.45; filter:grayscale(60%); }
+  .warranty-expired-row:hover{ opacity:0.7; }
 
   .badge{
     display:inline-block;
@@ -1893,7 +1895,7 @@ function renderWarranty(){
     const typeVal = o.warrantyType || warrantyTypeOptions[0];
     const typeOpts = warrantyTypeOptions.map(t=>`<option value="${t}" ${t===typeVal?'selected':''}>${t}</option>`).join('');
     return `
-    <tr>
+    <tr class="${status==='expired' ? 'warranty-expired-row' : ''}">
       <td>${escapeHtml(o.customer)}</td>
       <td>${escapeHtml(o.product)}</td>
       <td>${escapeHtml(o.po)}</td>
@@ -1908,6 +1910,10 @@ function renderWarranty(){
         ${status!=='claimed'
           ? `<button class="icon-btn" onclick="setOrderField('${o.id}','warrantyClaimed',true)">เคลม</button>`
           : `<button class="icon-btn" onclick="setOrderField('${o.id}','warrantyClaimed',false)">ยกเลิกเคลม</button>`}
+        ${currentUserRole==='admin' ? `<button class="icon-btn delete-btn" onclick="deleteOrder('${o.id}')" title="ลบ">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          DELETE
+        </button>` : ''}
       </td>
     </tr>
   `; }).join('') : `<tr><td colspan="11" class="empty-row">ยังไม่มีคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน</td></tr>`;
