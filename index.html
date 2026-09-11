@@ -40,6 +40,41 @@
     --info: #3E7CA6;
     --info-soft: #D9E8F0;
   }
+
+  /* ---- Dashboard color preview (scoped to #tab-dashboard only) ---- */
+  #tab-dashboard{
+    --paper: #F1EFFC;
+    --paper-dim: #E5E1F9;
+    --card: #FFFFFF;
+    --ink: #241E44;
+    --ink-soft: #837CAA;
+    --line: #ECE9FA;
+    --accent: #7C6FF0;
+    --accent-soft: #EDE9FE;
+    --sun: #FF9F43;
+    --sun-soft: #FFEEDC;
+    --danger: #F0618B;
+    --danger-soft: #FDE3EC;
+    --info: #4FA8F5;
+    --info-soft: #E4F2FE;
+    background: var(--paper);
+    border-radius: 22px;
+    padding: 22px;
+    margin: -12px -12px 0;
+  }
+  #tab-dashboard .panel,
+  #tab-dashboard .stat-card{ border-radius:20px; box-shadow:0 2px 10px rgba(124,111,240,0.06); }
+  #tab-dashboard .stat-card:hover{ box-shadow:0 10px 24px rgba(124,111,240,0.14); }
+  #tab-dashboard .btn{ border-radius:14px; }
+  #tab-dashboard .bar{ border-radius:10px 10px 4px 4px; }
+  .stat-icon-badge{
+    width:38px; height:38px;
+    border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:12px;
+  }
+  .stat-grid.mixed .stat-card.small .stat-icon-badge{ width:32px; height:32px; border-radius:10px; margin-bottom:8px; }
+
   *{ margin:0; padding:0; box-sizing:border-box; }
   body{
     background:var(--paper);
@@ -410,12 +445,13 @@
 
   /* Overlay a readable formatted date on top of a native <input type=date>,
      so it matches the plain-text date columns instead of showing mm/dd/yyyy */
-  .date-edit-wrap{ position:relative; }
+  .date-edit-wrap{ position:relative; width:100%; }
   .date-edit-wrap input[type="date"]{
     position:relative;
     z-index:2;
     color:transparent;
     background:transparent;
+    width:100%;
   }
   .date-edit-wrap input[type="date"]::-webkit-datetime-edit,
   .date-edit-wrap input[type="date"]::-webkit-datetime-edit-fields-wrapper,
@@ -581,6 +617,13 @@
     color:var(--ink);
   }
   .locked-input-group input:focus{ outline:none !important; }
+
+  .locked-input-group.compact{ min-width:130px; }
+  .locked-input-group.compact .locked-prefix{ padding:0 8px; font-size:12px; }
+  .locked-input-group.compact input{ padding:6px 8px; font-size:12.5px; }
+  .locked-input-group.po-filled{ border-color:var(--accent); background:var(--accent-soft); }
+  .locked-input-group.po-filled .locked-prefix{ background:transparent; border-right-color:var(--accent); }
+  .locked-input-group.po-filled input{ background:transparent; }
 
   @media (max-width:760px){
     .sidebar{ display:none; }
@@ -766,26 +809,44 @@
           <div class="period-indicator" id="periodIndicator_all"></div>
           <div class="stat-grid mixed">
             <div class="stat-card">
+              <div class="stat-icon-badge" style="background:#EDE9FE; color:#7C6FF0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="M8 12h8M8 8h8M8 16h5"></path></svg>
+              </div>
               <div class="stat-label">คำสั่งซื้อทั้งหมด</div>
               <div class="stat-value" id="statTotalOrders_all">0</div>
             </div>
             <div class="stat-card">
+              <div class="stat-icon-badge" style="background:#FFEEDC; color:#FF9F43;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              </div>
               <div class="stat-label">ยอดขายรวม</div>
               <div class="stat-value" id="statRevenue_all">฿0</div>
             </div>
             <div class="stat-card small" id="statPendingCard" style="cursor:pointer;" title="ไปที่หน้าคำสั่งซื้อ (กรองรอดำเนินการ)">
+              <div class="stat-icon-badge" style="background:#E4F2FE; color:#4FA8F5;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
               <div class="stat-label">ใบเสนอราคา</div>
               <div class="stat-value" id="statPending">0</div>
             </div>
             <div class="stat-card small" id="statShippedCard" style="cursor:pointer;" title="ไปที่หน้าคำสั่งซื้อ (กรองจัดส่งแล้ว)">
+              <div class="stat-icon-badge" style="background:#FDF0D5; color:#F5C543;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7 9 18l-5-5"></path></svg>
+              </div>
               <div class="stat-label">คำสั่งซื้อที่ส่งแล้ว</div>
               <div class="stat-value" id="statShipped_all">0</div>
             </div>
             <div class="stat-card small" id="statActiveWarrantyCard" style="cursor:pointer;" title="ไปที่หน้าการรับประกัน">
+              <div class="stat-icon-badge" style="background:#E9E5FC; color:#8B7CF6;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path></svg>
+              </div>
               <div class="stat-label">รับประกันที่ใช้งานอยู่</div>
               <div class="stat-value" id="statActiveWarranty">0</div>
             </div>
             <div class="stat-card small" id="statCancelledCard" style="cursor:pointer;" title="ไปที่หน้ายกเลิกการสั่งซื้อ">
+              <div class="stat-icon-badge" style="background:#FDE3EC; color:#F0618B;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+              </div>
               <div class="stat-label">ยกเลิกคำสั่งซื้อ</div>
               <div class="stat-value" id="statCancelled_all">0</div>
             </div>
@@ -1559,10 +1620,8 @@ let selectedDashboardYear = new Date().getFullYear();
 
 function buildYearOptionsList(){
   const currentYear = new Date().getFullYear();
-  const dataYears = data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean);
-  const rangeYears = [];
-  for (let y = currentYear - 3; y <= currentYear + 1; y++) rangeYears.push(y);
-  const years = [...new Set([...dataYears, ...rangeYears])];
+  const years = [...new Set(data.orders.map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))];
+  if (!years.includes(currentYear)) years.push(currentYear);
   years.sort((a,b) => b-a);
   return years;
 }
@@ -1844,9 +1903,15 @@ function renderOrders(){
   const pagedList = list.slice(startIdx, startIdx + pageSize);
 
   body.innerHTML = pagedList.length ? pagedList.map(o => {
-    const poCell = o.po
-      ? `<input type="text" class="inline-input po-filled" value="${escapeHtml(o.po)}" onchange="setOrderField('${o.id}','po',this.value)">`
-      : `<input type="text" class="inline-input" value="" placeholder="กรอก PO" onchange="setOrderField('${o.id}','po',this.value)">`;
+    const poFilled = !!o.po;
+    const poSuffix = o.po ? o.po.replace(/^INV/i, '') : '';
+    const poCell = `
+      <div class="locked-input-group compact ${poFilled ? 'po-filled' : ''}">
+        <span class="locked-prefix">INV</span>
+        <input type="text" class="inline-input" value="${escapeHtml(poSuffix)}" placeholder="เลข PO"
+          onchange="setOrderField('${o.id}','po', this.value.trim() ? 'INV' + this.value.trim() : '')">
+      </div>
+    `;
     return `
     <tr>
       <td>${escapeHtml(o.so||'-')}</td>
