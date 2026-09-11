@@ -334,7 +334,7 @@
   .bar-amount.dim-text{ color:var(--line); }
   .bar-gp-input{
     width:100%;
-    max-width:64px;
+    max-width:74px;
     font-size:10px;
     font-weight:600;
     color:var(--sun);
@@ -847,7 +847,6 @@
             <button type="submit" class="btn">บันทึกคำสั่งซื้อ</button>
           </form>
           <datalist id="customerOptions"></datalist>
-          <datalist id="customerTypeOptions"></datalist>
           <datalist id="productOptions"></datalist>
         </div>
 
@@ -948,10 +947,6 @@
           <form id="customerForm">
             <div class="form-grid">
               <div class="field"><label>ชื่อลูกค้า</label><div class="autocomplete-wrap"><input type="text" id="cusName" autocomplete="off" required></div></div>
-              <div class="field">
-                <label>ประเภทลูกค้า</label>
-                <div class="autocomplete-wrap"><input type="text" id="cusType" autocomplete="off" placeholder="ประเภทกิจการ เช่น โรงงาน, ตัวแทนจำหน่าย" required></div>
-              </div>
             </div>
             <button type="submit" class="btn">บันทึกลูกค้า</button>
           </form>
@@ -977,7 +972,7 @@
             </div>
           </div>
           <table>
-            <thead><tr><th>ชื่อลูกค้า</th><th>ประเภทลูกค้า</th><th>จำนวนคำสั่งซื้อ</th><th>จำนวนเงิน</th><th id="customersCreatorHeader" style="display:none;">สร้างโดย</th><th></th></tr></thead>
+            <thead><tr><th>ชื่อลูกค้า</th><th>จำนวนคำสั่งซื้อ</th><th>จำนวนเงิน</th><th id="customersCreatorHeader" style="display:none;">สร้างโดย</th><th></th></tr></thead>
             <tbody id="customersBody"></tbody>
           </table>
         </div>
@@ -1453,8 +1448,6 @@ function refreshDatalists(){
   const products = [...new Set(getVisibleOrders().map(o=>o.product).filter(Boolean))];
   $('customerOptions').innerHTML = customers.map(c=>`<option value="${escapeHtml(c)}">`).join('');
   $('productOptions').innerHTML = products.map(p=>`<option value="${escapeHtml(p)}">`).join('');
-  const types = [...new Set((getVisibleCustomers()).map(c=>c.type).filter(Boolean))];
-  $('customerTypeOptions').innerHTML = types.map(t=>`<option value="${escapeHtml(t)}">`).join('');
 }
 
 function renderAlerts(){
@@ -1577,14 +1570,19 @@ function renderDashboardSection(suffix, orders){
   });
   const max = Math.max(1, ...months.map(m=>m.count));
 
-  // Aggregate GP total & GP% — sum selected months first (or whole year if none selected), then divide
-  const gpMonths = hasSelection ? months.filter((m,idx)=>selMonths.includes(idx)) : months;
-  const totalGP = gpMonths.reduce((s,m)=>s+m.gpFinal, 0);
-  const gpPercent = totalRevenue > 0 ? (totalGP / totalRevenue) * 100 : 0;
-  const gpTotalEl = $('statTotalGP');
-  if (gpTotalEl) animateNumber(gpTotalEl, totalGP, fmtMoney);
-  const gpPercentEl = $('statGPPercent');
-  if (gpPercentEl) animateNumber(gpPercentEl, gpPercent, v => v.toFixed(1) + '%');
+  // Aggregate GP total & GP% — sum selected months first (or whole year if none selected), then divide.
+  // These two cards only exist once in the DOM (in the "สรุปรวม" section), so only the 'all' suffix
+  // is allowed to write them — otherwise the 'orders'/'shipped' renders (which run afterward) would
+  // silently overwrite the correct number with their own, unrelated calculation.
+  if (suffix === 'all'){
+    const gpMonths = hasSelection ? months.filter((m,idx)=>selMonths.includes(idx)) : months;
+    const totalGP = gpMonths.reduce((s,m)=>s+m.gpFinal, 0);
+    const gpPercent = totalRevenue > 0 ? (totalGP / totalRevenue) * 100 : 0;
+    const gpTotalEl = $('statTotalGP');
+    if (gpTotalEl) animateNumber(gpTotalEl, totalGP, fmtMoney);
+    const gpPercentEl = $('statGPPercent');
+    if (gpPercentEl) animateNumber(gpPercentEl, gpPercent, v => v.toFixed(1) + '%');
+  }
 
   const barsEl = $(`monthlyBars_${suffix}`);
   barsEl.innerHTML = months.map((m, idx) => {
@@ -1596,7 +1594,7 @@ function renderDashboardSection(suffix, orders){
       <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
       <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
       <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
-      <input type="number" class="bar-gp-input" value="${m.gpFinal}" title="กำไร ${m.label} — แก้ไขได้"
+      <input type="number" class="bar-gp-input" value="${Math.round(m.gpFinal * 100) / 100}" title="กำไร ${m.label} — แก้ไขได้"
         onclick="event.stopPropagation()"
         onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">
     </div>
@@ -1984,7 +1982,6 @@ function attachAutocomplete(input, getOptionsFn){
 attachAutocomplete($('ordCustomer'), () => [...new Set(getVisibleCustomers().map(c=>c.name).filter(Boolean))]);
 attachAutocomplete($('ordProduct'), () => [...new Set(getVisibleOrders().map(o=>o.product).filter(Boolean))]);
 attachAutocomplete($('cusName'), () => [...new Set(getVisibleCustomers().map(c=>c.name).filter(Boolean))]);
-attachAutocomplete($('cusType'), () => [...new Set(getVisibleCustomers().map(c=>c.type).filter(Boolean))]);
 
 /* ====== Actions ====== */
 $('dashboardYearFilter').addEventListener('change', (e) => {
@@ -2166,11 +2163,9 @@ function renderCustomers(){
   const pagedList = list.slice(0, pageSize);
 
   body.innerHTML = pagedList.length ? pagedList.map(c => {
-    const currentType = c.type || 'ลูกค้าทั่วไป';
     return `
     <tr>
       <td>${escapeHtml(c.name)}</td>
-      <td><input type="text" class="inline-input badge-select js-type-autocomplete" value="${escapeHtml(currentType)}" onchange="setCustomerField('${c.id}','type',this.value)"></td>
       <td>${customerOrderCount(c.name)}</td>
       <td>${fmtMoney(customerOrderAmount(c.name))}</td>
       ${currentUserRole==='admin' ? `<td title="${escapeHtml(getUserDisplayName(c.createdBy))}">${escapeHtml(getUserInitials(c.createdBy))}</td>` : ''}
@@ -2181,11 +2176,7 @@ function renderCustomers(){
         </button>
       </td>
     </tr>
-  `; }).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่มีรายชื่อลูกค้า — เพิ่มด้านบนหรือนำเข้าจาก Excel</td></tr>`;
-
-  document.querySelectorAll('.js-type-autocomplete').forEach(el => {
-    attachAutocomplete(el, () => [...new Set(getVisibleCustomers().map(c=>c.type).filter(Boolean))]);
-  });
+  `; }).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีรายชื่อลูกค้า — เพิ่มด้านบนหรือนำเข้าจาก Excel</td></tr>`;
 }
 
 async function setCustomerField(id, field, value){
@@ -2211,20 +2202,19 @@ $('customersCreatorFilter').addEventListener('change', () => renderCustomers());
 $('customerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = $('cusName').value.trim();
-  const type = $('cusType').value.trim() || 'ลูกค้าทั่วไป';
   if (!name) return;
   setSync('saving');
   try{
     const existing = getVisibleCustomers().find(c => c.name.trim().toLowerCase()===name.toLowerCase());
     if (existing){
-      await db.collection('customers').doc(existing.id).update({ type });
-      toast('อัปเดตประเภทลูกค้าที่มีอยู่แล้ว');
+      toast('มีลูกค้าชื่อนี้อยู่แล้ว');
+      setSync('ok');
     } else {
-      await db.collection('customers').add({ name, type, createdBy: currentUserUid });
+      await db.collection('customers').add({ name, createdBy: currentUserUid });
       toast('เพิ่มลูกค้าใหม่แล้ว');
+      setSync('ok');
     }
     e.target.reset();
-    setSync('ok');
   }catch(err){
     setSync('error');
     toast('บันทึกไม่สำเร็จ');
@@ -2360,21 +2350,20 @@ $('downloadOrderTemplateBtn').addEventListener('click', (e) => {
 $('downloadCustomerTemplateBtn').addEventListener('click', (e) => {
   e.preventDefault();
   const rows = [
-    ['ชื่อลูกค้า','ประเภทลูกค้า'],
-    ['บริษัท เอบีซี จำกัด','ตัวแทนจำหน่าย'],
-    ['สมชาย ใจดี','ลูกค้าประจำ']
+    ['ชื่อลูกค้า'],
+    ['บริษัท เอบีซี จำกัด'],
+    ['สมชาย ใจดี']
   ];
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch:26 }, { wch:20 }];
+  ws['!cols'] = [{ wch:26 }];
   XLSX.utils.book_append_sheet(wb, ws, 'ลูกค้า');
 
   const noteRows = [
     ['วิธีใช้ไฟล์นี้'],
     [''],
     ['1. แถวที่ 1 เป็นหัวคอลัมน์ ไม่จำเป็นต้องตรงเป๊ะกับระบบ — ตอนนำเข้าจะให้จับคู่คอลัมน์เองได้'],
-    ['2. แถวที่ 2-3 เป็นตัวอย่างข้อมูล ลบออกแล้วใส่ข้อมูลจริงของคุณแทนได้'],
-    ['3. คอลัมน์ "ประเภทลูกค้า" พิมพ์อะไรก็ได้ตามที่ต้องการ (เช่น ลูกค้าทั่วไป, ลูกค้าประจำ, ตัวแทนจำหน่าย)']
+    ['2. แถวที่ 2-3 เป็นตัวอย่างข้อมูล ลบออกแล้วใส่ข้อมูลจริงของคุณแทนได้']
   ];
   const wsNote = XLSX.utils.aoa_to_sheet(noteRows);
   wsNote['!cols'] = [{wch:85}];
@@ -2391,7 +2380,7 @@ const IMPORT_FIELD_SETS = {
     date: 'วันที่สั่งซื้อ', shipDate: 'วันที่ส่งสินค้า', status: 'สถานะ'
   },
   customers: {
-    skip: 'ข้าม', name: 'ชื่อลูกค้า', type: 'ประเภทลูกค้า'
+    skip: 'ข้าม', name: 'ชื่อลูกค้า'
   }
 };
 let importTarget = 'orders';
@@ -2426,7 +2415,6 @@ $('importFileInput').addEventListener('change', (e) => {
 function guessImportField(header){
   const h = header.toLowerCase();
   if (importTarget === 'customers'){
-    if (/ประเภท|type|กลุ่ม|group/.test(h)) return 'type';
     if (/ชื่อ|ลูกค้า|customer|name/.test(h)) return 'name';
     return 'skip';
   }
@@ -2468,11 +2456,6 @@ function normalizeImportStatus(v){
   return 'pending';
 }
 
-function normalizeCustomerType(v){
-  const s = String(v||'').trim();
-  return s || 'ลูกค้าทั่วไป';
-}
-
 $('importCancelBtn').addEventListener('click', () => {
   $('importModal').style.display = 'none';
   importRows = []; importHeaders = [];
@@ -2487,18 +2470,16 @@ $('importConfirmBtn').addEventListener('click', async () => {
   setSync('saving');
   try{
     if (importTarget === 'customers'){
-      let added = 0, updated = 0;
+      let added = 0, skipped = 0;
       const batch = db.batch();
       importRows.forEach(row => {
         const name = String(row[mapping.name] ?? '').trim();
         if (!name) return;
-        const type = mapping.type ? normalizeCustomerType(row[mapping.type]) : 'ลูกค้าทั่วไป';
         const existing = getVisibleCustomers().find(c => c.name.trim().toLowerCase()===name.toLowerCase());
         if (existing){
-          batch.update(db.collection('customers').doc(existing.id), { type });
-          updated++;
+          skipped++;
         } else {
-          batch.set(db.collection('customers').doc(), { name, type, createdBy: currentUserUid });
+          batch.set(db.collection('customers').doc(), { name, createdBy: currentUserUid });
           added++;
         }
       });
@@ -2506,7 +2487,7 @@ $('importConfirmBtn').addEventListener('click', async () => {
       $('importModal').style.display = 'none';
       importRows = []; importHeaders = [];
       setSync('ok');
-      toast(`นำเข้าลูกค้าใหม่ ${added} ราย อัปเดต ${updated} ราย`);
+      toast(`นำเข้าลูกค้าใหม่ ${added} ราย ข้าม ${skipped} ราย (มีอยู่แล้ว)`);
       return;
     }
 
