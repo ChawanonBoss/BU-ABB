@@ -454,7 +454,9 @@
   .inline-input{
     width:100%;
     min-width:80px;
-    padding:6px 4px;
+    height:30px;
+    box-sizing:border-box;
+    padding:6px 8px;
     border:1px solid transparent;
     border-radius:6px;
     background:transparent;
@@ -508,13 +510,20 @@
   select.inline-input.status-cancelled{ background:var(--danger-soft); border-color:var(--danger); color:var(--ink); }
 
   .status-toggle-btn{
-    padding:6px 14px;
+    padding:7px 14px;
+    height:30px;
+    box-sizing:border-box;
+    line-height:1;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
     border-radius:100px;
     border:1px solid transparent;
     font-size:12px;
     font-weight:600;
     letter-spacing:0.02em;
     cursor:pointer;
+    white-space:nowrap;
     transition:transform .12s ease, opacity .15s ease;
   }
   .status-toggle-btn:hover{ opacity:0.85; transform:translateY(-1px); }
@@ -535,18 +544,23 @@
   }
   .badge-count.neutral{ background:var(--accent-soft); color:var(--accent); }
 
-  .row-actions{ display:flex; gap:8px; }
+  .row-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .icon-btn{
     display:inline-flex;
     align-items:center;
+    justify-content:center;
     gap:5px;
     background:var(--paper-dim);
     border:1px solid var(--line);
     color:var(--ink-soft);
     font-size:11.5px;
     font-weight:600;
-    padding:6px 12px;
+    line-height:1;
+    padding:7px 12px;
+    height:30px;
+    box-sizing:border-box;
     border-radius:100px;
+    white-space:nowrap;
     transition:transform .12s ease, opacity .15s ease;
   }
   .icon-btn:hover{ opacity:0.8; transform:translateY(-1px); }
@@ -665,9 +679,9 @@
   }
   .locked-input-group input:focus{ outline:none !important; }
 
-  .locked-input-group.compact{ min-width:130px; }
+  .locked-input-group.compact{ min-width:130px; height:30px; box-sizing:border-box; }
   .locked-input-group.compact .locked-prefix{ padding:0 8px; font-size:12px; }
-  .locked-input-group.compact input{ padding:6px 8px; font-size:12.5px; }
+  .locked-input-group.compact input{ padding:0 8px; font-size:12.5px; height:100%; box-sizing:border-box; }
   .locked-input-group.po-filled{ border-color:var(--accent); background:var(--accent-soft); }
   .locked-input-group.po-filled .locked-prefix{ background:transparent; border-right-color:var(--accent); }
   .locked-input-group.po-filled input{ background:transparent; }
