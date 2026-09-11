@@ -209,7 +209,7 @@
     gap:16px;
     margin-bottom:32px;
   }
-  .stat-grid.mixed{ grid-template-columns:repeat(7,1fr); }
+  .stat-grid.mixed{ grid-template-columns:repeat(9,1fr); }
   .stat-grid.mixed .stat-card{ grid-column:span 2; }
   .stat-grid.mixed .stat-card.small{ grid-column:span 1; }
   .stat-card{
@@ -332,16 +332,22 @@
   .bar-label.dim-text{ color:var(--line); }
   .bar-amount{ font-size:9.5px; color:var(--ink-soft); opacity:0.7; white-space:nowrap; }
   .bar-amount.dim-text{ color:var(--line); }
-  .bar-gp{
-    font-size:9px;
+  .bar-gp-input{
+    width:100%;
+    max-width:64px;
+    font-size:10px;
     font-weight:600;
     color:var(--sun);
     background:var(--sun-soft);
-    padding:1px 6px;
+    border:1px solid transparent;
+    padding:2px 4px;
     border-radius:100px;
-    white-space:nowrap;
+    text-align:center;
+    cursor:text;
+    transition:border-color .15s ease;
   }
-  .bar-gp.dim-text{ color:var(--ink-soft); background:transparent; }
+  .bar-gp-input:hover{ border-color:var(--sun); }
+  .bar-gp-input:focus{ outline:none; border-color:var(--sun); background:var(--card); }
 
   /* ---- Tables ---- */
   table{ width:100%; border-collapse:collapse; font-size:13.5px; }
@@ -742,6 +748,14 @@
               <div class="stat-label">ยกเลิกคำสั่งซื้อ</div>
               <div class="stat-value" id="statCancelled_all">0</div>
             </div>
+            <div class="stat-card small">
+              <div class="stat-label">กำไรรวมสุทธิ (GP)</div>
+              <div class="stat-value" id="statTotalGP">฿0</div>
+            </div>
+            <div class="stat-card small">
+              <div class="stat-label">GP (%)</div>
+              <div class="stat-value" id="statGPPercent">0%</div>
+            </div>
           </div>
           <div class="panel">
             <div class="panel-head"><h3>คำสั่งซื้อรายเดือน</h3></div>
@@ -1057,12 +1071,12 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 /* ====== State ====== */
-let data = { orders: [], customers: [], users: [], pendingRoles: [] };
+let data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [] };
 let currentUserEmail = null;
 let currentUserName = '';
 let currentUserUid = null;
 let currentUserRole = 'user';
-let unsubOrders = null, unsubCustomers = null, unsubUsers = null, unsubPendingRoles = null;
+let unsubOrders = null, unsubCustomers = null, unsubUsers = null, unsubPendingRoles = null, unsubMonthlyGP = null;
 let authMode = 'signin'; // 'signin' | 'signup'
 
 const $ = (id) => document.getElementById(id);
@@ -1188,8 +1202,9 @@ auth.onAuthStateChanged(async (user) => {
     if (unsubCustomers) unsubCustomers();
     if (unsubUsers) unsubUsers();
     if (unsubPendingRoles) unsubPendingRoles();
+    if (unsubMonthlyGP) unsubMonthlyGP();
     currentUserEmail = null; currentUserName = ''; currentUserUid = null; currentUserRole = 'user';
-    data = { orders: [], customers: [], users: [], pendingRoles: [] };
+    data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [] };
     $('gate').style.display = 'block';
     $('sidebar').style.display = 'none';
     $('userBox').style.display = 'none';
@@ -1290,12 +1305,12 @@ function getUserInitials(uid){
 
 /* ====== Firestore realtime sync ====== */
 function attachRealtimeListeners(){
-  const loaded = { orders:false, customers:false, users:false, pendingRoles:false };
+  const loaded = { orders:false, customers:false, users:false, pendingRoles:false, monthlyGP:false };
   let firstLoadDone = false;
 
   function onAnyUpdate(){
     if (!firstLoadDone){
-      if (!(loaded.orders && loaded.customers && loaded.users && loaded.pendingRoles)) return;
+      if (!(loaded.orders && loaded.customers && loaded.users && loaded.pendingRoles && loaded.monthlyGP)) return;
       firstLoadDone = true;
       setSync('ok');
       refreshDatalists();
@@ -1340,6 +1355,12 @@ function attachRealtimeListeners(){
     loaded.pendingRoles = true;
     onAnyUpdate();
   }, () => { setSync('error'); toast('โหลดข้อมูลไม่สำเร็จ'); });
+
+  unsubMonthlyGP = db.collection('monthlyGP').onSnapshot((snap) => {
+    data.monthlyGP = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loaded.monthlyGP = true;
+    onAnyUpdate();
+  }, () => { setSync('error'); toast('โหลดข้อมูลกำไรไม่สำเร็จ'); });
 }
 
 $('syncRetryBtn').addEventListener('click', () => {
@@ -1497,6 +1518,19 @@ function goToDashboardPage(suffix, page){
   renderDashboard();
 }
 
+async function setMonthlyGP(suffix, year, monthIdx, value){
+  const num = Number(value);
+  const docId = `${suffix}_${year}_${monthIdx}`;
+  setSync('saving');
+  try{
+    await db.collection('monthlyGP').doc(docId).set({ value: isNaN(num) ? 0 : num });
+    setSync('ok');
+  }catch(err){
+    setSync('error');
+    toast('บันทึกกำไรไม่สำเร็จ');
+  }
+}
+
 const monthShortLabels = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
 function renderDashboardSection(suffix, orders){
@@ -1507,7 +1541,8 @@ function renderDashboardSection(suffix, orders){
     : orders;
 
   animateNumber($(`statTotalOrders_${suffix}`), displayOrders.length);
-  animateNumber($(`statRevenue_${suffix}`), displayOrders.reduce((s,o)=>s+Number(o.price||0),0), fmtMoney);
+  const totalRevenue = displayOrders.reduce((s,o)=>s+Number(o.price||0),0);
+  animateNumber($(`statRevenue_${suffix}`), totalRevenue, fmtMoney);
 
   const cancelledEl = $(`statCancelled_${suffix}`);
   if (cancelledEl){
@@ -1525,7 +1560,7 @@ function renderDashboardSection(suffix, orders){
   // Monthly bars — all 12 months of the selected year, with per-month sales amount and profit
   const months = [];
   for(let m=0; m<12; m++){
-    months.push({ label: monthShortLabels[m], count:0, amount:0, gp:0 });
+    months.push({ label: monthShortLabels[m], count:0, amount:0, gpAuto:0 });
   }
   orders.forEach(o=>{
     if(!o.date) return;
@@ -1534,9 +1569,22 @@ function renderDashboardSection(suffix, orders){
     const m = months[d.getMonth()];
     m.count++;
     m.amount += Number(o.price||0);
-    m.gp += Number(o.gp||0);
+    m.gpAuto += Number(o.gp||0);
+  });
+  months.forEach((m, idx) => {
+    const override = data.monthlyGP.find(x => x.id === `${suffix}_${selectedDashboardYear}_${idx}`);
+    m.gpFinal = override ? Number(override.value) : m.gpAuto;
   });
   const max = Math.max(1, ...months.map(m=>m.count));
+
+  // Aggregate GP total & GP% — sum selected months first (or whole year if none selected), then divide
+  const gpMonths = hasSelection ? months.filter((m,idx)=>selMonths.includes(idx)) : months;
+  const totalGP = gpMonths.reduce((s,m)=>s+m.gpFinal, 0);
+  const gpPercent = totalRevenue > 0 ? (totalGP / totalRevenue) * 100 : 0;
+  const gpTotalEl = $('statTotalGP');
+  if (gpTotalEl) animateNumber(gpTotalEl, totalGP, fmtMoney);
+  const gpPercentEl = $('statGPPercent');
+  if (gpPercentEl) animateNumber(gpPercentEl, gpPercent, v => v.toFixed(1) + '%');
 
   const barsEl = $(`monthlyBars_${suffix}`);
   barsEl.innerHTML = months.map((m, idx) => {
@@ -1544,11 +1592,13 @@ function renderDashboardSection(suffix, orders){
     const dim = hasSelection && !isSelected;
     const targetHeight = (m.count/max*100) || 2;
     return `
-    <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)} / กำไร ${fmtMoney(m.gp)} (คลิกเพื่อเลือกหลายเดือน)">
+    <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)} (คลิกเพื่อเลือกหลายเดือน)">
       <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
       <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
       <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
-      <div class="bar-gp ${dim ? 'dim-text' : ''}">กำไร ${fmtMoney(m.gp)}</div>
+      <input type="number" class="bar-gp-input" value="${m.gpFinal}" title="กำไร ${m.label} — แก้ไขได้"
+        onclick="event.stopPropagation()"
+        onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">
     </div>
   `; }).join('');
   requestAnimationFrame(() => {
