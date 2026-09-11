@@ -1031,6 +1031,14 @@
             <h3>รายชื่อลูกค้าทั้งหมด <span class="badge-count neutral" id="customersTotalCount" style="display:none;"></span></h3>
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
               <input type="text" id="customersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า" style="border-color:var(--line); background:var(--paper); width:200px; padding:8px 12px;">
+              <select id="customersSortFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+                <option value="name_asc">ชื่อลูกค้า (ก-ฮ)</option>
+                <option value="name_desc">ชื่อลูกค้า (ฮ-ก)</option>
+                <option value="count_asc">จำนวนคำสั่งซื้อ (น้อย-มาก)</option>
+                <option value="count_desc">จำนวนคำสั่งซื้อ (มาก-น้อย)</option>
+                <option value="amount_asc">จำนวนเงิน (น้อย-มาก)</option>
+                <option value="amount_desc">จำนวนเงิน (มาก-น้อย)</option>
+              </select>
               <select id="customersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
               <select id="customersCreatorFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px; display:none;">
                 <option value="all">ทุกคนที่สร้าง</option>
@@ -1610,10 +1618,11 @@ async function setMonthlyGP(suffix, year, monthIdx, value){
 const monthShortLabels = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
 function renderDashboardSection(suffix, orders){
+  const dateField = suffix === 'shipped' ? 'shipDate' : 'date';
   const selMonths = selectedDashboardMonths[suffix];
   const hasSelection = selMonths.length > 0;
   const displayOrders = hasSelection
-    ? orders.filter(o => o.date && selMonths.includes(new Date(o.date).getMonth()))
+    ? orders.filter(o => o[dateField] && selMonths.includes(new Date(o[dateField]).getMonth()))
     : orders;
 
   animateNumber($(`statTotalOrders_${suffix}`), displayOrders.length);
@@ -1639,8 +1648,8 @@ function renderDashboardSection(suffix, orders){
     months.push({ label: monthShortLabels[m], count:0, amount:0, gpAuto:0 });
   }
   orders.forEach(o=>{
-    if(!o.date) return;
-    const d = new Date(o.date);
+    if(!o[dateField]) return;
+    const d = new Date(o[dateField]);
     if (d.getFullYear() !== selectedDashboardYear) return;
     const m = months[d.getMonth()];
     m.count++;
@@ -1697,7 +1706,7 @@ function renderDashboardSection(suffix, orders){
     filterBadge.style.display = 'none';
   }
 
-  const sortedRecent = [...displayOrders].sort((a,b)=> new Date(b.date)-new Date(a.date));
+  const sortedRecent = [...displayOrders].sort((a,b)=> new Date(b[dateField])-new Date(a[dateField]));
 
   const totalPages = Math.max(1, Math.ceil(sortedRecent.length / RECENT_PAGE_SIZE));
   if (dashboardRecentPage[suffix] > totalPages) dashboardRecentPage[suffix] = totalPages;
@@ -1710,7 +1719,7 @@ function renderDashboardSection(suffix, orders){
     <tr>
       <td>${escapeHtml(o.customer)}</td>
       <td>${escapeHtml(o.product)}</td>
-      <td>${fmtDate(o.date)}</td>
+      <td>${fmtDate(o[dateField])}</td>
       <td>${fmtMoney(o.price)}</td>
       <td><span class="badge ${o.status}">${orderStatusLabel[o.status] || o.status}</span></td>
     </tr>
@@ -1731,7 +1740,7 @@ function renderDashboardSection(suffix, orders){
 function renderDashboard(){
   const yearOrders = getVisibleOrders().filter(o => o.date && new Date(o.date).getFullYear() === selectedDashboardYear);
   const ordersSet = yearOrders.filter(o => o.status !== 'cancelled');
-  const shippedSet = yearOrders.filter(o => o.status === 'done');
+  const shippedSet = getVisibleOrders().filter(o => o.status === 'done' && o.shipDate && new Date(o.shipDate).getFullYear() === selectedDashboardYear);
 
   const allSelMonths = selectedDashboardMonths.all;
   const allHasSelection = allSelMonths.length > 0;
@@ -2152,6 +2161,7 @@ $('customersClearBtn').addEventListener('click', () => {
   $('customersSearch').value = '';
   $('customersCreatorFilter').value = 'all';
   $('customersPageSize').value = '10';
+  $('customersSortFilter').value = 'name_asc';
   selectedCustomersYear = new Date().getFullYear();
   customersCurrentPage = 1;
   refreshCustomersYearFilter();
@@ -2336,7 +2346,20 @@ function customerOrderAmount(customerName){
 function renderCustomers(){
   const body = $('customersBody');
   const searchTerm = ($('customersSearch').value || '').trim().toLowerCase();
-  let list = [...getVisibleCustomers()].sort((a,b)=> a.name.localeCompare(b.name,'th'));
+  const sortMode = $('customersSortFilter').value;
+  let list = [...getVisibleCustomers()];
+
+  if (sortMode === 'count_asc' || sortMode === 'count_desc'){
+    list.sort((a,b) => customerOrderCount(a.name) - customerOrderCount(b.name));
+    if (sortMode === 'count_desc') list.reverse();
+  } else if (sortMode === 'amount_asc' || sortMode === 'amount_desc'){
+    list.sort((a,b) => customerOrderAmount(a.name) - customerOrderAmount(b.name));
+    if (sortMode === 'amount_desc') list.reverse();
+  } else if (sortMode === 'name_desc'){
+    list.sort((a,b) => b.name.localeCompare(a.name,'th'));
+  } else {
+    list.sort((a,b) => a.name.localeCompare(b.name,'th'));
+  }
 
   if (currentUserRole === 'admin'){
     const creatorFilter = $('customersCreatorFilter').value;
@@ -2417,6 +2440,7 @@ $('customersYearFilter').addEventListener('change', (e) => {
 $('customersPageSize').addEventListener('change', () => { customersCurrentPage = 1; renderCustomers(); });
 $('customersSearch').addEventListener('input', () => { customersCurrentPage = 1; renderCustomers(); });
 $('customersCreatorFilter').addEventListener('change', () => { customersCurrentPage = 1; renderCustomers(); });
+$('customersSortFilter').addEventListener('change', () => { customersCurrentPage = 1; renderCustomers(); });
 
 $('customerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
