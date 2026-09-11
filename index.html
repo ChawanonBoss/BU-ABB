@@ -2546,9 +2546,14 @@ function renderImportMapping(){
 
 function parseImportDate(v){
   if (!v) return null;
-  if (v instanceof Date) return v.toISOString().slice(0,10);
-  const d = new Date(v);
-  return isNaN(d) ? null : d.toISOString().slice(0,10);
+  let d = (v instanceof Date) ? v : new Date(v);
+  if (isNaN(d)) return null;
+  // If the parsed year looks like a Thai Buddhist-era year (e.g. "2569") that got
+  // taken literally as a Gregorian year instead of being converted, correct it.
+  if (d.getFullYear() > 2400){
+    d = new Date(d.getFullYear() - 543, d.getMonth(), d.getDate());
+  }
+  return d.toISOString().slice(0,10);
 }
 
 function normalizeImportStatus(v){
