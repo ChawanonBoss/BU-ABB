@@ -209,7 +209,7 @@
     gap:16px;
     margin-bottom:32px;
   }
-  .stat-grid.mixed{ grid-template-columns:repeat(9,1fr); }
+  .stat-grid.mixed{ grid-template-columns:repeat(7,1fr); }
   .stat-grid.mixed .stat-card{ grid-column:span 2; }
   .stat-grid.mixed .stat-card.small{ grid-column:span 1; }
   .stat-card{
@@ -407,6 +407,41 @@
   .inline-input:focus{ border-color:var(--accent); background:var(--paper); outline:none; }
   .inline-input.po-filled{ background:var(--accent-soft); border-color:var(--accent); }
   .inline-input.po-filled:hover{ background:var(--accent-soft); }
+
+  /* Overlay a readable formatted date on top of a native <input type=date>,
+     so it matches the plain-text date columns instead of showing mm/dd/yyyy */
+  .date-edit-wrap{ position:relative; }
+  .date-edit-wrap input[type="date"]{
+    position:relative;
+    z-index:2;
+    color:transparent;
+    background:transparent;
+  }
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-text,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-month-field,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-day-field,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-year-field{
+    color:transparent;
+  }
+  .date-edit-wrap input[type="date"]::-webkit-calendar-picker-indicator{
+    position:relative;
+    z-index:3;
+    opacity:0.6;
+  }
+  .date-edit-wrap input[type="date"]:hover::-webkit-calendar-picker-indicator{ opacity:1; }
+  .date-display-text{
+    position:absolute;
+    left:8px;
+    top:50%;
+    transform:translateY(-50%);
+    z-index:1;
+    pointer-events:none;
+    font-size:13.5px;
+    color:var(--ink);
+    white-space:nowrap;
+  }
   select.inline-input.status-pending{ background:var(--info-soft); border-color:var(--info); color:var(--ink); }
   select.inline-input.status-done{ background:var(--accent-soft); border-color:var(--accent); color:var(--ink); }
   select.inline-input.status-cancelled{ background:var(--danger-soft); border-color:var(--danger); color:var(--ink); }
@@ -750,14 +785,6 @@
               <div class="stat-label">ยกเลิกคำสั่งซื้อ</div>
               <div class="stat-value" id="statCancelled_all">0</div>
             </div>
-            <div class="stat-card small">
-              <div class="stat-label">กำไรรวมสุทธิ (GP)</div>
-              <div class="stat-value" id="statTotalGP">฿0</div>
-            </div>
-            <div class="stat-card small">
-              <div class="stat-label">GP (%)</div>
-              <div class="stat-value" id="statGPPercent">0%</div>
-            </div>
           </div>
           <div class="panel">
             <div class="panel-head"><h3>คำสั่งซื้อรายเดือน</h3></div>
@@ -803,7 +830,7 @@
         <!-- สรุปการส่งสินค้า: only status = done (Complete) -->
         <div id="dashSub-shipped" class="dash-subpanel" style="display:none;">
           <div class="period-indicator" id="periodIndicator_shipped"></div>
-          <div class="stat-grid">
+          <div class="stat-grid mixed">
             <div class="stat-card">
               <div class="stat-label">คำสั่งซื้อที่จัดส่งแล้ว</div>
               <div class="stat-value" id="statTotalOrders_shipped">0</div>
@@ -811,6 +838,14 @@
             <div class="stat-card">
               <div class="stat-label">ยอดขายรวม</div>
               <div class="stat-value" id="statRevenue_shipped">฿0</div>
+            </div>
+            <div class="stat-card small">
+              <div class="stat-label">กำไรรวมสุทธิ (GP)</div>
+              <div class="stat-value" id="statTotalGP">฿0</div>
+            </div>
+            <div class="stat-card small">
+              <div class="stat-label">GP (%)</div>
+              <div class="stat-value" id="statGPPercent">0%</div>
             </div>
           </div>
           <div class="panel">
@@ -838,7 +873,9 @@
                 <label>เลขที่ใบเสนอราคา (SO)</label>
                 <div class="locked-input-group">
                   <span class="locked-prefix">SO</span>
-                  <input type="text" id="ordSO" inputmode="numeric" autocomplete="off" placeholder="20261001" required>
+                  <input type="text" id="ordSOMain" inputmode="numeric" autocomplete="off" placeholder="20261001" maxlength="8" required style="flex:1.6;">
+                  <span class="locked-prefix">-</span>
+                  <input type="text" id="ordSOSeq" inputmode="numeric" autocomplete="off" placeholder="001" maxlength="3" required style="flex:0.9;">
                 </div>
               </div>
               <div class="field"><label>ชื่อลูกค้า</label><div class="autocomplete-wrap"><input type="text" id="ordCustomer" autocomplete="off" placeholder="พิมพ์เพื่อค้นหาจากรายชื่อลูกค้า" required></div></div>
@@ -850,6 +887,12 @@
           </form>
           <datalist id="customerOptions"></datalist>
           <datalist id="productOptions"></datalist>
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap;">
+            <button class="btn outline" id="downloadReportBtn" type="button">ดาวน์โหลดรายงาน</button>
+            <a class="btn outline" id="downloadOrderTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
+            <button class="btn outline" id="importExcelBtn">นำเข้าจาก Excel</button>
+            <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+          </div>
         </div>
 
         <div class="panel">
@@ -858,19 +901,34 @@
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
               <input type="text" id="ordersSearch" class="inline-input" placeholder="ค้นหาชื่อลูกค้า, สินค้า, SO, PO" style="border-color:var(--line); background:var(--paper); width:220px; padding:8px 12px;">
               <select id="ordersMonthFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
-                <option value="all">ทุกเดือน</option>
-                <option value="0">ม.ค.</option>
-                <option value="1">ก.พ.</option>
-                <option value="2">มี.ค.</option>
-                <option value="3">เม.ย.</option>
-                <option value="4">พ.ค.</option>
-                <option value="5">มิ.ย.</option>
-                <option value="6">ก.ค.</option>
-                <option value="7">ส.ค.</option>
-                <option value="8">ก.ย.</option>
-                <option value="9">ต.ค.</option>
-                <option value="10">พ.ย.</option>
-                <option value="11">ธ.ค.</option>
+                <option value="all">เดือนสั่งซื้อ: ทุกเดือน</option>
+                <option value="0">เดือนสั่งซื้อ: ม.ค.</option>
+                <option value="1">เดือนสั่งซื้อ: ก.พ.</option>
+                <option value="2">เดือนสั่งซื้อ: มี.ค.</option>
+                <option value="3">เดือนสั่งซื้อ: เม.ย.</option>
+                <option value="4">เดือนสั่งซื้อ: พ.ค.</option>
+                <option value="5">เดือนสั่งซื้อ: มิ.ย.</option>
+                <option value="6">เดือนสั่งซื้อ: ก.ค.</option>
+                <option value="7">เดือนสั่งซื้อ: ส.ค.</option>
+                <option value="8">เดือนสั่งซื้อ: ก.ย.</option>
+                <option value="9">เดือนสั่งซื้อ: ต.ค.</option>
+                <option value="10">เดือนสั่งซื้อ: พ.ย.</option>
+                <option value="11">เดือนสั่งซื้อ: ธ.ค.</option>
+              </select>
+              <select id="ordersShipMonthFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;">
+                <option value="all">เดือนส่งสินค้า: ทุกเดือน</option>
+                <option value="0">เดือนส่งสินค้า: ม.ค.</option>
+                <option value="1">เดือนส่งสินค้า: ก.พ.</option>
+                <option value="2">เดือนส่งสินค้า: มี.ค.</option>
+                <option value="3">เดือนส่งสินค้า: เม.ย.</option>
+                <option value="4">เดือนส่งสินค้า: พ.ค.</option>
+                <option value="5">เดือนส่งสินค้า: มิ.ย.</option>
+                <option value="6">เดือนส่งสินค้า: ก.ค.</option>
+                <option value="7">เดือนส่งสินค้า: ส.ค.</option>
+                <option value="8">เดือนส่งสินค้า: ก.ย.</option>
+                <option value="9">เดือนส่งสินค้า: ต.ค.</option>
+                <option value="10">เดือนส่งสินค้า: พ.ย.</option>
+                <option value="11">เดือนส่งสินค้า: ธ.ค.</option>
               </select>
               <select id="ordersYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
               <select id="ordersCreatorFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px; display:none;">
@@ -887,10 +945,6 @@
                 <option value="50">แสดง 50</option>
                 <option value="100">แสดง 100</option>
               </select>
-              <button class="btn outline" id="downloadReportBtn" type="button">ดาวน์โหลดรายงาน</button>
-              <a class="btn outline" id="downloadOrderTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
-              <button class="btn outline" id="importExcelBtn">นำเข้าจาก Excel</button>
-              <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
             </div>
           </div>
           <table>
@@ -1577,10 +1631,10 @@ function renderDashboardSection(suffix, orders){
   const max = Math.max(1, ...months.map(m=>m.count));
 
   // Aggregate GP total & GP% — sum selected months first (or whole year if none selected), then divide.
-  // These two cards only exist once in the DOM (in the "สรุปรวม" section), so only the 'all' suffix
-  // is allowed to write them — otherwise the 'orders'/'shipped' renders (which run afterward) would
-  // silently overwrite the correct number with their own, unrelated calculation.
-  if (suffix === 'all'){
+  // These two cards only exist once in the DOM (in the "สรุปการส่งสินค้า" section), so only the
+  // 'shipped' suffix is allowed to write them — otherwise the 'all'/'orders' renders (which may run
+  // before or after) would silently overwrite the correct number with their own, unrelated calculation.
+  if (suffix === 'shipped'){
     const gpMonths = hasSelection ? months.filter((m,idx)=>selMonths.includes(idx)) : months;
     const totalGP = gpMonths.reduce((s,m)=>s+m.gpFinal, 0);
     const gpPercent = totalRevenue > 0 ? (totalGP / totalRevenue) * 100 : 0;
@@ -1600,9 +1654,9 @@ function renderDashboardSection(suffix, orders){
       <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
       <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
       <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
-      <input type="number" class="bar-gp-input" value="${Math.round(m.gpFinal * 100) / 100}" title="กำไร ${m.label} — แก้ไขได้"
+      ${suffix === 'shipped' ? `<input type="number" class="bar-gp-input" value="${Math.round(m.gpFinal * 100) / 100}" title="กำไร ${m.label} — แก้ไขได้"
         onclick="event.stopPropagation()"
-        onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">
+        onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">` : ''}
     </div>
   `; }).join('');
   requestAnimationFrame(() => {
@@ -1702,6 +1756,7 @@ function renderOrders(){
   const searchTerm = ($('ordersSearch').value || '').trim().toLowerCase();
   const statusFilter = $('ordersStatusFilter').value;
   const monthFilter = $('ordersMonthFilter').value;
+  const shipMonthFilter = $('ordersShipMonthFilter').value;
   let list = getVisibleOrders()
     .filter(o => o.status !== 'cancelled')
     .filter(o => o.date && new Date(o.date).getFullYear() === selectedOrdersYear)
@@ -1713,6 +1768,10 @@ function renderOrders(){
 
   if (monthFilter !== 'all'){
     list = list.filter(o => o.date && new Date(o.date).getMonth() === Number(monthFilter));
+  }
+
+  if (shipMonthFilter !== 'all'){
+    list = list.filter(o => o.shipDate && new Date(o.shipDate).getMonth() === Number(shipMonthFilter));
   }
 
   if (currentUserRole === 'admin'){
@@ -1767,7 +1826,12 @@ function renderOrders(){
       <td>${fmtMoney(o.price)}</td>
       <td>${poCell}</td>
       <td>${fmtDate(o.date)}</td>
-      <td><input type="date" class="inline-input" value="${o.shipDate || ''}" onchange="setOrderField('${o.id}','shipDate',this.value)"></td>
+      <td>
+        <div class="date-edit-wrap">
+          <input type="date" class="inline-input" value="${o.shipDate || ''}" onchange="setOrderField('${o.id}','shipDate',this.value)">
+          <span class="date-display-text">${o.shipDate ? fmtDate(o.shipDate) : 'ยังไม่ส่ง'}</span>
+        </div>
+      </td>
       <td>
         <button class="status-toggle-btn status-${o.status}" onclick="toggleOrderStatus('${o.id}')" title="คลิกเพื่อสลับสถานะ">
           ${o.status==='pending' ? 'PENDING' : 'COMPLETE'}
@@ -2068,9 +2132,13 @@ $('ordersPageSize').addEventListener('change', () => { ordersCurrentPage = 1; re
 $('ordersSearch').addEventListener('input', () => { ordersCurrentPage = 1; renderOrders(); });
 $('ordersStatusFilter').addEventListener('change', () => { ordersCurrentPage = 1; renderOrders(); });
 $('ordersMonthFilter').addEventListener('change', () => { ordersCurrentPage = 1; renderOrders(); });
+$('ordersShipMonthFilter').addEventListener('change', () => { ordersCurrentPage = 1; renderOrders(); });
 $('ordersCreatorFilter').addEventListener('change', () => { ordersCurrentPage = 1; renderOrders(); });
 
-$('ordSO').addEventListener('input', (e) => {
+$('ordSOMain').addEventListener('input', (e) => {
+  e.target.value = e.target.value.replace(/\D/g, '');
+});
+$('ordSOSeq').addEventListener('input', (e) => {
   e.target.value = e.target.value.replace(/\D/g, '');
 });
 
@@ -2084,12 +2152,13 @@ $('orderForm').addEventListener('submit', async (e) => {
   }
   setSync('saving');
   try{
+    const newOrderDate = $('ordDate').value;
     await db.collection('orders').add({
-      so: 'SO' + $('ordSO').value.trim(),
+      so: 'SO' + $('ordSOMain').value.trim() + '-' + $('ordSOSeq').value.trim(),
       customer: knownCustomer.name,
       product: $('ordProduct').value.trim(),
       price: Number($('ordPrice').value),
-      date: $('ordDate').value,
+      date: newOrderDate,
       shipDate: null,
       status: 'pending',
       po: '',
@@ -2097,8 +2166,19 @@ $('orderForm').addEventListener('submit', async (e) => {
       createdBy: currentUserUid
     });
     e.target.reset();
+    if (newOrderDate){
+      const newOrderYear = new Date(newOrderDate).getFullYear();
+      if (newOrderYear !== selectedOrdersYear){
+        selectedOrdersYear = newOrderYear;
+        ordersCurrentPage = 1;
+        toast(`บันทึกคำสั่งซื้อแล้ว — สลับตัวกรองปีเป็น ${newOrderYear+543} ให้อัตโนมัติ`);
+      } else {
+        toast('บันทึกคำสั่งซื้อแล้ว');
+      }
+    } else {
+      toast('บันทึกคำสั่งซื้อแล้ว');
+    }
     setSync('ok');
-    toast('บันทึกคำสั่งซื้อแล้ว');
   }catch(err){
     setSync('error');
     toast('บันทึกไม่สำเร็จ — กดปุ่มรีเฟรชด้านล่างซ้ายเพื่อลองใหม่');
