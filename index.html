@@ -65,6 +65,9 @@
   .stat-card.quad{ padding:18px; display:flex; flex-direction:column; justify-content:center; }
   .stat-card.quad.filled{ border:none; }
   .stat-card.quad.filled:hover{ box-shadow:0 10px 24px rgba(0,0,0,0.16); }
+  .quad-split{ display:flex; gap:14px; }
+  .stat-card.quad.half{ flex:1; padding:14px; min-width:0; }
+  .stat-icon-badge.small{ width:28px; height:28px; border-radius:8px; margin-bottom:8px; }
   .dash-donut-card{ display:flex; flex-direction:column; }
   .donut-row{ display:flex; align-items:center; gap:22px; margin:6px 0 18px; }
   .donut-chart-outer{ position:relative; width:118px; height:118px; flex-shrink:0; }
@@ -853,12 +856,21 @@
                 <div class="stat-label">คำสั่งซื้อที่ส่งแล้ว</div>
                 <div class="stat-value" id="statShipped_all">0</div>
               </div>
-              <div class="stat-card quad filled" id="statCancelledCard" style="cursor:pointer; background:#F0618B;" title="ไปที่หน้ายกเลิกการสั่งซื้อ">
-                <div class="stat-icon-badge" style="background:rgba(255,255,255,0.28); color:#fff;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+              <div class="quad-split">
+                <div class="stat-card quad filled half" id="statCancelledCard" style="cursor:pointer; background:#F0618B;" title="ไปที่หน้ายกเลิกการสั่งซื้อ">
+                  <div class="stat-icon-badge small" style="background:rgba(255,255,255,0.28); color:#fff;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                  </div>
+                  <div class="stat-label" style="color:rgba(255,255,255,0.9);">ยกเลิก</div>
+                  <div class="stat-value" style="color:#fff; font-size:20px;" id="statCancelled_all">0</div>
                 </div>
-                <div class="stat-label" style="color:rgba(255,255,255,0.9);">ยกเลิกคำสั่งซื้อ</div>
-                <div class="stat-value" style="color:#fff;" id="statCancelled_all">0</div>
+                <div class="stat-card quad filled half" id="statActiveWarrantyCard" style="cursor:pointer; background:#8B7CF6;" title="ไปที่หน้าการรับประกัน">
+                  <div class="stat-icon-badge small" style="background:rgba(255,255,255,0.28); color:#fff;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path></svg>
+                  </div>
+                  <div class="stat-label" style="color:rgba(255,255,255,0.9);">รับประกัน</div>
+                  <div class="stat-value" style="color:#fff; font-size:20px;" id="statActiveWarranty">0</div>
+                </div>
               </div>
             </div>
 
@@ -875,7 +887,7 @@
                     <div class="donut-chart" id="orderTargetRing"></div>
                     <div class="donut-center"><span id="orderTargetPct">0%</span></div>
                   </div>
-                  <div class="target-ring-label">เป้าหมายคำสั่งซื้อ</div>
+                  <div class="target-ring-label">เป้าหมายคำสั่งซื้อ (บาท)</div>
                   <div class="target-ring-count"><b id="orderTargetActual">0</b> / <span id="orderTargetGoal">0</span></div>
                 </div>
                 <div class="target-ring-item">
@@ -883,7 +895,7 @@
                     <div class="donut-chart" id="shipTargetRing"></div>
                     <div class="donut-center"><span id="shipTargetPct">0%</span></div>
                   </div>
-                  <div class="target-ring-label">เป้าหมายส่งสินค้า</div>
+                  <div class="target-ring-label">เป้าหมายส่งสินค้า (บาท)</div>
                   <div class="target-ring-count"><b id="shipTargetActual">0</b> / <span id="shipTargetGoal">0</span></div>
                 </div>
               </div>
@@ -891,10 +903,6 @@
                 <div class="mini-stat-row">
                   <span>ยอดขายรวม</span>
                   <b id="statRevenue_all">฿0</b>
-                </div>
-                <div class="mini-stat-row" id="statActiveWarrantyCard" style="cursor:pointer;" title="ไปที่หน้าการรับประกัน">
-                  <span>รับประกันที่ใช้งานอยู่</span>
-                  <b id="statActiveWarranty">0</b>
                 </div>
               </div>
             </div>
@@ -1206,9 +1214,9 @@
             <h3>เป้าหมายประจำปี</h3>
             <select id="targetYearFilter" class="inline-input" style="border-color:var(--line); background:var(--paper); width:auto; padding:8px 12px;"></select>
           </div>
-          <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">กำหนดเป้าหมายคำสั่งซื้อและเป้าหมายส่งสินค้าของแต่ละคนในแต่ละปี ใช้เทียบผลงานจริงในหน้าแดชบอร์ด — เฉพาะคนที่เคยล็อกอินแล้วเท่านั้นที่ตั้งเป้าหมายได้</p>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">กำหนดเป้าหมายยอดขาย (บาท) ของคำสั่งซื้อและของยอดที่ส่งแล้ว ของแต่ละคนในแต่ละปี ใช้เทียบผลงานจริงในหน้าแดชบอร์ด — เฉพาะคนที่เคยล็อกอินแล้วเท่านั้นที่ตั้งเป้าหมายได้</p>
           <table>
-            <thead><tr><th>ชื่อ</th><th>เป้าหมายคำสั่งซื้อ</th><th>เป้าหมายส่งสินค้า</th></tr></thead>
+            <thead><tr><th>ชื่อ</th><th>เป้าหมายคำสั่งซื้อ (บาท)</th><th>เป้าหมายส่งสินค้า (บาท)</th></tr></thead>
             <tbody id="userTargetsBody"></tbody>
           </table>
         </div>
@@ -1532,7 +1540,7 @@ function refreshTargetUserFilter(){
   }
   sel.style.display = '';
   const prevVal = sel.value || 'all';
-  const users = [...(data.users||[])].sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
+  const users = [...(data.users||[])].filter(u => u.role !== 'admin').sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
   sel.innerHTML = `<option value="all">ทั้งหมด</option>` +
     users.map(u => `<option value="${u.id}" ${u.id===prevVal?'selected':''}>${escapeHtml(u.name || u.email)}</option>`).join('');
 }
@@ -1818,8 +1826,12 @@ function renderDashboardSection(suffix, orders){
       ? baseOrders.filter(o => o.createdBy === targetSel)
       : baseOrders;
 
-    const orderActual = scopedOrders.filter(o => o.date && new Date(o.date).getFullYear() === year).length;
-    const shipActual = scopedOrders.filter(o => o.status==='done' && o.shipDate && new Date(o.shipDate).getFullYear() === year).length;
+    const orderActual = scopedOrders
+      .filter(o => o.date && new Date(o.date).getFullYear() === year)
+      .reduce((s,o)=>s+Number(o.price||0), 0);
+    const shipActual = scopedOrders
+      .filter(o => o.status==='done' && o.shipDate && new Date(o.shipDate).getFullYear() === year)
+      .reduce((s,o)=>s+Number(o.price||0), 0);
 
     let orderGoal = 0, shipGoal = 0;
     if (currentUserRole === 'admin' && targetSel === 'all'){
@@ -1838,10 +1850,10 @@ function renderDashboardSection(suffix, orders){
 
     renderTargetRing('orderTargetRing', 'orderTargetPct', orderActual, orderGoal, '#3B82F6');
     renderTargetRing('shipTargetRing', 'shipTargetPct', shipActual, shipGoal, '#FF9F43');
-    $('orderTargetActual').textContent = orderActual;
-    $('orderTargetGoal').textContent = orderGoal;
-    $('shipTargetActual').textContent = shipActual;
-    $('shipTargetGoal').textContent = shipGoal;
+    $('orderTargetActual').textContent = fmtMoney(orderActual);
+    $('orderTargetGoal').textContent = fmtMoney(orderGoal);
+    $('shipTargetActual').textContent = fmtMoney(shipActual);
+    $('shipTargetGoal').textContent = fmtMoney(shipGoal);
   }
 
   const periodEl = $(`periodIndicator_${suffix}`);
@@ -2761,16 +2773,16 @@ function refreshTargetYearFilter(){
 
 function renderUserTargets(){
   const body = $('userTargetsBody');
-  const users = [...(data.users||[])].sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
+  const users = [...(data.users||[])].filter(u => u.role !== 'admin').sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
   body.innerHTML = users.length ? users.map(u => {
     const t = getUserTarget(u.id, selectedTargetYear);
     return `
     <tr>
       <td>${escapeHtml(u.name || u.email)}</td>
-      <td><input type="number" min="0" class="inline-input" value="${t.orderTarget}" onchange="setUserTarget('${u.id}', ${selectedTargetYear}, 'orderTarget', this.value)"></td>
-      <td><input type="number" min="0" class="inline-input" value="${t.shippedTarget}" onchange="setUserTarget('${u.id}', ${selectedTargetYear}, 'shippedTarget', this.value)"></td>
+      <td><input type="number" min="0" step="0.01" class="inline-input" value="${t.orderTarget}" onchange="setUserTarget('${u.id}', ${selectedTargetYear}, 'orderTarget', this.value)"></td>
+      <td><input type="number" min="0" step="0.01" class="inline-input" value="${t.shippedTarget}" onchange="setUserTarget('${u.id}', ${selectedTargetYear}, 'shippedTarget', this.value)"></td>
     </tr>
-  `; }).join('') : `<tr><td colspan="3" class="empty-row">ยังไม่มีใครล็อกอินเข้าใช้งาน</td></tr>`;
+  `; }).join('') : `<tr><td colspan="3" class="empty-row">ยังไม่มีผู้ใช้งานทั่วไปที่ต้องตั้งเป้าหมาย (ผู้ดูแลระบบไม่ต้องตั้งเป้าหมาย)</td></tr>`;
 }
 
 async function setUserField(kind, id, field, value){
