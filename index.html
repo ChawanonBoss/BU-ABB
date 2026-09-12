@@ -857,6 +857,19 @@
   .promo-card-name{ font-family:var(--font-display); font-weight:600; font-size:15px; color:var(--ink); margin-bottom:4px; }
   .promo-card-meta{ font-size:12px; color:var(--ink-soft); }
   .promo-card-progress{ font-size:12px; color:var(--accent); font-weight:600; margin-top:10px; }
+  .promo-status-badge{
+    display:inline-block;
+    font-size:10.5px;
+    font-weight:600;
+    padding:3px 10px;
+    border-radius:100px;
+    margin-bottom:8px;
+  }
+  .promo-status-badge.ongoing{ background:var(--accent-soft); color:var(--accent); }
+  .promo-status-badge.ended{ background:#E9E9EC; color:#8A8D96; }
+  .promo-card-ended{ opacity:0.6; filter:grayscale(70%); }
+  .promo-card-ended:hover{ opacity:0.85; }
+  .promo-card-ended .promo-card-progress{ color:var(--ink-soft); }
   .promo-card-delete{
     position:absolute; top:12px; right:12px;
     background:none; border:none; color:var(--ink-soft);
@@ -867,6 +880,35 @@
 
   .promo-check-label{ display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; }
   .promo-check-label input{ width:17px; height:17px; cursor:pointer; accent-color:var(--accent); }
+
+  .promo-dash-stats{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .promo-dash-stat{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px;
+    text-align:center;
+  }
+  .promo-dash-stat .num{ font-family:var(--font-display); font-size:22px; font-weight:600; color:var(--ink); }
+  .promo-dash-stat .lbl{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .promo-dash-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:12px 0;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .promo-dash-item:last-child{ border-bottom:none; }
+  .promo-dash-item:hover .promo-dash-item-name{ color:var(--accent); }
+  .promo-dash-item-name{ font-size:13.5px; font-weight:600; color:var(--ink); transition:color .15s ease; }
+  .promo-dash-item-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .promo-dash-item-progress{ font-size:13px; font-weight:600; color:var(--accent); white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -1059,6 +1101,12 @@
               <tbody id="recentOrdersBody_all"></tbody>
             </table>
             <div class="pagination" id="recentPagination_all"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>สรุปโปรโมชัน</h3></div>
+            <div class="promo-dash-stats" id="promoDashStats"></div>
+            <div id="promoDashList"></div>
           </div>
         </div>
 
@@ -2212,6 +2260,40 @@ function renderDashboard(){
 
   renderDashboardSection('all', yearOrders);
   renderDashboardSection('shipped', shippedSet);
+  renderPromoDashboardSummary();
+}
+
+function renderPromoDashboardSummary(){
+  const statsEl = $('promoDashStats');
+  const listEl = $('promoDashList');
+  if (!statsEl || !listEl) return;
+
+  const ongoing = (data.promotions||[]).filter(p => !isPromoEnded(p)).sort((a,b)=> (a.year-b.year) || (a.month-b.month));
+
+  let totalQualifying = 0, totalPrepared = 0;
+  const rows = ongoing.map(p => {
+    const qualifying = getPromoQualifyingOrders(p);
+    const prepared = qualifying.filter(o => isPromoOrderPrepared(p.id, o.id)).length;
+    totalQualifying += qualifying.length;
+    totalPrepared += prepared;
+    return { promo: p, qualifying: qualifying.length, prepared };
+  });
+
+  statsEl.innerHTML = `
+    <div class="promo-dash-stat"><div class="num">${ongoing.length}</div><div class="lbl">โปรโมชันที่กำลังดำเนินการ</div></div>
+    <div class="promo-dash-stat"><div class="num">${totalQualifying}</div><div class="lbl">คำสั่งซื้อที่เข้าเงื่อนไข</div></div>
+    <div class="promo-dash-stat"><div class="num">${totalPrepared}</div><div class="lbl">เตรียมของแล้ว</div></div>
+  `;
+
+  listEl.innerHTML = rows.length ? rows.map(r => `
+    <div class="promo-dash-item" onclick="showTab('promotions'); setTimeout(()=>openPromoModal('${r.promo.id}'), 50);">
+      <div>
+        <div class="promo-dash-item-name">${escapeHtml(r.promo.name)}</div>
+        <div class="promo-dash-item-meta">ส่งภายใน ${monthShortLabels[r.promo.month]} ${Number(r.promo.year)+543} · ${escapeHtml(r.promo.giftLabel)}</div>
+      </div>
+      <div class="promo-dash-item-progress">${r.prepared} / ${r.qualifying}</div>
+    </div>
+  `).join('') : `<p style="font-size:13px; color:var(--ink-soft);">ไม่มีโปรโมชันที่กำลังดำเนินการอยู่ตอนนี้</p>`;
 }
 
 const orderStatusLabel = { pending:'PENDING', done:'COMPLETE', cancelled:'CANCELLED' };
@@ -3045,6 +3127,11 @@ function getPromoQualifyingOrders(promo){
   );
 }
 
+function isPromoEnded(promo){
+  const endOfPromoMonth = new Date(Number(promo.year), Number(promo.month) + 1, 1);
+  return new Date() >= endOfPromoMonth;
+}
+
 function isPromoOrderPrepared(promoId, orderId){
   const rec = (data.promotionPrepared||[]).find(x => x.id === `${promoId}_${orderId}`);
   return !!(rec && rec.prepared);
@@ -3056,14 +3143,16 @@ function renderPromotions(){
   body.innerHTML = list.length ? list.map(p => {
     const qualifying = getPromoQualifyingOrders(p);
     const preparedCount = qualifying.filter(o => isPromoOrderPrepared(p.id, o.id)).length;
+    const ended = isPromoEnded(p);
     return `
-    <div class="promo-card" onclick="openPromoModal('${p.id}')">
+    <div class="promo-card ${ended ? 'promo-card-ended' : ''}" onclick="openPromoModal('${p.id}')">
       ${currentUserRole==='admin' ? `<button class="promo-card-delete" onclick="event.stopPropagation(); deletePromotion('${p.id}')" title="ลบโปรโมชัน">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
       </button>` : ''}
       <div class="promo-card-icon">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.58 9.59a2 2 0 0 0 2.83 0l4.36-4.36a2 2 0 0 0 0-2.82Z"></path><circle cx="7.5" cy="7.5" r="1.5"></circle></svg>
       </div>
+      <span class="promo-status-badge ${ended ? 'ended' : 'ongoing'}">${ended ? 'สิ้นสุดโปรโมชั่น' : 'กำลังดำเนินการ'}</span>
       <div class="promo-card-name">${escapeHtml(p.name)}</div>
       <div class="promo-card-meta">ส่งภายใน ${monthShortLabels[p.month]} ${Number(p.year)+543} · ${escapeHtml(p.giftLabel)}</div>
       <div class="promo-card-progress">เตรียมของแล้ว ${preparedCount} / ${qualifying.length} รายการ</div>
