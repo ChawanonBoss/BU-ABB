@@ -881,7 +881,7 @@
     <button class="nav-item" data-tab="warranty"><span class="dot"></span>การรับประกัน</button>
     <button class="nav-item" data-tab="cancelled"><span class="dot"></span>ยกเลิกการสั่งซื้อ</button>
     <button class="nav-item" data-tab="customers"><span class="dot"></span>รายชื่อลูกค้า</button>
-    <button class="nav-item" data-tab="promotions" id="navPromotionsTab" style="display:none;"><span class="dot"></span>Promotion</button>
+    <button class="nav-item" data-tab="promotions" id="navPromotionsTab"><span class="dot"></span>Promotion</button>
     <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><span class="dot"></span>ผู้ใช้งาน</button>
     <div class="sidebar-footer">
       <div class="sync-status">
@@ -1298,7 +1298,7 @@
 
       <!-- Promotion tab (admin only) -->
       <div id="tab-promotions" class="tab-panel" style="display:none;">
-        <div class="panel">
+        <div class="panel" id="promoCreatePanel">
           <div class="panel-head"><h3>เพิ่มโปรโมชันใหม่</h3></div>
           <form id="promotionForm">
             <div class="form-grid">
@@ -1461,7 +1461,7 @@
 </div>
 
 <div class="modal-overlay" id="promoModal" style="display:none;">
-  <div class="modal" style="max-width:640px;">
+  <div class="modal" style="max-width:920px;">
     <div class="panel-head" style="margin-bottom:4px;">
       <h3 class="serif" id="promoModalTitle" style="font-size:19px;"></h3>
       <button class="icon-btn" id="promoModalCloseBtn" type="button">ปิด</button>
@@ -1695,7 +1695,7 @@ async function resolveUserRole(){
     }
   }
   $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
-  $('navPromotionsTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('promoCreatePanel').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('ordersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
@@ -3058,9 +3058,9 @@ function renderPromotions(){
     const preparedCount = qualifying.filter(o => isPromoOrderPrepared(p.id, o.id)).length;
     return `
     <div class="promo-card" onclick="openPromoModal('${p.id}')">
-      <button class="promo-card-delete" onclick="event.stopPropagation(); deletePromotion('${p.id}')" title="ลบโปรโมชัน">
+      ${currentUserRole==='admin' ? `<button class="promo-card-delete" onclick="event.stopPropagation(); deletePromotion('${p.id}')" title="ลบโปรโมชัน">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
-      </button>
+      </button>` : ''}
       <div class="promo-card-icon">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.58 9.59a2 2 0 0 0 2.83 0l4.36-4.36a2 2 0 0 0 0-2.82Z"></path><circle cx="7.5" cy="7.5" r="1.5"></circle></svg>
       </div>
@@ -3177,7 +3177,7 @@ async function setUserField(kind, id, field, value){
       currentUserRole = value;
       updateRoleBadge();
       $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
-  $('navPromotionsTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('promoCreatePanel').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('ordersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
