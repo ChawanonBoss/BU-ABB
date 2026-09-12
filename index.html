@@ -130,6 +130,11 @@
     flex-direction:column;
     padding:24px 16px;
   }
+  .sidebar.loading-lock .nav-item{
+    pointer-events:none;
+    opacity:0.4;
+    cursor:not-allowed;
+  }
   .brand{
     display:flex;
     align-items:center;
@@ -1670,6 +1675,7 @@ auth.onAuthStateChanged(async (user) => {
 async function onSignedIn(){
   $('gate').style.display = 'none';
   $('sidebar').style.display = 'flex';
+  $('sidebar').classList.add('loading-lock');
   $('userBox').style.display = 'flex';
   $('loadingOverlay').style.display = 'block';
   $('userEmail').textContent = currentUserName || currentUserEmail || '';
@@ -1844,8 +1850,13 @@ function attachRealtimeListeners(){
       refreshTargetYearFilter();
       refreshPromoYearFilter();
       render();
-      showTab('dashboard');
+      // If the user already clicked to a different tab while data was still loading, stay
+      // there instead of yanking them back to the dashboard — just make sure it's rendered.
+      const activeNav = document.querySelector('.nav-item.active');
+      const currentTab = activeNav ? activeNav.dataset.tab : 'dashboard';
+      showTab(currentTab);
       $('loadingOverlay').style.display = 'none';
+      $('sidebar').classList.remove('loading-lock');
       return;
     }
     refreshDatalists();
@@ -2472,6 +2483,8 @@ function goToOrdersPage(page){
 let cancelledCurrentPage = 1;
 
 function renderCancelledOrders(){
+  const loadingEl = $('loadingOverlay');
+  if (loadingEl) loadingEl.style.display = 'none';
   const body = $('cancelledBody');
   const list = getVisibleOrders()
     .filter(o => o.status === 'cancelled')
@@ -3080,6 +3093,8 @@ let usersCurrentPage = 1;
 const USERS_PAGE_SIZE = 10;
 
 function renderUsers(){
+  const loadingEl = $('loadingOverlay');
+  if (loadingEl) loadingEl.style.display = 'none';
   const body = $('usersBody');
   const real = (data.users||[]).map(u => ({...u, _kind:'user', _id:u.id}));
   const pending = (data.pendingRoles||[]).map(p => ({...p, email:p.id, _kind:'pending', _id:p.id}));
@@ -3164,6 +3179,8 @@ function isPromoOrderPrepared(promoId, orderId){
 }
 
 function renderPromotions(){
+  const loadingEl = $('loadingOverlay');
+  if (loadingEl) loadingEl.style.display = 'none';
   const body = $('promoCatalog');
   const list = [...(data.promotions||[])].sort((a,b)=> (b.year - a.year) || (b.month - a.month));
   body.innerHTML = list.length ? list.map(p => {
