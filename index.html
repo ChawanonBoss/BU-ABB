@@ -640,17 +640,6 @@
   .warranty-period-status.wp-soon{ background:var(--sun-soft); color:var(--sun); }
   .warranty-period-status.wp-expired{ background:var(--danger-soft); color:var(--danger); }
 
-  .change-pw-btn{
-    display:flex;
-    margin-top:6px;
-    padding:4px 10px;
-    font-size:10.5px;
-    background:none;
-    border:1px dashed var(--line);
-    color:var(--ink-soft);
-  }
-  .change-pw-btn:hover{ border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
-
   .empty-row{ text-align:center; color:var(--ink-soft); padding:32px 0; font-size:13.5px; }
 
   .pagination{
@@ -802,27 +791,6 @@
     from{ opacity:0; transform:scale(0.92) translateY(8px); }
     to{ opacity:1; transform:scale(1) translateY(0); }
   }
-  .pw-success-check{
-    width:56px; height:56px;
-    margin:0 auto;
-    border-radius:50%;
-    background:#22B573;
-    display:flex; align-items:center; justify-content:center;
-    animation:pwCheckPop .4s cubic-bezier(.34,1.56,.64,1);
-  }
-  @keyframes pwCheckPop{
-    0%{ transform:scale(0); opacity:0; }
-    60%{ transform:scale(1.15); opacity:1; }
-    100%{ transform:scale(1); }
-  }
-  .pw-success-check svg{
-    stroke-dasharray:24;
-    stroke-dashoffset:24;
-    animation:pwCheckDraw .35s ease .15s forwards;
-  }
-  @keyframes pwCheckDraw{
-    to{ stroke-dashoffset:0; }
-  }
   .import-map-row{
     display:flex; align-items:center; justify-content:space-between;
     gap:12px;
@@ -899,7 +867,10 @@
     border-radius:12px;
     padding:12px 8px;
     text-align:center;
+    cursor:default;
+    transition:transform .15s ease, box-shadow .15s ease;
   }
+  .promo-dash-stat:hover{ transform:translateY(-3px); box-shadow:0 10px 20px rgba(20,24,34,0.1); }
   .promo-dash-stat.c-blue{ background:var(--accent-soft); }
   .promo-dash-stat.c-orange{ background:var(--sun-soft); }
   .promo-dash-stat.c-green{ background:#E7F7EF; }
@@ -912,12 +883,21 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:12px 0;
-    border-bottom:1px solid var(--line);
+    padding:12px 14px;
+    margin:0 -14px;
+    border-radius:12px;
+    border-bottom:1px solid transparent;
     cursor:pointer;
     gap:10px;
+    transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
   }
-  .promo-dash-item:last-child{ border-bottom:none; }
+  .promo-dash-item:not(:last-child){ border-bottom-color:var(--line); }
+  .promo-dash-item:hover{
+    transform:translateY(-2px) scale(1.01);
+    box-shadow:0 8px 18px rgba(20,24,34,0.08);
+    background:var(--card);
+    border-bottom-color:transparent;
+  }
   .promo-dash-item:hover .promo-dash-item-name{ color:var(--accent); }
   .promo-dash-item-name{ font-size:13.5px; font-weight:600; color:var(--ink); transition:color .15s ease; }
   .promo-dash-item-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
@@ -1148,18 +1128,6 @@
               <div class="stat-label">GP (%)</div>
               <div class="stat-value" id="statGPPercent">0%</div>
             </div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h3>คำสั่งส่งสินค้ารายเดือน</h3></div>
-            <div class="bars" id="monthlyBars_shipped"></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h3>คำสั่งส่งสินค้าล่าสุด</h3><span class="badge-count neutral" id="monthFilterBadge_shipped" style="display:none; cursor:pointer;" title="คลิกเพื่อล้างตัวกรองเดือน" onclick="clearDashboardMonth('shipped')"></span></div>
-            <table>
-              <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>วันที่ส่งสินค้า</th><th>ยอดเงิน</th><th>สถานะ</th></tr></thead>
-              <tbody id="recentOrdersBody_shipped"></tbody>
-            </table>
-            <div class="pagination" id="recentPagination_shipped"></div>
           </div>
         </div>
       </div>
@@ -1478,50 +1446,6 @@
     <div class="modal-actions">
       <button class="btn outline" id="reportCancelBtn" type="button">ยกเลิก</button>
       <button class="btn" id="reportDownloadBtn" type="button">ดาวน์โหลด</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="changePasswordModal" style="display:none;">
-  <div class="modal" style="max-width:380px;">
-    <div id="pwStepForm">
-      <h3 class="serif" style="font-size:18px; margin-bottom:6px;">เปลี่ยนรหัสผ่าน</h3>
-      <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px;">ตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ</p>
-      <div class="field" style="margin-bottom:14px;">
-        <label>รหัสผ่านใหม่</label>
-        <input type="password" id="pwNew" placeholder="อย่างน้อย 6 ตัวอักษร" autocomplete="new-password">
-      </div>
-      <div class="field" style="margin-bottom:6px;">
-        <label>ยืนยันรหัสผ่านใหม่</label>
-        <input type="password" id="pwConfirm" placeholder="พิมพ์อีกครั้ง" autocomplete="new-password">
-      </div>
-      <p id="pwError" style="color:var(--danger); font-size:12.5px; min-height:18px; margin-bottom:4px;"></p>
-      <div class="modal-actions">
-        <button class="btn outline" id="pwCancelBtn" type="button">ยกเลิก</button>
-        <button class="btn" id="pwConfirmBtn" type="button">ยืนยัน</button>
-      </div>
-    </div>
-
-    <div id="pwStepReauth" style="display:none;">
-      <h3 class="serif" style="font-size:18px; margin-bottom:6px;">ยืนยันตัวตนก่อนดำเนินการต่อ</h3>
-      <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px;">เพื่อความปลอดภัย กรุณากรอกรหัสผ่านปัจจุบันของคุณก่อนตั้งรหัสผ่านใหม่</p>
-      <div class="field" style="margin-bottom:6px;">
-        <label>รหัสผ่านปัจจุบัน</label>
-        <input type="password" id="pwCurrent" placeholder="รหัสผ่านปัจจุบัน" autocomplete="current-password">
-      </div>
-      <p id="pwReauthError" style="color:var(--danger); font-size:12.5px; min-height:18px; margin-bottom:4px;"></p>
-      <div class="modal-actions">
-        <button class="btn outline" id="pwReauthCancelBtn" type="button">ยกเลิก</button>
-        <button class="btn" id="pwReauthConfirmBtn" type="button">ยืนยันตัวตน</button>
-      </div>
-    </div>
-
-    <div id="pwStepSuccess" style="display:none; text-align:center; padding:12px 0;">
-      <div class="pw-success-check">
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      </div>
-      <h3 class="serif" style="font-size:17px; margin-top:16px;">เปลี่ยนรหัสผ่านสำเร็จ!</h3>
-      <p style="font-size:13px; color:var(--ink-soft); margin-top:4px;">ใช้รหัสผ่านใหม่ในการเข้าสู่ระบบครั้งถัดไป</p>
     </div>
   </div>
 </div>
@@ -1980,7 +1904,13 @@ function showTab(tab){
   panel.classList.add('tab-fade-in');
   $('pageTitle').textContent = titles[tab][0];
   $('pageSub').textContent = titles[tab][1];
-  if (tab==='dashboard') renderDashboard();
+  if (tab==='dashboard'){
+    const orderRing = $('orderTargetRing');
+    const shipRing = $('shipTargetRing');
+    if (orderRing) orderRing.dataset.rawPct = 0;
+    if (shipRing) shipRing.dataset.rawPct = 0;
+    renderDashboard();
+  }
   if (tab==='cancelled') renderCancelledOrders();
   if (tab==='customers') renderCustomers();
   if (tab==='users') renderUsers();
@@ -2223,46 +2153,52 @@ function renderDashboardSection(suffix, orders){
   }
 
   const barsEl = $(`monthlyBars_${suffix}`);
-  barsEl.innerHTML = months.map((m, idx) => {
-    const isSelected = selMonths.includes(idx);
-    const dim = hasSelection && !isSelected;
-    const targetHeight = (m.count/max*100) || 2;
-    return `
-    <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)} (คลิกเพื่อเลือกหลายเดือน)">
-      <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
-      <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
-      <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
-      ${suffix === 'shipped' ? `<input type="text" inputmode="decimal" class="bar-gp-input" value="${fmtMoneyPlain(Math.round(m.gpFinal * 100) / 100)}" title="กำไร ${m.label} — แก้ไขได้"
-        onclick="event.stopPropagation()"
-        oninput="formatMoneyLive(this)"
-        onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">` : ''}
-    </div>
-  `; }).join('');
-  requestAnimationFrame(() => {
-    barsEl.querySelectorAll('.bar').forEach(bar => {
-      bar.style.height = bar.dataset.height + '%';
+  if (barsEl){
+    barsEl.innerHTML = months.map((m, idx) => {
+      const isSelected = selMonths.includes(idx);
+      const dim = hasSelection && !isSelected;
+      const targetHeight = (m.count/max*100) || 2;
+      return `
+      <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)} (คลิกเพื่อเลือกหลายเดือน)">
+        <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
+        <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
+        <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
+        ${suffix === 'shipped' ? `<input type="text" inputmode="decimal" class="bar-gp-input" value="${fmtMoneyPlain(Math.round(m.gpFinal * 100) / 100)}" title="กำไร ${m.label} — แก้ไขได้"
+          onclick="event.stopPropagation()"
+          oninput="formatMoneyLive(this)"
+          onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">` : ''}
+      </div>
+    `; }).join('');
+    requestAnimationFrame(() => {
+      barsEl.querySelectorAll('.bar').forEach(bar => {
+        bar.style.height = bar.dataset.height + '%';
+      });
     });
-  });
+  }
 
   const filterBadge = $(`monthFilterBadge_${suffix}`);
-  if (hasSelection){
-    const sortedMonthLabels = [...selMonths].sort((a,b)=>a-b).map(m=>monthShortLabels[m]).join(', ');
-    filterBadge.textContent = `${sortedMonthLabels} ✕`;
-    filterBadge.style.display = 'inline-block';
-  } else {
-    filterBadge.style.display = 'none';
+  if (filterBadge){
+    if (hasSelection){
+      const sortedMonthLabels = [...selMonths].sort((a,b)=>a-b).map(m=>monthShortLabels[m]).join(', ');
+      filterBadge.textContent = `${sortedMonthLabels} ✕`;
+      filterBadge.style.display = 'inline-block';
+    } else {
+      filterBadge.style.display = 'none';
+    }
   }
 
   const sortedRecent = [...displayOrders].sort((a,b)=> new Date(b[dateField])-new Date(a[dateField]));
 
-  const totalPages = Math.max(1, Math.ceil(sortedRecent.length / RECENT_PAGE_SIZE));
-  if (dashboardRecentPage[suffix] > totalPages) dashboardRecentPage[suffix] = totalPages;
-  if (dashboardRecentPage[suffix] < 1) dashboardRecentPage[suffix] = 1;
-  const page = dashboardRecentPage[suffix];
-  const startIdx = (page - 1) * RECENT_PAGE_SIZE;
-  const pageItems = sortedRecent.slice(startIdx, startIdx + RECENT_PAGE_SIZE);
+  const recentBodyEl = $(`recentOrdersBody_${suffix}`);
+  if (recentBodyEl){
+    const totalPages = Math.max(1, Math.ceil(sortedRecent.length / RECENT_PAGE_SIZE));
+    if (dashboardRecentPage[suffix] > totalPages) dashboardRecentPage[suffix] = totalPages;
+    if (dashboardRecentPage[suffix] < 1) dashboardRecentPage[suffix] = 1;
+    const page = dashboardRecentPage[suffix];
+    const startIdx = (page - 1) * RECENT_PAGE_SIZE;
+    const pageItems = sortedRecent.slice(startIdx, startIdx + RECENT_PAGE_SIZE);
 
-  $(`recentOrdersBody_${suffix}`).innerHTML = pageItems.length ? pageItems.map(o=>`
+    recentBodyEl.innerHTML = pageItems.length ? pageItems.map(o=>`
     <tr>
       <td>${escapeHtml(o.customer)}</td>
       <td>${escapeHtml(o.product)}</td>
@@ -2272,15 +2208,16 @@ function renderDashboardSection(suffix, orders){
     </tr>
   `).join('') : `<tr><td colspan="5" class="empty-row">${hasSelection ? `ไม่มีคำสั่งซื้อในเดือนที่เลือก` : `ไม่มีคำสั่งซื้อในปี ${selectedDashboardYear+543}`}</td></tr>`;
 
-  const paginationEl = $(`recentPagination_${suffix}`);
-  if (totalPages <= 1){
-    paginationEl.innerHTML = '';
-  } else {
-    let btns = '';
-    for (let p = 1; p <= totalPages; p++){
-      btns += `<button class="page-btn ${p===page?'active':''}" onclick="goToDashboardPage('${suffix}', ${p})">${p}</button>`;
+    const paginationEl = $(`recentPagination_${suffix}`);
+    if (totalPages <= 1){
+      paginationEl.innerHTML = '';
+    } else {
+      let btns = '';
+      for (let p = 1; p <= totalPages; p++){
+        btns += `<button class="page-btn ${p===page?'active':''}" onclick="goToDashboardPage('${suffix}', ${p})">${p}</button>`;
+      }
+      paginationEl.innerHTML = btns;
     }
-    paginationEl.innerHTML = btns;
   }
 }
 
@@ -3113,10 +3050,6 @@ function renderUsers(){
           <option value="user" ${u.role==='user'?'selected':''}>ผู้ใช้งานทั่วไป</option>
           <option value="admin" ${u.role==='admin'?'selected':''}>ผู้ดูแลระบบ</option>
         </select>
-        ${u._kind==='user' && u._id===currentUserUid ? `<button class="icon-btn change-pw-btn" onclick="openChangePasswordModal()" title="เปลี่ยนรหัสผ่านของฉัน">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          เปลี่ยนรหัสผ่าน
-        </button>` : ''}
       </td>
       <td class="row-actions">
         ${!(u._kind==='user' && u._id===currentUserUid) ? `<button class="icon-btn delete-btn" onclick="deleteUser('${u._kind}','${escapeHtml(u._id)}')" title="ลบ">
@@ -3660,79 +3593,6 @@ $('reportDownloadBtn').addEventListener('click', () => {
   XLSX.writeFile(wb, `order-report-${label}.xlsx`);
   $('reportModal').style.display = 'none';
   toast('ดาวน์โหลดรายงานแล้ว');
-});
-
-/* ====== Change password (own account only — Firebase never allows changing someone else's) ====== */
-let pendingNewPassword = null;
-
-function showPasswordStep(step){
-  $('pwStepForm').style.display = step === 'form' ? 'block' : 'none';
-  $('pwStepReauth').style.display = step === 'reauth' ? 'block' : 'none';
-  $('pwStepSuccess').style.display = step === 'success' ? 'block' : 'none';
-}
-
-function openChangePasswordModal(){
-  $('pwNew').value = '';
-  $('pwConfirm').value = '';
-  $('pwCurrent').value = '';
-  $('pwError').textContent = '';
-  $('pwReauthError').textContent = '';
-  pendingNewPassword = null;
-  showPasswordStep('form');
-  $('changePasswordModal').style.display = 'flex';
-}
-
-function closeChangePasswordModal(){
-  $('changePasswordModal').style.display = 'none';
-}
-
-$('pwCancelBtn').addEventListener('click', closeChangePasswordModal);
-$('pwReauthCancelBtn').addEventListener('click', closeChangePasswordModal);
-
-async function finishPasswordChange(){
-  showPasswordStep('success');
-  playChime();
-  setTimeout(closeChangePasswordModal, 1800);
-}
-
-$('pwConfirmBtn').addEventListener('click', async () => {
-  const pw1 = $('pwNew').value;
-  const pw2 = $('pwConfirm').value;
-  $('pwError').textContent = '';
-
-  if (pw1.length < 6){ $('pwError').textContent = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'; return; }
-  if (pw1 !== pw2){ $('pwError').textContent = 'รหัสผ่านทั้งสองช่องไม่ตรงกัน'; return; }
-
-  $('pwConfirmBtn').disabled = true;
-  try{
-    await auth.currentUser.updatePassword(pw1);
-    await finishPasswordChange();
-  }catch(err){
-    if (err.code === 'auth/requires-recent-login'){
-      pendingNewPassword = pw1;
-      showPasswordStep('reauth');
-    } else {
-      $('pwError').textContent = 'เปลี่ยนรหัสผ่านไม่สำเร็จ กรุณาลองใหม่';
-    }
-  }
-  $('pwConfirmBtn').disabled = false;
-});
-
-$('pwReauthConfirmBtn').addEventListener('click', async () => {
-  const currentPw = $('pwCurrent').value;
-  $('pwReauthError').textContent = '';
-  if (!currentPw){ $('pwReauthError').textContent = 'กรุณากรอกรหัสผ่านปัจจุบัน'; return; }
-
-  $('pwReauthConfirmBtn').disabled = true;
-  try{
-    const cred = firebase.auth.EmailAuthProvider.credential(currentUserEmail, currentPw);
-    await auth.currentUser.reauthenticateWithCredential(cred);
-    await auth.currentUser.updatePassword(pendingNewPassword);
-    await finishPasswordChange();
-  }catch(err){
-    $('pwReauthError').textContent = 'รหัสผ่านปัจจุบันไม่ถูกต้อง กรุณาลองใหม่';
-  }
-  $('pwReauthConfirmBtn').disabled = false;
 });
 </script>
 </body>
