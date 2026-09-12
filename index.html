@@ -724,8 +724,37 @@
   .locked-input-group.po-filled .locked-prefix{ background:transparent; border-right-color:var(--accent); }
   .locked-input-group.po-filled input{ background:transparent; }
 
+  .mobile-menu-btn{
+    display:none;
+    background:none;
+    border:1px solid var(--line);
+    border-radius:10px;
+    cursor:pointer;
+    padding:8px 10px;
+    margin-right:14px;
+    color:var(--ink);
+  }
+  .mobile-menu-btn:hover{ background:var(--paper-dim); }
+  .mobile-backdrop{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(20,24,34,0.45);
+    z-index:190;
+  }
+  .mobile-backdrop.show{ display:block; }
+
   @media (max-width:760px){
-    .sidebar{ display:none; }
+    .mobile-menu-btn{ display:flex; align-items:center; }
+    .sidebar{
+      position:fixed;
+      top:0; left:0; bottom:0;
+      z-index:200;
+      transform:translateX(-100%);
+      transition:transform .25s ease;
+      box-shadow:0 0 24px rgba(0,0,0,0.18);
+    }
+    .sidebar.mobile-open{ transform:translateX(0); }
     .form-grid{ grid-template-columns:1fr 1fr; }
     .stat-grid{ grid-template-columns:1fr 1fr; }
   }
@@ -936,11 +965,18 @@
     </div>
   </aside>
 
+  <div class="mobile-backdrop" id="mobileBackdrop"></div>
+
   <div class="main">
     <div class="topbar">
-      <div>
-        <h1 id="pageTitle">BU-ABB</h1>
-        <div class="topbar-sub" id="pageSub">สรุปคำสั่งซื้อและการรับประกันทั้งหมด</div>
+      <div style="display:flex; align-items:center;">
+        <button class="mobile-menu-btn" id="mobileMenuBtn" title="เมนู">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div>
+          <h1 id="pageTitle">BU-ABB</h1>
+          <div class="topbar-sub" id="pageSub">สรุปคำสั่งซื้อและการรับประกันทั้งหมด</div>
+        </div>
       </div>
       <div class="user-box" id="userBox" style="display:none;">
         <img class="user-avatar" id="userAvatar" src="" alt="" onerror="this.style.display='none';" onload="this.style.display='';">
@@ -1883,6 +1919,18 @@ document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => showTab(btn.dataset.tab));
 });
 
+/* ====== Mobile sidebar drawer ====== */
+function openMobileMenu(){
+  $('sidebar').classList.add('mobile-open');
+  $('mobileBackdrop').classList.add('show');
+}
+function closeMobileMenu(){
+  $('sidebar').classList.remove('mobile-open');
+  $('mobileBackdrop').classList.remove('show');
+}
+$('mobileMenuBtn').addEventListener('click', openMobileMenu);
+$('mobileBackdrop').addEventListener('click', closeMobileMenu);
+
 const titles = {
   dashboard: ['แดชบอร์ดประจำปี','สรุปคำสั่งซื้อและการรับประกันทั้งหมด'],
   orders: ['คำสั่งซื้อ','บันทึกและติดตามคำสั่งซื้อทั้งหมด'],
@@ -1896,6 +1944,9 @@ const titles = {
 function showTab(tab){
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  closeMobileMenu();
+  const loadingEl = $('loadingOverlay');
+  if (loadingEl) loadingEl.style.display = 'none';
   const panel = $(`tab-${tab}`);
   panel.style.display = 'block';
   panel.classList.remove('tab-fade-in');
