@@ -54,16 +54,17 @@
   .dash-top-grid{
     display:grid;
     grid-template-columns: 1.1fr 1fr;
+    align-items:start;
     gap:16px;
     margin-bottom:20px;
   }
   .dash-quad-grid{
     display:grid;
     grid-template-columns:1fr 1fr;
-    grid-template-rows:1fr 1fr;
+    grid-auto-rows:min-content;
     gap:14px;
   }
-  .stat-card.quad{ padding:18px; display:flex; flex-direction:column; justify-content:center; }
+  .stat-card.quad{ padding:18px; display:flex; flex-direction:column; justify-content:center; min-height:0; }
   .stat-card.quad.filled{ border:none; }
   .stat-card.quad.filled:hover{ box-shadow:0 10px 24px rgba(0,0,0,0.16); }
   .quad-split{ display:flex; gap:14px; }
