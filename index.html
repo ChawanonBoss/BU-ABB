@@ -152,8 +152,8 @@
   }
   .nav-item:hover{ background:rgba(0,0,0,0.04); color:var(--ink); transform:translateX(2px); }
   .nav-item.active{ background:var(--card); color:var(--ink); font-weight:500; box-shadow:0 1px 0 var(--line) inset; transform:translateX(0); }
-  .nav-item .dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-soft); flex-shrink:0; transition:background .15s ease, transform .2s ease; }
-  .nav-item.active .dot{ background:var(--accent); transform:scale(1.3); }
+  .nav-icon{ width:20px; height:20px; object-fit:contain; flex-shrink:0; opacity:0.75; transition:opacity .15s ease, transform .2s ease; }
+  .nav-item.active .nav-icon{ opacity:1; transform:scale(1.08); }
 
   .sidebar-footer{
     margin-top:auto;
@@ -884,18 +884,22 @@
   .promo-dash-stats{
     display:grid;
     grid-template-columns:repeat(3, 1fr);
-    gap:12px;
-    margin-bottom:18px;
+    gap:10px;
+    margin-bottom:16px;
   }
   .promo-dash-stat{
-    background:var(--paper);
-    border:1px solid var(--line);
     border-radius:12px;
-    padding:14px;
+    padding:12px 8px;
     text-align:center;
   }
-  .promo-dash-stat .num{ font-family:var(--font-display); font-size:22px; font-weight:600; color:var(--ink); }
-  .promo-dash-stat .lbl{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .promo-dash-stat.c-blue{ background:var(--accent-soft); }
+  .promo-dash-stat.c-orange{ background:var(--sun-soft); }
+  .promo-dash-stat.c-green{ background:#E7F7EF; }
+  .promo-dash-stat .num{ font-family:var(--font-display); font-size:20px; font-weight:600; }
+  .promo-dash-stat.c-blue .num{ color:var(--accent); }
+  .promo-dash-stat.c-orange .num{ color:var(--sun); }
+  .promo-dash-stat.c-green .num{ color:#1A9D5C; }
+  .promo-dash-stat .lbl{ font-size:10.5px; color:var(--ink-soft); margin-top:3px; line-height:1.3; }
   .promo-dash-item{
     display:flex;
     align-items:center;
@@ -903,12 +907,21 @@
     padding:12px 0;
     border-bottom:1px solid var(--line);
     cursor:pointer;
+    gap:10px;
   }
   .promo-dash-item:last-child{ border-bottom:none; }
   .promo-dash-item:hover .promo-dash-item-name{ color:var(--accent); }
   .promo-dash-item-name{ font-size:13.5px; font-weight:600; color:var(--ink); transition:color .15s ease; }
   .promo-dash-item-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
-  .promo-dash-item-progress{ font-size:13px; font-weight:600; color:var(--accent); white-space:nowrap; }
+  .promo-dash-item-progress{
+    font-size:12.5px;
+    font-weight:700;
+    color:#1A9D5C;
+    background:#E7F7EF;
+    padding:4px 10px;
+    border-radius:100px;
+    white-space:nowrap;
+  }
 </style>
 </head>
 <body>
@@ -918,13 +931,13 @@
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar" style="display:none;">
     <div class="brand"><span class="brand-mark"></span>BU-ABB</div>
-    <button class="nav-item active" data-tab="dashboard"><span class="dot"></span>แดชบอร์ด</button>
-    <button class="nav-item" data-tab="orders"><span class="dot"></span>คำสั่งซื้อ</button>
-    <button class="nav-item" data-tab="warranty"><span class="dot"></span>การรับประกัน</button>
-    <button class="nav-item" data-tab="cancelled"><span class="dot"></span>ยกเลิกการสั่งซื้อ</button>
-    <button class="nav-item" data-tab="customers"><span class="dot"></span>รายชื่อลูกค้า</button>
-    <button class="nav-item" data-tab="promotions" id="navPromotionsTab"><span class="dot"></span>Promotion</button>
-    <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><span class="dot"></span>ผู้ใช้งาน</button>
+    <button class="nav-item active" data-tab="dashboard"><img class="nav-icon" src="Pic/Dashboard.png" alt="">แดชบอร์ด</button>
+    <button class="nav-item" data-tab="orders"><img class="nav-icon" src="Pic/Order.png" alt="">คำสั่งซื้อ</button>
+    <button class="nav-item" data-tab="warranty"><img class="nav-icon" src="Pic/Waranty.png" alt="">การรับประกัน</button>
+    <button class="nav-item" data-tab="cancelled"><img class="nav-icon" src="Pic/Cancelled.png" alt="">ยกเลิกการสั่งซื้อ</button>
+    <button class="nav-item" data-tab="customers"><img class="nav-icon" src="Pic/Customer.png" alt="">รายชื่อลูกค้า</button>
+    <button class="nav-item" data-tab="promotions" id="navPromotionsTab"><img class="nav-icon" src="Pic/event.png" alt="">Promotion</button>
+    <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><img class="nav-icon" src="Pic/User.png" alt="">ผู้ใช้งาน</button>
     <div class="sidebar-footer">
       <div class="sync-status">
         <span class="sync-dot" id="syncDot"></span><span id="syncText">ซิงก์แล้ว</span>
@@ -1056,36 +1069,38 @@
               </div>
             </div>
 
-            <div class="panel dash-donut-card">
-              <div class="panel-head">
-                <h3>เป้าหมายประจำปี</h3>
-                <select id="targetUserFilter" class="inline-input filter-control" style="display:none; font-size:12.5px;">
-                  <option value="all">ทั้งหมด</option>
-                </select>
-              </div>
-              <div class="target-rings-row">
-                <div class="target-ring-item">
-                  <div class="donut-chart-outer small">
-                    <div class="donut-chart" id="orderTargetRing"></div>
-                    <div class="donut-center"><span id="orderTargetPct">0%</span></div>
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div class="panel dash-donut-card">
+                <div class="panel-head">
+                  <h3>เป้าหมายประจำปี</h3>
+                  <select id="targetUserFilter" class="inline-input filter-control" style="display:none; font-size:12.5px;">
+                    <option value="all">ทั้งหมด</option>
+                  </select>
+                </div>
+                <div class="target-rings-row">
+                  <div class="target-ring-item">
+                    <div class="donut-chart-outer small">
+                      <div class="donut-chart" id="orderTargetRing"></div>
+                      <div class="donut-center"><span id="orderTargetPct">0%</span></div>
+                    </div>
+                    <div class="target-ring-label">เป้าหมายคำสั่งซื้อ (บาท)</div>
+                    <div class="target-ring-count"><b id="orderTargetActual">0</b> / <span id="orderTargetGoal">0</span></div>
                   </div>
-                  <div class="target-ring-label">เป้าหมายคำสั่งซื้อ (บาท)</div>
-                  <div class="target-ring-count"><b id="orderTargetActual">0</b> / <span id="orderTargetGoal">0</span></div>
-                </div>
-                <div class="target-ring-item">
-                  <div class="donut-chart-outer small">
-                    <div class="donut-chart" id="shipTargetRing"></div>
-                    <div class="donut-center"><span id="shipTargetPct">0%</span></div>
+                  <div class="target-ring-item">
+                    <div class="donut-chart-outer small">
+                      <div class="donut-chart" id="shipTargetRing"></div>
+                      <div class="donut-center"><span id="shipTargetPct">0%</span></div>
+                    </div>
+                    <div class="target-ring-label">เป้าหมายส่งสินค้า (บาท)</div>
+                    <div class="target-ring-count"><b id="shipTargetActual">0</b> / <span id="shipTargetGoal">0</span></div>
                   </div>
-                  <div class="target-ring-label">เป้าหมายส่งสินค้า (บาท)</div>
-                  <div class="target-ring-count"><b id="shipTargetActual">0</b> / <span id="shipTargetGoal">0</span></div>
                 </div>
               </div>
-              <div class="dash-mini-stats">
-                <div class="mini-stat-row">
-                  <span>ยอดขายรวม</span>
-                  <b id="statRevenue_all">฿0</b>
-                </div>
+
+              <div class="panel promo-dash-panel">
+                <div class="panel-head"><h3>สรุปโปรโมชัน</h3></div>
+                <div class="promo-dash-stats" id="promoDashStats"></div>
+                <div id="promoDashList"></div>
               </div>
             </div>
           </div>
@@ -1101,12 +1116,6 @@
               <tbody id="recentOrdersBody_all"></tbody>
             </table>
             <div class="pagination" id="recentPagination_all"></div>
-          </div>
-
-          <div class="panel">
-            <div class="panel-head"><h3>สรุปโปรโมชัน</h3></div>
-            <div class="promo-dash-stats" id="promoDashStats"></div>
-            <div id="promoDashList"></div>
           </div>
         </div>
 
@@ -2280,9 +2289,9 @@ function renderPromoDashboardSummary(){
   });
 
   statsEl.innerHTML = `
-    <div class="promo-dash-stat"><div class="num">${ongoing.length}</div><div class="lbl">โปรโมชันที่กำลังดำเนินการ</div></div>
-    <div class="promo-dash-stat"><div class="num">${totalQualifying}</div><div class="lbl">คำสั่งซื้อที่เข้าเงื่อนไข</div></div>
-    <div class="promo-dash-stat"><div class="num">${totalPrepared}</div><div class="lbl">เตรียมของแล้ว</div></div>
+    <div class="promo-dash-stat c-blue"><div class="num">${ongoing.length}</div><div class="lbl">โปรโมชันที่กำลังดำเนินการ</div></div>
+    <div class="promo-dash-stat c-orange"><div class="num">${totalQualifying}</div><div class="lbl">คำสั่งซื้อที่เข้าเงื่อนไข</div></div>
+    <div class="promo-dash-stat c-green"><div class="num">${totalPrepared}</div><div class="lbl">เตรียมของแล้ว</div></div>
   `;
 
   listEl.innerHTML = rows.length ? rows.map(r => `
