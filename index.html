@@ -1528,7 +1528,7 @@
 
       <!-- Customer list tab -->
       <div id="tab-customers" class="tab-panel" style="display:none;">
-        <div class="panel">
+        <div class="panel" id="customerCreatePanel" style="display:none;">
           <div class="panel-head"><h3>เพิ่มลูกค้าใหม่</h3></div>
           <form id="customerForm">
             <div class="form-grid">
@@ -1536,17 +1536,19 @@
             </div>
             <button type="submit" class="btn">บันทึกลูกค้า</button>
           </form>
-          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap;">
-            <button class="btn outline" id="downloadCustomerReportBtn" type="button">ดาวน์โหลดรายงาน</button>
-            <a class="btn outline" id="downloadCustomerTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
-            <button class="btn outline" id="importCustomerBtn" type="button">นำเข้าจาก Excel</button>
-          </div>
         </div>
 
         <div class="panel">
           <div class="panel-head">
             <h3>รายชื่อลูกค้าทั้งหมด <span class="badge-count neutral" id="customersTotalCount" style="display:none;"></span></h3>
             <div class="filter-bar">
+              <button class="btn" id="customerCreateToggleBtn" type="button">+ เพิ่มลูกค้า</button>
+              <button class="btn outline" id="downloadCustomerReportBtn" type="button">ดาวน์โหลดรายงาน</button>
+              <a class="btn outline" id="downloadCustomerTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
+              <button class="btn outline" id="importCustomerBtn" type="button">นำเข้าจาก Excel</button>
+            </div>
+          </div>
+          <div class="filter-bar" style="margin-bottom:16px;">
               <input type="text" id="customersSearch" class="inline-input filter-control" placeholder="ค้นหาชื่อลูกค้า" style="width:200px;">
               <select id="customersSortFilter" class="inline-input filter-control">
                 <option value="name_asc">ชื่อลูกค้า (ก-ฮ)</option>
@@ -1567,7 +1569,6 @@
                 <option value="100">แสดง 100</option>
               </select>
               <button class="btn outline" id="customersClearBtn" type="button">เคลียร์ตัวกรอง</button>
-            </div>
           </div>
           <div class="table-scroll"><table>
             <thead><tr><th>ชื่อลูกค้า</th><th>จำนวนคำสั่งซื้อ</th><th>จำนวนเงิน</th><th id="customersCreatorHeader" style="display:none;">สร้างโดย</th><th></th></tr></thead>
@@ -1624,7 +1625,7 @@
 
       <!-- Users tab (admin only) -->
       <div id="tab-users" class="tab-panel" style="display:none;">
-        <div class="panel">
+        <div class="panel" id="userCreatePanel" style="display:none;">
           <div class="panel-head"><h3>เพิ่มผู้ใช้งาน</h3></div>
           <form id="userForm">
             <div class="form-grid">
@@ -1642,7 +1643,10 @@
         </div>
 
         <div class="panel">
-          <div class="panel-head"><h3>ผู้ใช้งานทั้งหมด</h3></div>
+          <div class="panel-head">
+            <h3>ผู้ใช้งานทั้งหมด</h3>
+            <button class="btn" id="userCreateToggleBtn" type="button">+ เพิ่มผู้ใช้งาน</button>
+          </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจะจับคู่ด้วยอีเมล) หรือปล่อยว่างไว้ก็ได้ — เมื่อมีคนล็อกอินเข้าเว็บนี้ครั้งแรกโดยไม่มีชื่ออยู่ในลิสต์ ระบบจะเพิ่มให้อัตโนมัติเป็น "ผู้ใช้งานทั่วไป"</p>
           <div class="table-scroll"><table>
             <thead><tr><th>รูป</th><th>ชื่อ</th><th>อีเมล</th><th>สิทธิ์การใช้งาน</th><th></th></tr></thead>
@@ -3819,6 +3823,7 @@ $('customerForm').addEventListener('submit', async (e) => {
       logAudit('เพิ่มลูกค้า', name);
       toast('เพิ่มลูกค้าใหม่แล้ว');
       setSync('ok');
+      $('customerCreatePanel').style.display = 'none';
     }
     e.target.reset();
   }catch(err){
@@ -4102,6 +4107,14 @@ $('orderCreateToggleBtn').addEventListener('click', () => {
   const panel = $('orderCreatePanel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 });
+$('customerCreateToggleBtn').addEventListener('click', () => {
+  const panel = $('customerCreatePanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+$('userCreateToggleBtn').addEventListener('click', () => {
+  const panel = $('userCreatePanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
 $('promoSearch').addEventListener('input', renderPromotions);
 $('promoCatalogYearFilter').addEventListener('change', (e) => {
   selectedPromoCatalogYear = e.target.value;
@@ -4249,6 +4262,7 @@ $('userForm').addEventListener('submit', async (e) => {
       toast('เพิ่มผู้ใช้งานใหม่แล้ว (จะมีผลเมื่อเขาล็อกอินครั้งแรก)');
     }
     e.target.reset();
+    $('userCreatePanel').style.display = 'none';
     setSync('ok');
   }catch(err){
     setSync('error');
