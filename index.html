@@ -495,6 +495,21 @@
   .bar-gp-input:hover{ border-color:var(--sun); }
   .bar-gp-input:focus{ outline:none; border-color:var(--sun); background:var(--card); }
 
+  .quarter-btn-group{ display:flex; gap:6px; }
+  .quarter-btn{
+    padding:6px 14px;
+    border-radius:100px;
+    border:1px solid var(--line);
+    background:none;
+    color:var(--ink-soft);
+    font-size:12px;
+    font-weight:500;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .quarter-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .quarter-btn.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
   /* ---- Trend line chart (SVG, sales trend across months) ---- */
   .trend-chart{ width:100%; }
   .trend-chart svg{ width:100%; height:auto; overflow:visible; }
@@ -1259,7 +1274,15 @@
             </div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>คำสั่งส่งสินค้ารายเดือน</h3></div>
+            <div class="panel-head">
+              <h3>คำสั่งส่งสินค้ารายเดือน</h3>
+              <div class="quarter-btn-group" id="quarterBtnGroup_shipped">
+                <button class="quarter-btn" type="button" onclick="selectDashboardQuarter('shipped',0)">Q1</button>
+                <button class="quarter-btn" type="button" onclick="selectDashboardQuarter('shipped',1)">Q2</button>
+                <button class="quarter-btn" type="button" onclick="selectDashboardQuarter('shipped',2)">Q3</button>
+                <button class="quarter-btn" type="button" onclick="selectDashboardQuarter('shipped',3)">Q4</button>
+              </div>
+            </div>
             <div class="bars" id="monthlyBars_shipped"></div>
           </div>
           <div class="panel">
@@ -2368,6 +2391,24 @@ function selectDashboardMonth(suffix, idx){
   dashboardRecentPage[suffix] = 1;
   renderDashboard();
 }
+function selectDashboardQuarter(suffix, q){
+  const months = [q*3, q*3+1, q*3+2];
+  const current = selectedDashboardMonths[suffix];
+  const isActive = months.length === current.length && months.every(m => current.includes(m));
+  selectedDashboardMonths[suffix] = isActive ? [] : months;
+  dashboardRecentPage[suffix] = 1;
+  renderDashboard();
+}
+function renderQuarterButtons(suffix){
+  const group = $(`quarterBtnGroup_${suffix}`);
+  if (!group) return;
+  const current = selectedDashboardMonths[suffix];
+  group.querySelectorAll('.quarter-btn').forEach((btn, q) => {
+    const months = [q*3, q*3+1, q*3+2];
+    const isActive = months.length === current.length && months.every(m => current.includes(m));
+    btn.classList.toggle('active', isActive);
+  });
+}
 function clearDashboardMonth(suffix){
   selectedDashboardMonths[suffix] = [];
   dashboardRecentPage[suffix] = 1;
@@ -2529,6 +2570,7 @@ function renderDashboardSection(suffix, orders){
     const gpPercentEl = $('statGPPercent');
     if (gpPercentEl) animateNumber(gpPercentEl, gpPercent, v => v.toFixed(1) + '%');
     renderTrendLine('trendChart_shipped', months);
+    renderQuarterButtons('shipped');
   }
 
   const barsEl = $(`monthlyBars_${suffix}`);
