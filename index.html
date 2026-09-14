@@ -1225,6 +1225,9 @@
             <button class="subtab-item" data-dashsub="shipped">สรุปการส่งสินค้า</button>
           </div>
           <div style="display:flex; align-items:center; gap:10px;">
+            <select id="targetUserFilter" class="inline-input filter-control" style="display:none;">
+              <option value="all">ทั้งหมด</option>
+            </select>
             <select id="dashboardYearFilter" class="inline-input filter-control"></select>
             <button class="btn outline" id="dashboardClearBtn" type="button">เคลียร์ตัวกรอง</button>
           </div>
@@ -1289,9 +1292,6 @@
               <div class="panel dash-donut-card">
                 <div class="panel-head">
                   <h3>เป้าหมายประจำปี</h3>
-                  <select id="targetUserFilter" class="inline-input filter-control" style="display:none; font-size:12.5px;">
-                    <option value="all">ทั้งหมด</option>
-                  </select>
                 </div>
                 <div class="target-rings-row">
                   <div class="target-ring-item">
@@ -2637,17 +2637,19 @@ function calcCommission(shippedTotal, gpPercent, targetAmount){
 }
 
 function getAnnualShipTarget(year){
-  if (currentUserRole === 'admin'){
+  const targetSel = getDashboardTargetSel();
+  if (currentUserRole === 'admin' && targetSel === 'all'){
     let total = 0;
     data.userTargets.forEach(t => { if (t.id.endsWith(`_${year}`)) total += Number(t.shippedTarget||0); });
     return total;
   }
-  return getUserTarget(currentUserUid, year).shippedTarget;
+  const uid = currentUserRole === 'admin' ? targetSel : currentUserUid;
+  return getUserTarget(uid, year).shippedTarget;
 }
 
 let commissionRevealed = [false, false, false, false];
 function computeQuarterlyCommissionData(year){
-  const shippedOrders = getVisibleOrders().filter(o => o.status === 'done' && o.shipDate && new Date(o.shipDate).getFullYear() === year);
+  const shippedOrders = getDashboardScopedOrders().filter(o => o.status === 'done' && o.shipDate && new Date(o.shipDate).getFullYear() === year);
   const monthly = [];
   for (let m = 0; m < 12; m++) monthly.push({ amount: 0, gpAuto: 0 });
   shippedOrders.forEach(o => {
@@ -2841,12 +2843,8 @@ function renderDashboardSection(suffix, orders){
 
   if (suffix === 'all'){
     const year = selectedDashboardYear;
-    const targetSel = currentUserRole === 'admin' ? ($('targetUserFilter').value || 'all') : currentUserUid;
-
-    const baseOrders = currentUserRole === 'admin' ? data.orders : data.orders.filter(o => o.createdBy === currentUserUid);
-    const scopedOrders = (currentUserRole === 'admin' && targetSel !== 'all')
-      ? baseOrders.filter(o => o.createdBy === targetSel)
-      : baseOrders;
+    const targetSel = getDashboardTargetSel();
+    const scopedOrders = getDashboardScopedOrders();
 
     const orderActual = scopedOrders
       .filter(o => o.date && new Date(o.date).getFullYear() === year)
@@ -3007,9 +3005,20 @@ function renderDashboardSection(suffix, orders){
   }
 }
 
+function getDashboardTargetSel(){
+  return currentUserRole === 'admin' ? ($('targetUserFilter').value || 'all') : currentUserUid;
+}
+function getDashboardScopedOrders(){
+  const targetSel = getDashboardTargetSel();
+  if (currentUserRole === 'admin' && targetSel !== 'all'){
+    return data.orders.filter(o => o.createdBy === targetSel);
+  }
+  return getVisibleOrders();
+}
+
 function renderDashboard(){
-  const yearOrders = getVisibleOrders().filter(o => o.date && new Date(o.date).getFullYear() === selectedDashboardYear);
-  const shippedSet = getVisibleOrders().filter(o => o.status === 'done' && o.shipDate && new Date(o.shipDate).getFullYear() === selectedDashboardYear);
+  const yearOrders = getDashboardScopedOrders().filter(o => o.date && new Date(o.date).getFullYear() === selectedDashboardYear);
+  const shippedSet = getDashboardScopedOrders().filter(o => o.status === 'done' && o.shipDate && new Date(o.shipDate).getFullYear() === selectedDashboardYear);
 
   const allSelMonths = selectedDashboardMonths.all;
   const allHasSelection = allSelMonths.length > 0;
@@ -3017,8 +3026,8 @@ function renderDashboard(){
     ? yearOrders.filter(o => o.date && allSelMonths.includes(new Date(o.date).getMonth()))
     : yearOrders;
 
-  // Active warranty count is always global — not affected by the dashboard's year or month filter
-  const activeWarranty = getVisibleOrders().filter(o=>isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='active').length;
+  // Active warranty count follows the selected person filter too, same as the rest of the dashboard
+  const activeWarranty = getDashboardScopedOrders().filter(o=>isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='active').length;
   animateNumber($('statActiveWarranty'), activeWarranty);
   animateNumber($('statPending'), pendingBase.filter(o=>o.status==='pending').length);
   animateNumber($('statShipped_all'), pendingBase.filter(o=>o.status==='done').length);
@@ -3037,9 +3046,16 @@ function renderPromoDashboardSummary(){
 
   const ongoing = (data.promotions||[]).filter(p => !isPromoEnded(p)).sort((a,b)=> (a.year-b.year) || (a.month-b.month));
 
+  // Scoped to the dashboard's selected person (if admin picked one) — NOT the same as the
+  // real Promotion page, which always shows everyone's qualifying orders regardless.
+  const scopedOrders = getDashboardScopedOrders();
+  const getScopedQualifying = (p) => scopedOrders.filter(o =>
+    o.shipDate && new Date(o.shipDate).getMonth() === Number(p.month) && new Date(o.shipDate).getFullYear() === Number(p.year)
+  );
+
   let totalQualifying = 0, totalPrepared = 0;
   const rows = ongoing.map(p => {
-    const qualifying = getPromoQualifyingOrders(p);
+    const qualifying = getScopedQualifying(p);
     const prepared = qualifying.filter(o => isPromoOrderPrepared(p.id, o.id)).length;
     totalQualifying += qualifying.length;
     totalPrepared += prepared;
