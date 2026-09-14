@@ -593,9 +593,24 @@
   }
   td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
   tr:last-child td{ border-bottom:none; }
-  tbody tr{ transition:background-color .15s ease; }
+  tbody tr{ transition:background-color .15s ease; animation:rowFadeIn .2s ease backwards; }
   tbody tr:hover{ background:rgba(109,122,82,0.06); }
   tbody tr.clickable-row{ cursor:pointer; }
+  @keyframes rowFadeIn{
+    from{ opacity:0; transform:translateY(4px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  tbody tr:nth-child(1){ animation-delay:0s; }
+  tbody tr:nth-child(2){ animation-delay:.015s; }
+  tbody tr:nth-child(3){ animation-delay:.03s; }
+  tbody tr:nth-child(4){ animation-delay:.045s; }
+  tbody tr:nth-child(5){ animation-delay:.06s; }
+  tbody tr:nth-child(6){ animation-delay:.075s; }
+  tbody tr:nth-child(7){ animation-delay:.09s; }
+  tbody tr:nth-child(8){ animation-delay:.105s; }
+  tbody tr:nth-child(9){ animation-delay:.12s; }
+  tbody tr:nth-child(10){ animation-delay:.135s; }
+  tbody tr:nth-child(n+11){ animation-delay:.15s; }
   .warranty-expired-row{ opacity:0.45; filter:grayscale(60%); }
   .warranty-expired-row:hover{ opacity:0.7; }
 
@@ -2842,6 +2857,28 @@ function renderTrendLine(containerId, months){
       ${labels}
     </svg>
   `;
+
+  const path = el.querySelector('.trend-line');
+  const area = el.querySelector('.trend-area');
+  const dotEls = el.querySelectorAll('.trend-dot');
+  if (path){
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = len;
+    path.style.strokeDashoffset = len;
+    if (area) area.style.opacity = '0';
+    dotEls.forEach(d => { d.style.opacity = '0'; });
+    path.getBoundingClientRect(); // force a reflow so the browser paints the initial state before the transition starts
+    requestAnimationFrame(() => {
+      path.style.transition = 'stroke-dashoffset .9s ease';
+      path.style.strokeDashoffset = '0';
+      if (area){ area.style.transition = 'opacity .6s ease .5s'; area.style.opacity = '1'; }
+      dotEls.forEach((d, i) => {
+        d.style.transition = 'opacity .3s ease';
+        d.style.transitionDelay = (i * (900/Math.max(1,dotEls.length-1))) + 'ms';
+        d.style.opacity = '1';
+      });
+    });
+  }
 }
 
 function renderDashboardSection(suffix, orders){
