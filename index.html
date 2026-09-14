@@ -742,19 +742,7 @@
   }
   .claim-btn:hover{ background:var(--accent-soft); }
 
-  .warranty-period-status{
-    display:inline-flex;
-    align-items:center;
-    height:30px;
-    padding:0 12px;
-    border-radius:100px;
-    font-size:11.5px;
-    font-weight:600;
-    white-space:nowrap;
-  }
-  .warranty-period-status.wp-active{ background:#E7F7EF; color:#1A9D5C; }
-  .warranty-period-status.wp-soon{ background:var(--sun-soft); color:var(--sun); }
-  .warranty-period-status.wp-expired{ background:var(--danger-soft); color:var(--danger); }
+  .row-actions.center-actions{ justify-content:center; }
 
   .empty-row{ text-align:center; color:var(--ink-soft); padding:32px 0; font-size:13.5px; }
 
@@ -2970,10 +2958,7 @@ function renderWarranty(){
       <td><span class="countdown ${countdownClass}">${warrantyCountdownText(o)}</span></td>
       <td><span class="badge ${status}">${warrantyStatusLabel[status]}</span></td>
       <td><input type="text" class="inline-input" value="${escapeHtml(o.warrantyNotes||'')}" placeholder="หมายเหตุ" onchange="setOrderField('${o.id}','warrantyNotes',this.value)"></td>
-      <td class="row-actions">
-        <span class="warranty-period-status ${status==='expired' ? 'wp-expired' : status==='soon' ? 'wp-soon' : 'wp-active'}">
-          ${status==='expired' ? 'หมดประกัน' : status==='soon' ? 'ใกล้หมดประกัน' : 'อยู่ในระยะเวลา'}
-        </span>
+      <td class="row-actions center-actions">
         ${currentUserRole==='admin' ? `<button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบคำสั่งซื้อนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteOrder('${o.id}'))" title="ลบ">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
           DELETE
