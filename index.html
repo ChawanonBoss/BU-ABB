@@ -1567,6 +1567,7 @@
             <h3>รายการรับประกันทั้งหมด <span class="badge-count neutral" id="warrantyTotalCount" style="display:none;"></span></h3>
             <div class="filter-bar">
               <select id="warrantyPageSize" class="inline-input filter-control">
+                <option value="10" selected>แสดง 10</option>
                 <option value="20">แสดง 20</option>
                 <option value="50">แสดง 50</option>
                 <option value="100">แสดง 100</option>
@@ -1905,7 +1906,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -3664,7 +3665,7 @@ function renderWarranty(){
     warrantyTotalBadge.style.display = 'none';
   }
 
-  const pageSize = Number($('warrantyPageSize').value) || 20;
+  const pageSize = Number($('warrantyPageSize').value) || 10;
   const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
   if (warrantyCurrentPage > totalPages) warrantyCurrentPage = totalPages;
   if (warrantyCurrentPage < 1) warrantyCurrentPage = 1;
@@ -3884,7 +3885,7 @@ $('customersClearBtn').addEventListener('click', () => {
 });
 
 $('warrantyClearBtn').addEventListener('click', () => {
-  $('warrantyPageSize').value = '20';
+  $('warrantyPageSize').value = '10';
   warrantyCurrentPage = 1;
   renderWarranty();
   toast('เคลียร์ตัวกรองแล้ว');
