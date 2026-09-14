@@ -1182,6 +1182,10 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
           <span id="themeToggleLabel">โหมดมืด</span>
         </button>
+        <button id="langToggleBtn" class="rail-menu-item" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"></path></svg>
+          <span id="langToggleLabel">English</span>
+        </button>
         <button id="signOutBtn" class="rail-menu-item rail-menu-danger" type="button">ออกจากระบบ</button>
       </div>
     </div>
@@ -2018,7 +2022,7 @@ document.addEventListener('click', (e) => {
 function setSync(state){
   const dot = $('syncDot'); const text = $('syncText');
   dot.className = 'sync-dot' + (state==='saving' ? ' saving' : state==='error' ? ' error' : '');
-  text.textContent = state==='saving' ? 'กำลังบันทึก...' : state==='error' ? 'บันทึกไม่สำเร็จ' : 'ซิงก์แล้ว';
+  text.textContent = t(state==='saving' ? 'กำลังบันทึก...' : state==='error' ? 'บันทึกไม่สำเร็จ' : 'ซิงก์แล้ว');
 }
 
 /* ====== Auth: email/password (Firebase) ====== */
@@ -2144,10 +2148,10 @@ function updateRoleBadge(){
   const badge = $('userRoleBadge');
   if (!badge) return;
   if (currentUserRole === 'admin'){
-    badge.textContent = 'ผู้ดูแลระบบ';
+    badge.textContent = t('ผู้ดูแลระบบ');
     badge.className = 'badge-count';
   } else {
-    badge.textContent = 'ผู้ใช้งานทั่วไป';
+    badge.textContent = t('ผู้ใช้งานทั่วไป');
     badge.className = 'badge-count neutral';
   }
 }
@@ -2260,7 +2264,7 @@ function refreshTargetUserFilter(){
   sel.style.display = '';
   const prevVal = sel.value || 'all';
   const users = [...(data.users||[])].filter(u => u.role !== 'admin').sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
-  sel.innerHTML = `<option value="all">ทั้งหมด</option>` +
+  sel.innerHTML = `<option value="all">${t('ทั้งหมด')}</option>` +
     users.map(u => `<option value="${u.id}" ${u.id===prevVal?'selected':''}>${escapeHtml(u.name || u.email)}</option>`).join('');
 }
 
@@ -2426,9 +2430,160 @@ $('syncRetryBtn').addEventListener('click', () => {
   toast('ข้อมูลซิงก์แบบเรียลไทม์อยู่แล้ว ไม่ต้องกดรีเฟรช');
 });
 
+/* ====== Language toggle (core UI chrome only — Thai <-> English) ====== */
+const I18N = {
+  // Sidebar / rail menu
+  'แดชบอร์ด': 'Dashboard', 'คำสั่งซื้อ': 'Orders', 'การรับประกัน': 'Warranty',
+  'ยกเลิกการสั่งซื้อ': 'Cancelled Orders', 'รายชื่อลูกค้า': 'Customers',
+  'ผู้ใช้งาน': 'Users', 'ประวัติการแก้ไข': 'Audit Log', 'เมนู': 'Menu',
+  'ออกจากระบบ': 'Sign Out', 'ซิงก์แล้ว': 'Synced', 'กำลังบันทึก...': 'Saving...',
+  'บันทึกไม่สำเร็จ': 'Save failed', 'โหมดมืด': 'Dark Mode', 'โหมดสว่าง': 'Light Mode',
+  'ผู้ดูแลระบบ': 'Admin', 'ผู้ใช้งานทั่วไป': 'User',
+  // Login screen
+  'เข้าสู่ระบบ': 'Sign In', 'อีเมล': 'Email', 'ชื่อ': 'Name', 'รหัสผ่าน': 'Password',
+  'ชื่อของคุณ': 'Your name', 'อย่างน้อย 6 ตัวอักษร': 'At least 6 characters',
+  'เข้าสู่ระบบเพื่อบันทึกและซิงก์ข้อมูลคำสั่งซื้อกับการรับประกัน': 'Sign in to save and sync your orders and warranty data',
+  'ยังไม่มีบัญชี?': "Don't have an account?", 'สร้างบัญชีใหม่': 'Create account',
+  'ลืมรหัสผ่าน?': 'Forgot password?', 'มีบัญชีอยู่แล้ว?': 'Already have an account?',
+  'ข้อมูลจะถูกเก็บไว้อย่างปลอดภัยบน Firebase': 'Your data is securely stored on Firebase',
+  // Dashboard
+  'สรุปรวม': 'Overview', 'สรุปการส่งสินค้า': 'Shipping Summary', 'เคลียร์ตัวกรอง': 'Clear Filters',
+  'สรุปโปรโมชัน': 'Promotions Summary', 'เป้าหมายประจำปี': 'Annual Target',
+  'Commission ประจำปี': 'Annual Commission', 'ยอดส่งสินค้า': 'Shipped Amount', 'อัตรา': 'Rate',
+  'ค่าคอม': 'Commission', 'คำสั่งส่งสินค้ารายเดือน': 'Monthly Shipments',
+  'แนวโน้มยอดขาย': 'Sales Trend', 'คำสั่งส่งสินค้าล่าสุด': 'Recent Shipments',
+  'ลูกค้า': 'Customer', 'สินค้า': 'Product', 'วันที่ส่งสินค้า': 'Ship Date',
+  'ยอดเงิน': 'Amount', 'สถานะ': 'Status', 'ทั้งหมด': 'All',
+  // Orders
+  'เพิ่มคำสั่งซื้อใหม่': 'Add New Order', 'เลขที่ใบเสนอราคา (SO)': 'Quote No. (SO)',
+  'ชื่อลูกค้า': 'Customer Name', 'ราคารวม (บาท)': 'Total Price (THB)', 'วันที่สั่งซื้อ': 'Order Date',
+  'บันทึกคำสั่งซื้อ': 'Save Order', '+ เพิ่มคำสั่งซื้อ': '+ Add Order',
+  'ดาวน์โหลดรายงาน': 'Download Report', 'ดาวน์โหลดไฟล์ตัวอย่าง': 'Download Template',
+  'นำเข้าจาก Excel': 'Import from Excel', 'สร้างโดย': 'Created By',
+  'รายการคำสั่งซื้อทั้งหมด': 'All Orders',
+  'คุณ': 'You', 'รอเข้าสู่ระบบ': 'Pending',
+  'นำเข้า (': 'Import (', 'แถว)': 'rows)',
+  '+ เพิ่มช่วง GP': '+ Add GP Range', '+ เพิ่มช่วงเป้า': '+ Add Target Range',
+  // Warranty
+  'รายการรับประกันทั้งหมด': 'All Warranties', 'ส่งสินค้า': 'Shipped',
+  'ประเภทการรับประกัน': 'Warranty Type', 'ระยะเวลา (เดือน)': 'Duration (Months)',
+  'หมดอายุ': 'Expiry', 'เหลือเวลา': 'Remaining', 'หมายเหตุ': 'Notes',
+  // Cancelled
+  'รายการยกเลิกการสั่งซื้อ': 'Cancelled Orders',
+  // Customers
+  'เพิ่มลูกค้าใหม่': 'Add New Customer', 'บันทึกลูกค้า': 'Save Customer',
+  '+ เพิ่มลูกค้า': '+ Add Customer', 'รายชื่อลูกค้าทั้งหมด': 'All Customers',
+  'จำนวนคำสั่งซื้อ': 'Order Count', 'จำนวนเงิน': 'Amount',
+  // Promotion
+  'เพิ่มโปรโมชันใหม่': 'Add New Promotion', 'ชื่อโปรโมชัน': 'Promotion Name',
+  'เดือนที่กำหนดส่ง': 'Delivery Month', 'ปี': 'Year', 'ของที่แจกให้ลูกค้า': 'Customer Gift',
+  'สร้างโปรโมชัน': 'Create Promotion', 'รายการโปรโมชันทั้งหมด': 'All Promotions',
+  '+ เพิ่มโปรโมชัน': '+ Add Promotion', 'ค้นหาชื่อโปรโมชัน': 'Search promotion name',
+  // Users
+  'เพิ่มผู้ใช้งาน': 'Add User', 'อีเมล Google': 'Google Email', 'สิทธิ์การใช้งาน': 'Role',
+  'บันทึกผู้ใช้งาน': 'Save User', '+ เพิ่มผู้ใช้งาน': '+ Add User', 'ผู้ใช้งานทั้งหมด': 'All Users',
+  'รูป': 'Photo', 'เป้าหมายคำสั่งซื้อ (บาท)': 'Order Target (THB)',
+  'เป้าหมายส่งสินค้า (บาท)': 'Shipping Target (THB)', 'ค้นหาชื่อ, อีเมล': 'Search name, email',
+  // Audit
+  'เวลา': 'Time', 'ผู้ทำรายการ': 'User', 'การกระทำ': 'Action', 'รายละเอียด': 'Details',
+  // Modals
+  'นำเข้าข้อมูลจาก Excel': 'Import from Excel', 'ยกเลิก': 'Cancel',
+  'ดาวน์โหลดรายงานคำสั่งซื้อ': 'Download Order Report', 'ประเภท': 'Type', 'เดือน': 'Month',
+  'ดาวน์โหลด': 'Download', 'ปิด': 'Close', 'ตั้งค่าตารางอัตราค่าคอมมิชชั่น': 'Commission Rate Settings',
+  'อัตราต่ำสุด (%)': 'Minimum Rate (%)', 'บันทึก': 'Save', 'ยืนยันการทำรายการ': 'Confirm Action',
+  'ยืนยัน': 'Confirm', 'รายเดือน': 'Monthly', 'รายปี': 'Yearly',
+  // Search placeholders
+  'ค้นหา SO, ลูกค้า, สินค้า, PO...': 'Search SO, customer, product, PO...',
+  'พิมพ์เพื่อค้นหาจากรายชื่อลูกค้า': 'Type to search customers',
+  'ค้นหาชื่อลูกค้า, สินค้า, SO, PO': 'Search customer, product, SO, PO',
+  'ค้นหาชื่อลูกค้า': 'Search customer name',
+  // Filter dropdowns
+  'ทุกคนที่สร้าง': 'All Creators', 'ทุกสถานะ': 'All Statuses', 'ทุกปี': 'All Years',
+  'แสดง 10': 'Show 10', 'แสดง 20': 'Show 20', 'แสดง 50': 'Show 50', 'แสดง 100': 'Show 100',
+  'ชื่อลูกค้า (ก-ฮ)': 'Customer Name (A-Z)', 'ชื่อลูกค้า (ฮ-ก)': 'Customer Name (Z-A)',
+  'จำนวนคำสั่งซื้อ (น้อย-มาก)': 'Order Count (Low-High)', 'จำนวนคำสั่งซื้อ (มาก-น้อย)': 'Order Count (High-Low)',
+  'จำนวนเงิน (น้อย-มาก)': 'Amount (Low-High)', 'จำนวนเงิน (มาก-น้อย)': 'Amount (High-Low)',
+  'ไม่บังคับ': 'Optional',
+  // Page headings (titles object subtitles)
+  'แดชบอร์ดประจำปี': 'Annual Dashboard',
+  'สรุปคำสั่งซื้อและการรับประกันทั้งหมด': 'Overview of all orders and warranties',
+  'บันทึกและติดตามคำสั่งซื้อทั้งหมด': 'Record and track all orders',
+  'ติดตามสถานะการรับประกันสินค้า': 'Track product warranty status',
+  'รายการคำสั่งซื้อที่ถูกยกเลิก (แสดงข้อมูลอย่างเดียว)': 'List of cancelled orders (read-only)',
+  'ข้อมูลลูกค้าและจำนวนคำสั่งซื้อที่จัดส่งแล้ว': 'Customer data and shipped order counts',
+  'จัดการโปรโมชันและติดตามการเตรียมของแจกลูกค้า': 'Manage promotions and track gift preparation',
+  'กำหนดสิทธิ์การเข้าถึงของแต่ละคน': "Set each person's access permissions",
+  'บันทึกการสร้าง/แก้ไข/ลบรายการทั้งหมดในระบบ': 'Log of all create/edit/delete actions in the system',
+};
+const MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const MONTH_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+MONTH_TH.forEach((th, i) => {
+  I18N[th] = MONTH_EN[i];
+  I18N[`เดือนสั่งซื้อ: ${th}`] = `Order Month: ${MONTH_EN[i]}`;
+  I18N[`เดือนส่งสินค้า: ${th}`] = `Ship Month: ${MONTH_EN[i]}`;
+});
+I18N['เดือนสั่งซื้อ: ทุกเดือน'] = 'Order Month: All Months';
+I18N['เดือนส่งสินค้า: ทุกเดือน'] = 'Ship Month: All Months';
+const I18N_REVERSE = {};
+Object.keys(I18N).forEach(th => { I18N_REVERSE[I18N[th]] = th; });
+
+let currentLang = (() => { try{ return localStorage.getItem('bu-abb-lang') || 'th'; }catch(e){ return 'th'; } })();
+function t(th){ return currentLang === 'en' ? (I18N[th] || th) : th; }
+
+function translateStaticDOM(){
+  const toEnglish = currentLang === 'en';
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node){
+      const p = node.parentElement;
+      if (!p || p.closest('script,style')) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node => {
+    const trimmed = node.nodeValue.trim();
+    if (!trimmed) return;
+    if (toEnglish && I18N[trimmed]) node.nodeValue = node.nodeValue.replace(trimmed, I18N[trimmed]);
+    else if (!toEnglish && I18N_REVERSE[trimmed]) node.nodeValue = node.nodeValue.replace(trimmed, I18N_REVERSE[trimmed]);
+  });
+  document.querySelectorAll('[placeholder]').forEach(el => {
+    const cur = el.getAttribute('placeholder');
+    if (toEnglish && I18N[cur]) el.setAttribute('placeholder', I18N[cur]);
+    else if (!toEnglish && I18N_REVERSE[cur]) el.setAttribute('placeholder', I18N_REVERSE[cur]);
+  });
+  document.querySelectorAll('[title]').forEach(el => {
+    const cur = el.getAttribute('title');
+    if (toEnglish && I18N[cur]) el.setAttribute('title', I18N[cur]);
+    else if (!toEnglish && I18N_REVERSE[cur]) el.setAttribute('title', I18N_REVERSE[cur]);
+  });
+}
+
+function refreshDynamicLangBits(){
+  updateRoleBadge();
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+  const activeNav = document.querySelector('.nav-item.active[data-tab]');
+  if (activeNav && titles[activeNav.dataset.tab]){
+    $('pageTitle').textContent = t(titles[activeNav.dataset.tab][0]);
+    $('pageSub').textContent = t(titles[activeNav.dataset.tab][1]);
+  }
+}
+
+function setLanguage(lang){
+  currentLang = lang;
+  try{ localStorage.setItem('bu-abb-lang', lang); }catch(e){}
+  document.documentElement.setAttribute('lang', lang);
+  translateStaticDOM();
+  refreshDynamicLangBits();
+  $('langToggleLabel').textContent = lang === 'en' ? 'ไทย' : 'English';
+}
+$('langToggleBtn').addEventListener('click', () => {
+  setLanguage(currentLang === 'en' ? 'th' : 'en');
+});
+
 function applyTheme(theme){
   document.documentElement.setAttribute('data-theme', theme);
-  $('themeToggleLabel').textContent = theme === 'dark' ? 'โหมดสว่าง' : 'โหมดมืด';
+  $('themeToggleLabel').textContent = t(theme === 'dark' ? 'โหมดสว่าง' : 'โหมดมืด');
 }
 applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
 $('themeToggleBtn').addEventListener('click', () => {
@@ -2464,6 +2619,7 @@ const titles = {
   users: ['ผู้ใช้งาน','กำหนดสิทธิ์การเข้าถึงของแต่ละคน'],
   audit: ['ประวัติการแก้ไข','บันทึกการสร้าง/แก้ไข/ลบรายการทั้งหมดในระบบ']
 };
+setLanguage(currentLang);
 
 function showTab(tab){
   document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
@@ -2476,8 +2632,8 @@ function showTab(tab){
   panel.classList.remove('tab-fade-in');
   void panel.offsetWidth;
   panel.classList.add('tab-fade-in');
-  $('pageTitle').textContent = titles[tab][0];
-  $('pageSub').textContent = titles[tab][1];
+  $('pageTitle').textContent = t(titles[tab][0]);
+  $('pageSub').textContent = t(titles[tab][1]);
   if (tab==='dashboard'){
     const orderRing = $('orderTargetRing');
     const shipRing = $('shipTargetRing');
@@ -3189,7 +3345,7 @@ function refreshOrdersCreatorFilter(){
   const prevVal = sel.value || 'all';
   const uids = [...new Set(data.orders.map(o => o.createdBy).filter(Boolean))];
   const options = uids.map(uid => ({ uid, name: getUserDisplayName(uid) })).sort((a,b)=> a.name.localeCompare(b.name));
-  sel.innerHTML = `<option value="all">ทุกคนที่สร้าง</option>` +
+  sel.innerHTML = `<option value="all">${t('ทุกคนที่สร้าง')}</option>` +
     options.map(o => `<option value="${o.uid}" ${o.uid===prevVal?'selected':''}>${escapeHtml(o.name)}</option>`).join('');
 }
 
@@ -3830,7 +3986,7 @@ function refreshCustomersCreatorFilter(){
   const prevVal = sel.value || 'all';
   const uids = [...new Set(data.customers.map(c => c.createdBy).filter(Boolean))];
   const options = uids.map(uid => ({ uid, name: getUserDisplayName(uid) })).sort((a,b)=> a.name.localeCompare(b.name));
-  sel.innerHTML = `<option value="all">ทุกคนที่สร้าง</option>` +
+  sel.innerHTML = `<option value="all">${t('ทุกคนที่สร้าง')}</option>` +
     options.map(o => `<option value="${o.uid}" ${o.uid===prevVal?'selected':''}>${escapeHtml(o.name)}</option>`).join('');
 }
 
@@ -4072,11 +4228,11 @@ function renderUsers(){
         </label>` : `<span class="user-avatar-placeholder">${escapeHtml((u.name||u.email||'?').trim().charAt(0).toUpperCase())}</span>`}
       </td>
       <td><input type="text" class="inline-input" value="${escapeHtml(u.name||'')}" placeholder="ไม่ระบุชื่อ" onchange="setUserField('${u._kind}','${escapeHtml(u._id)}','name',this.value)"></td>
-      <td>${escapeHtml(u.email)}${u._kind==='user' && u._id===currentUserUid ? ' <span class="badge-count neutral">คุณ</span>' : ''}${u._kind==='pending' ? ' <span class="badge-count neutral">รอเข้าสู่ระบบ</span>' : ''}</td>
+      <td>${escapeHtml(u.email)}${u._kind==='user' && u._id===currentUserUid ? ` <span class="badge-count neutral">${t('คุณ')}</span>` : ''}${u._kind==='pending' ? ` <span class="badge-count neutral">${t('รอเข้าสู่ระบบ')}</span>` : ''}</td>
       <td>
         <select class="inline-input badge-select" data-prev-role="${u.role||'user'}" onchange="handleUserRoleChange(this,'${u._kind}','${escapeHtml(u._id)}')">
-          <option value="user" ${u.role==='user'?'selected':''}>ผู้ใช้งานทั่วไป</option>
-          <option value="admin" ${u.role==='admin'?'selected':''}>ผู้ดูแลระบบ</option>
+          <option value="user" ${u.role==='user'?'selected':''}>${t('ผู้ใช้งานทั่วไป')}</option>
+          <option value="admin" ${u.role==='admin'?'selected':''}>${t('ผู้ดูแลระบบ')}</option>
         </select>
       </td>
       <td class="row-actions">
@@ -4177,7 +4333,7 @@ let selectedPromoCatalogYear = 'all';
 function refreshPromoCatalogYearFilter(){
   const years = [...new Set((data.promotions||[]).map(p => Number(p.year)))].sort((a,b)=>b-a);
   const sel = $('promoCatalogYearFilter');
-  sel.innerHTML = `<option value="all">ทุกปี</option>` + years.map(y => `<option value="${y}" ${String(y)===String(selectedPromoCatalogYear)?'selected':''}>ปี ${y+543}</option>`).join('');
+  sel.innerHTML = `<option value="all">${t('ทุกปี')}</option>` + years.map(y => `<option value="${y}" ${String(y)===String(selectedPromoCatalogYear)?'selected':''}>ปี ${y+543}</option>`).join('');
 }
 
 function getPromoQualifyingOrders(promo){
