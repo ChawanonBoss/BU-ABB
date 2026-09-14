@@ -155,14 +155,21 @@
     opacity:0.4;
     cursor:not-allowed;
   }
+  .rail-profile-wrap{ position:relative; margin-bottom:18px; flex-shrink:0; }
   .rail-profile{
     width:38px; height:38px;
     border-radius:50%;
     background:var(--accent-soft);
     display:flex; align-items:center; justify-content:center;
     overflow:hidden;
-    margin-bottom:18px;
     flex-shrink:0;
+  }
+  .rail-notify-dot{
+    position:absolute; top:-2px; right:-2px;
+    width:11px; height:11px;
+    border-radius:50%;
+    background:var(--danger);
+    border:2px solid var(--paper-dim);
   }
   .rail-avatar-img{ width:100%; height:100%; object-fit:cover; }
   .rail-avatar-fallback{ font-family:var(--font-display); font-weight:600; font-size:15px; color:var(--accent); }
@@ -808,6 +815,17 @@
 
   .row-actions.center-actions{ justify-content:center; }
 
+  .quick-add-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:var(--sun-soft);
+    border:1px solid var(--sun);
+    border-radius:12px;
+    padding:12px 16px;
+    margin:16px 0;
+    font-size:13px;
+    color:var(--ink);
+  }
+
   .commission-yearly-table{ font-size:12.5px; }
   .commission-yearly-table th{ padding:6px 6px; font-size:11px; }
   .commission-yearly-table td{ padding:9px 6px; white-space:nowrap; }
@@ -1125,9 +1143,12 @@
 
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar" style="display:none;">
-    <div class="rail-profile" id="railProfile" title="">
-      <img class="rail-avatar-img" id="sidebarAvatarImg" src="" alt="" style="display:none;">
-      <span class="rail-avatar-fallback" id="sidebarAvatarFallback">?</span>
+    <div class="rail-profile-wrap">
+      <div class="rail-profile" id="railProfile" title="">
+        <img class="rail-avatar-img" id="sidebarAvatarImg" src="" alt="" style="display:none;">
+        <span class="rail-avatar-fallback" id="sidebarAvatarFallback">?</span>
+      </div>
+      <span class="rail-notify-dot" id="railNotifyDot" style="display:none;" title="มีรายการที่ต้องดู"></span>
     </div>
     <button class="nav-item active" data-tab="dashboard"><img class="nav-icon" src="Dashboard.png" alt=""><span class="nav-tooltip">แดชบอร์ด</span></button>
     <button class="nav-item" data-tab="orders"><img class="nav-icon" src="Order.png" alt=""><span class="nav-tooltip">คำสั่งซื้อ</span></button>
@@ -1417,6 +1438,10 @@
                   <span class="date-display-text" id="ordDateDisplay">วัน/เดือน/ปี</span>
                 </div>
               </div>
+            </div>
+            <div id="ordCustomerQuickAdd" class="quick-add-banner" style="display:none;">
+              <span id="ordCustomerQuickAddLabel"></span>
+              <button type="button" class="btn outline" id="ordCustomerQuickAddBtn">+ เพิ่มลูกค้าใหม่</button>
             </div>
             <button type="submit" class="btn">บันทึกคำสั่งซื้อ</button>
           </form>
@@ -1710,7 +1735,7 @@
       </div>
 
 <!-- Excel import mapping modal -->
-<div class="modal-overlay" id="importModal" style="display:none;">
+<div class="modal-overlay" id="importModal" data-close-btn="importCancelBtn" style="display:none;">
   <div class="modal">
     <h3 class="serif" style="font-size:18px; margin-bottom:6px;">นำเข้าข้อมูลจาก Excel</h3>
     <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px;">จับคู่คอลัมน์ในไฟล์กับข้อมูลของระบบ แล้วกดนำเข้า</p>
@@ -1723,7 +1748,7 @@
 </div>
 
 <!-- Report download modal -->
-<div class="modal-overlay" id="reportModal" style="display:none;">
+<div class="modal-overlay" id="reportModal" data-close-btn="reportCancelBtn" style="display:none;">
   <div class="modal">
     <h3 class="serif" style="font-size:18px; margin-bottom:6px;">ดาวน์โหลดรายงานคำสั่งซื้อ</h3>
     <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px;">เลือกช่วงเวลาที่ต้องการออกรายงาน</p>
@@ -1751,7 +1776,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="promoModal" style="display:none;">
+<div class="modal-overlay" id="promoModal" data-close-btn="promoModalCloseBtn" style="display:none;">
   <div class="modal" style="max-width:920px;">
     <div class="panel-head" style="margin-bottom:4px;">
       <h3 class="serif" id="promoModalTitle" style="font-size:19px;"></h3>
@@ -1768,7 +1793,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="customerHistoryModal" style="display:none;">
+<div class="modal-overlay" id="customerHistoryModal" data-close-btn="customerHistoryCloseBtn" style="display:none;">
   <div class="modal" style="max-width:920px;">
     <div class="panel-head" style="margin-bottom:4px;">
       <h3 class="serif" id="customerHistoryTitle" style="font-size:19px;"></h3>
@@ -1785,7 +1810,7 @@
 </div>
 
 <!-- Commission rate table settings modal (admin only) -->
-<div class="modal-overlay" id="commissionSettingsModal" style="display:none;">
+<div class="modal-overlay" id="commissionSettingsModal" data-close-btn="commissionSettingsCancelBtn" style="display:none;">
   <div class="modal" style="max-width:640px;">
     <h3 class="serif" style="font-size:18px; margin-bottom:6px;">ตั้งค่าตารางอัตราค่าคอมมิชชั่น</h3>
     <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:18px;">สูตรนี้เป็นการประมาณจากตัวอย่างข้อมูลที่มี ไม่ใช่นโยบายที่เป็นทางการ — ปรับตัวเลขให้ตรงกับความเป็นจริงได้ตลอด<br>ค่าคอม = max(อัตราต่ำสุด, อัตราตาม GP% + ส่วนปรับตาม % เทียบเป้า) × ยอดส่งสินค้าในช่วงที่เลือก</p>
@@ -1811,7 +1836,7 @@
 </div>
 
 <!-- Confirm action modal (delete / cancel) -->
-<div class="modal-overlay" id="confirmModal" style="display:none;">
+<div class="modal-overlay" id="confirmModal" data-close-btn="confirmModalCancelBtn" style="display:none;">
   <div class="modal" style="max-width:400px;">
     <h3 class="serif" id="confirmModalTitle" style="font-size:17px; margin-bottom:8px;">ยืนยันการทำรายการ</h3>
     <p id="confirmModalMsg" style="font-size:13.5px; color:var(--ink-soft); margin-bottom:20px;"></p>
@@ -1969,6 +1994,14 @@ $('globalSearchInput').addEventListener('input', (e) => renderGlobalSearchResult
 $('globalSearchInput').addEventListener('focus', (e) => { if (e.target.value) renderGlobalSearchResults(e.target.value); });
 document.addEventListener('click', (e) => {
   if (!$('globalSearchWrap').contains(e.target)) $('globalSearchResults').style.display = 'none';
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const openModal = Array.from(document.querySelectorAll('.modal-overlay')).find(m => getComputedStyle(m).display !== 'none');
+  if (openModal && openModal.dataset.closeBtn){
+    $(openModal.dataset.closeBtn).click();
+  }
 });
 
 $('railMenuBtn').addEventListener('click', (e) => {
@@ -2529,6 +2562,8 @@ function renderAlerts(){
   const messages = [];
   if (soon.length) messages.push(`มีคำสั่งจำนวน ${soon.length} กำลังจะหมดประกัน (ภายใน 30 วัน)`);
   if (promosEndingSoon.length) messages.push(`มีโปรโมชัน ${promosEndingSoon.length} รายการใกล้สิ้นสุด (ภายใน 7 วัน)`);
+  const notifyDot = $('railNotifyDot');
+  if (notifyDot) notifyDot.style.display = messages.length ? 'block' : 'none';
   banners.forEach(el=>{
     if (messages.length){
       el.style.display = 'flex';
@@ -3529,6 +3564,7 @@ function attachAutocomplete(input, getOptionsFn){
 }
 
 attachAutocomplete($('ordCustomer'), () => [...new Set(getVisibleCustomers().map(c=>c.name).filter(Boolean))]);
+$('ordCustomer').addEventListener('input', hideOrderCustomerQuickAdd);
 attachAutocomplete($('ordProduct'), () => [...new Set(getVisibleOrders().map(o=>o.product).filter(Boolean))]);
 attachAutocomplete($('cusName'), () => [...new Set(getVisibleCustomers().map(c=>c.name).filter(Boolean))]);
 
@@ -3652,21 +3688,14 @@ $('ordDate').addEventListener('change', (e) => {
   $('ordDateDisplay').textContent = e.target.value ? fmtDate(e.target.value) : 'วัน/เดือน/ปี';
 });
 
-$('orderForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const customerName = $('ordCustomer').value.trim();
-  const knownCustomer = (getVisibleCustomers()).find(c => c.name.trim().toLowerCase() === customerName.toLowerCase());
-  if (!knownCustomer){
-    toast('ไม่พบชื่อลูกค้านี้ในรายชื่อลูกค้า — กรุณาเพิ่มลูกค้าที่หน้า "รายชื่อลูกค้า" ก่อน');
-    return;
-  }
+async function saveNewOrder(customerName){
   setSync('saving');
   try{
     const newOrderDate = $('ordDate').value;
     const newSo = 'SO' + $('ordSOMain').value.trim() + '-' + $('ordSOSeq').value.trim();
     await db.collection('orders').add({
       so: newSo,
-      customer: knownCustomer.name,
+      customer: customerName,
       product: $('ordProduct').value.trim(),
       price: parseMoneyValue($('ordPrice').value),
       date: newOrderDate,
@@ -3676,10 +3705,11 @@ $('orderForm').addEventListener('submit', async (e) => {
       gp: null,
       createdBy: currentUserUid
     });
-    logAudit('สร้างคำสั่งซื้อ', `${newSo} — ${knownCustomer.name}`);
-    e.target.reset();
+    logAudit('สร้างคำสั่งซื้อ', `${newSo} — ${customerName}`);
+    $('orderForm').reset();
     $('ordDateDisplay').textContent = 'วัน/เดือน/ปี';
     $('orderCreatePanel').style.display = 'none';
+    hideOrderCustomerQuickAdd();
     if (newOrderDate){
       const newOrderYear = new Date(newOrderDate).getFullYear();
       if (newOrderYear !== selectedOrdersYear){
@@ -3697,6 +3727,42 @@ $('orderForm').addEventListener('submit', async (e) => {
     setSync('error');
     toast('บันทึกไม่สำเร็จ — กดปุ่มรีเฟรชด้านล่างซ้ายเพื่อลองใหม่');
   }
+}
+
+function hideOrderCustomerQuickAdd(){
+  const el = $('ordCustomerQuickAdd');
+  if (el) el.style.display = 'none';
+}
+
+async function quickAddCustomerAndSaveOrder(customerName){
+  setSync('saving');
+  try{
+    await db.collection('customers').add({ name: customerName, createdBy: currentUserUid });
+    logAudit('เพิ่มลูกค้า', customerName);
+    await saveNewOrder(customerName);
+  }catch(err){
+    setSync('error');
+    toast('เพิ่มลูกค้าไม่สำเร็จ');
+  }
+}
+
+$('orderForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const customerName = $('ordCustomer').value.trim();
+  const knownCustomer = (getVisibleCustomers()).find(c => c.name.trim().toLowerCase() === customerName.toLowerCase());
+  if (!knownCustomer){
+    const el = $('ordCustomerQuickAdd');
+    if (el){
+      $('ordCustomerQuickAddLabel').textContent = `ไม่พบ "${customerName}" ในรายชื่อลูกค้า`;
+      $('ordCustomerQuickAddBtn').onclick = () => quickAddCustomerAndSaveOrder(customerName);
+      el.style.display = 'flex';
+    } else {
+      toast('ไม่พบชื่อลูกค้านี้ในรายชื่อลูกค้า — กรุณาเพิ่มลูกค้าที่หน้า "รายชื่อลูกค้า" ก่อน');
+    }
+    return;
+  }
+  hideOrderCustomerQuickAdd();
+  await saveNewOrder(knownCustomer.name);
 });
 
 const NUMERIC_ORDER_FIELDS = ['gp', 'warrantyMonths'];
