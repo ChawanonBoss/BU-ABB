@@ -744,6 +744,17 @@
 
   .row-actions.center-actions{ justify-content:center; }
 
+  .commission-q-row{ padding:12px 0; border-bottom:1px solid var(--line); }
+  .commission-q-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .commission-q-row:first-child{ padding-top:0; }
+  .commission-q-title{ font-family:var(--font-display); font-weight:500; font-size:14px; margin-bottom:8px; }
+  .commission-q-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; font-size:12px; }
+  .commission-q-item-label{ color:var(--ink-soft); }
+  .commission-q-item-value{ font-weight:500; font-size:13px; }
+  .commission-amount-row{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+  .commission-eye-btn{ display:flex; align-items:center; justify-content:center; background:var(--paper-dim); border:1px solid var(--line); border-radius:8px; width:26px; height:26px; cursor:pointer; color:var(--ink-soft); flex-shrink:0; }
+  .commission-eye-btn:hover{ border-color:var(--accent); color:var(--accent); }
+
   .empty-row{ text-align:center; color:var(--ink-soft); padding:32px 0; font-size:13.5px; }
 
   .pagination{
@@ -1215,30 +1226,37 @@
               </div>
             </div>
 
-            <div class="panel dash-donut-card">
-              <div class="panel-head">
-                <h3>เป้าหมายประจำปี</h3>
-                <select id="targetUserFilter" class="inline-input filter-control" style="display:none; font-size:12.5px;">
-                  <option value="all">ทั้งหมด</option>
-                </select>
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              <div class="panel dash-donut-card">
+                <div class="panel-head">
+                  <h3>เป้าหมายประจำปี</h3>
+                  <select id="targetUserFilter" class="inline-input filter-control" style="display:none; font-size:12.5px;">
+                    <option value="all">ทั้งหมด</option>
+                  </select>
+                </div>
+                <div class="target-rings-row">
+                  <div class="target-ring-item">
+                    <div class="donut-chart-outer">
+                      <div class="donut-chart" id="orderTargetRing"></div>
+                      <div class="donut-center"><span id="orderTargetPct">0%</span></div>
+                    </div>
+                    <div class="target-ring-label">เป้าหมายคำสั่งซื้อ (บาท)</div>
+                    <div class="target-ring-count"><b id="orderTargetActual">0</b> / <span id="orderTargetGoal">0</span></div>
+                  </div>
+                  <div class="target-ring-item">
+                    <div class="donut-chart-outer">
+                      <div class="donut-chart" id="shipTargetRing"></div>
+                      <div class="donut-center"><span id="shipTargetPct">0%</span></div>
+                    </div>
+                    <div class="target-ring-label">เป้าหมายส่งสินค้า (บาท)</div>
+                    <div class="target-ring-count"><b id="shipTargetActual">0</b> / <span id="shipTargetGoal">0</span></div>
+                  </div>
+                </div>
               </div>
-              <div class="target-rings-row">
-                <div class="target-ring-item">
-                  <div class="donut-chart-outer">
-                    <div class="donut-chart" id="orderTargetRing"></div>
-                    <div class="donut-center"><span id="orderTargetPct">0%</span></div>
-                  </div>
-                  <div class="target-ring-label">เป้าหมายคำสั่งซื้อ (บาท)</div>
-                  <div class="target-ring-count"><b id="orderTargetActual">0</b> / <span id="orderTargetGoal">0</span></div>
-                </div>
-                <div class="target-ring-item">
-                  <div class="donut-chart-outer">
-                    <div class="donut-chart" id="shipTargetRing"></div>
-                    <div class="donut-center"><span id="shipTargetPct">0%</span></div>
-                  </div>
-                  <div class="target-ring-label">เป้าหมายส่งสินค้า (บาท)</div>
-                  <div class="target-ring-count"><b id="shipTargetActual">0</b> / <span id="shipTargetGoal">0</span></div>
-                </div>
+
+              <div class="panel commission-yearly-panel">
+                <div class="panel-head"><h3>Commission ประจำปี</h3></div>
+                <div id="commissionYearlyRows"></div>
               </div>
             </div>
           </div>
@@ -2511,6 +2529,71 @@ function calcCommission(shippedTotal, gpPercent, targetAmount){
   return { rate, amount: shippedTotal * rate / 100, targetPct };
 }
 
+function getAnnualShipTarget(year){
+  if (currentUserRole === 'admin'){
+    let total = 0;
+    data.userTargets.forEach(t => { if (t.id.endsWith(`_${year}`)) total += Number(t.shippedTarget||0); });
+    return total;
+  }
+  return getUserTarget(currentUserUid, year).shippedTarget;
+}
+
+let commissionRevealed = [false, false, false, false];
+function computeQuarterlyCommissionData(year){
+  const shippedOrders = getVisibleOrders().filter(o => o.status === 'done' && o.shipDate && new Date(o.shipDate).getFullYear() === year);
+  const monthly = [];
+  for (let m = 0; m < 12; m++) monthly.push({ amount: 0, gpAuto: 0 });
+  shippedOrders.forEach(o => {
+    const m = monthly[new Date(o.shipDate).getMonth()];
+    m.amount += Number(o.price||0);
+    m.gpAuto += Number(o.gp||0);
+  });
+  monthly.forEach((m, idx) => {
+    const override = data.monthlyGP.find(x => x.id === `shipped_${year}_${idx}`);
+    m.gpFinal = override ? Number(override.value) : m.gpAuto;
+  });
+  const annualShipTarget = getAnnualShipTarget(year);
+  const quarterTarget = annualShipTarget / 4;
+  const quarters = [];
+  for (let q = 0; q < 4; q++){
+    const qMonths = monthly.slice(q*3, q*3+3);
+    const shipped = qMonths.reduce((s,m)=>s+m.amount, 0);
+    const gp = qMonths.reduce((s,m)=>s+m.gpFinal, 0);
+    const gpPercent = shipped > 0 ? (gp/shipped)*100 : 0;
+    const result = calcCommission(shipped, gpPercent, quarterTarget);
+    quarters.push({ label: `Q${q+1}`, shipped, gpPercent, rate: result ? result.rate : 0, amount: result ? result.amount : 0, hasTarget: !!result });
+  }
+  return quarters;
+}
+function toggleCommissionReveal(idx){
+  commissionRevealed[idx] = !commissionRevealed[idx];
+  renderCommissionYearly();
+}
+function renderCommissionYearly(){
+  const el = $('commissionYearlyRows');
+  if (!el) return;
+  const quarters = computeQuarterlyCommissionData(selectedDashboardYear);
+  el.innerHTML = quarters.map((q, idx) => `
+    <div class="commission-q-row">
+      <div class="commission-q-title">${q.label}</div>
+      <div class="commission-q-grid">
+        <div><span class="commission-q-item-label">ยอดส่งสินค้า</span><br><span class="commission-q-item-value">${fmtMoney(q.shipped)}</span></div>
+        <div><span class="commission-q-item-label">GP (%)</span><br><span class="commission-q-item-value">${q.gpPercent.toFixed(1)}%</span></div>
+        <div><span class="commission-q-item-label">อัตราที่คำนวณได้</span><br><span class="commission-q-item-value">${q.hasTarget ? q.rate.toFixed(2)+'%' : '-'}</span></div>
+        <div><span class="commission-q-item-label">ยอดค่าคอม</span><br><span class="commission-q-item-value">${commissionRevealed[idx] ? fmtMoney(q.amount) : 'xx,xxx'}</span></div>
+      </div>
+      <div class="commission-amount-row">
+        <button class="commission-eye-btn" type="button" onclick="toggleCommissionReveal(${idx})" title="${commissionRevealed[idx] ? 'ซ่อนตัวเลข' : 'แสดงตัวเลข'}">
+          ${commissionRevealed[idx]
+            ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-10-8-10-8a18.4 18.4 0 0 1 5.06-5.94M9.9 4.24A10.87 10.87 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'
+            : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s3-8 11-8 11 8 11 8-3 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle></svg>'}
+        </button>
+        <span style="font-size:11.5px; color:var(--ink-soft);">${commissionRevealed[idx] ? 'ซ่อนตัวเลข' : 'กดเพื่อดูยอดค่าคอม'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
 let commissionConfigDraft = null;
 function openCommissionSettingsModal(){
   commissionConfigDraft = JSON.parse(JSON.stringify(getCommissionConfig()));
@@ -2734,14 +2817,7 @@ function renderDashboardSection(suffix, orders){
     renderTrendLine('trendChart_shipped', months);
     renderQuarterButtons('shipped');
 
-    let annualShipTarget = 0;
-    if (currentUserRole === 'admin'){
-      data.userTargets.forEach(t => {
-        if (t.id.endsWith(`_${selectedDashboardYear}`)) annualShipTarget += Number(t.shippedTarget||0);
-      });
-    } else {
-      annualShipTarget = getUserTarget(currentUserUid, selectedDashboardYear).shippedTarget;
-    }
+    const annualShipTarget = getAnnualShipTarget(selectedDashboardYear);
     const periodMonths = hasSelection ? selMonths.length : 12;
     const scaledTarget = annualShipTarget * periodMonths / 12;
     const commissionEl = $('statCommission');
@@ -2847,6 +2923,7 @@ function renderDashboard(){
   renderDashboardSection('all', yearOrders);
   renderDashboardSection('shipped', shippedSet);
   renderPromoDashboardSummary();
+  renderCommissionYearly();
 }
 
 function renderPromoDashboardSummary(){
