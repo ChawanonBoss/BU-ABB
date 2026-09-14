@@ -2471,6 +2471,14 @@ const I18N = {
   'คุณ': 'You', 'รอเข้าสู่ระบบ': 'Pending',
   'นำเข้า (': 'Import (', 'แถว)': 'rows)',
   '+ เพิ่มช่วง GP': '+ Add GP Range', '+ เพิ่มช่วงเป้า': '+ Add Target Range',
+  // Dashboard stat cards / labels missed in the first pass
+  'คำสั่งซื้อทั้งหมด': 'Total Orders', 'ใบเสนอราคา': 'Quotation',
+  'คำสั่งซื้อที่ส่งแล้ว': 'Shipped Orders', 'ยกเลิก': 'Cancel', 'รับประกัน': 'Warranty',
+  'เป้าหมายคำสั่งซื้อ (บาท)': 'Order Target (THB)', 'เป้าหมายส่งสินค้า (บาท)': 'Shipping Target (THB)',
+  'คำสั่งซื้อที่จัดส่งแล้ว': 'Orders Shipped', 'ยอดขายรวม': 'Total Sales',
+  'กำไรรวมสุทธิ (GP)': 'Total Net Profit (GP)', 'ค่าคอมมิชชั่นโดยประมาณ': 'Estimated Commission',
+  'โปรโมชันที่กำลังดำเนินการ': 'Ongoing Promotions', 'คำสั่งซื้อที่เข้าเงื่อนไข': 'Qualifying Orders',
+  'เตรียมของแล้ว': 'Prepared', 'เทียบเป้า': 'vs Target', 'ยังไม่ได้ตั้งเป้าหมาย': 'Target not set',
   // Warranty
   'รายการรับประกันทั้งหมด': 'All Warranties', 'ส่งสินค้า': 'Shipped',
   'ประเภทการรับประกัน': 'Warranty Type', 'ระยะเวลา (เดือน)': 'Duration (Months)',
@@ -3037,7 +3045,7 @@ function renderTrendLine(containerId, months){
       else { changeText = (change.pct > 0 ? '+' : '') + change.pct.toFixed(0) + '%'; changeClass = change.dir === 'up' ? 'trend-change-up' : 'trend-change-down'; }
     }
     return `
-      <text class="trend-label" x="${p.x.toFixed(1)}" y="${h-18}" text-anchor="middle">${p.m.label}</text>
+      <text class="trend-label" x="${p.x.toFixed(1)}" y="${h-18}" text-anchor="middle">${t(p.m.label)}</text>
       ${changeText ? `<text class="trend-change-label ${changeClass}" x="${p.x.toFixed(1)}" y="${h-6}" text-anchor="middle">${changeText}</text>` : ''}
     `;
   }).join('');
@@ -3135,10 +3143,17 @@ function renderDashboardSection(suffix, orders){
 
   const periodEl = $(`periodIndicator_${suffix}`);
   if (periodEl){
+    if (currentLang === 'en'){
+      const monthLabelsEn = [...selMonths].sort((a,b)=>a-b).map(m=>MONTH_EN[m]).join(', ');
+      periodEl.textContent = hasSelection
+        ? `Showing: ${monthLabelsEn} ${selectedDashboardYear+543}`
+        : `Showing: Full Year ${selectedDashboardYear+543}`;
+    } else {
     const sortedMonthLabels = [...selMonths].sort((a,b)=>a-b).map(m=>monthShortLabels[m]).join(', ');
     periodEl.textContent = hasSelection
       ? `กำลังแสดง: เดือน${sortedMonthLabels} ปี ${selectedDashboardYear+543}`
       : `กำลังแสดง: ทั้งปี ${selectedDashboardYear+543}`;
+    }
   }
 
   // Monthly bars — all 12 months of the selected year, with per-month sales amount and profit
@@ -3185,10 +3200,10 @@ function renderDashboardSection(suffix, orders){
     if (commissionEl){
       if (result){
         animateNumber(commissionEl, result.amount, fmtMoney);
-        if (commissionSubEl) commissionSubEl.textContent = `เทียบเป้า ${result.targetPct.toFixed(0)}% · อัตรา ${result.rate.toFixed(2)}%`;
+        if (commissionSubEl) commissionSubEl.textContent = `${t('เทียบเป้า')} ${result.targetPct.toFixed(0)}% · ${t('อัตรา')} ${result.rate.toFixed(2)}%`;
       } else {
         commissionEl.textContent = '฿0';
-        if (commissionSubEl) commissionSubEl.textContent = 'ยังไม่ได้ตั้งเป้าหมาย';
+        if (commissionSubEl) commissionSubEl.textContent = t('ยังไม่ได้ตั้งเป้าหมาย');
       }
     }
   }
@@ -3202,7 +3217,7 @@ function renderDashboardSection(suffix, orders){
       return `
       <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)} (คลิกเพื่อเลือกหลายเดือน)">
         <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
-        <div class="bar-label ${dim ? 'dim-text' : ''}">${m.label}</div>
+        <div class="bar-label ${dim ? 'dim-text' : ''}">${t(m.label)}</div>
         <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
         ${suffix === 'shipped' ? `<input type="text" inputmode="decimal" class="bar-gp-input" value="${fmtMoneyPlain(Math.round(m.gpFinal * 100) / 100)}" title="กำไร ${m.label} — แก้ไขได้"
           onclick="event.stopPropagation()"
@@ -3320,9 +3335,9 @@ function renderPromoDashboardSummary(){
   });
 
   statsEl.innerHTML = `
-    <div class="promo-dash-stat c-blue"><div class="num">${ongoing.length}</div><div class="lbl">โปรโมชันที่กำลังดำเนินการ</div></div>
-    <div class="promo-dash-stat c-orange"><div class="num">${totalQualifying}</div><div class="lbl">คำสั่งซื้อที่เข้าเงื่อนไข</div></div>
-    <div class="promo-dash-stat c-green"><div class="num">${totalPrepared}</div><div class="lbl">เตรียมของแล้ว</div></div>
+    <div class="promo-dash-stat c-blue"><div class="num">${ongoing.length}</div><div class="lbl">${t('โปรโมชันที่กำลังดำเนินการ')}</div></div>
+    <div class="promo-dash-stat c-orange"><div class="num">${totalQualifying}</div><div class="lbl">${t('คำสั่งซื้อที่เข้าเงื่อนไข')}</div></div>
+    <div class="promo-dash-stat c-green"><div class="num">${totalPrepared}</div><div class="lbl">${t('เตรียมของแล้ว')}</div></div>
   `;
 
   listEl.innerHTML = rows.length ? rows.map(r => `
