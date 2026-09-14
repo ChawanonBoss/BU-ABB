@@ -518,6 +518,10 @@
   .trend-dot{ fill:var(--card); stroke:var(--accent); stroke-width:2; }
   .trend-dot:hover{ fill:var(--accent); }
   .trend-label{ font-size:9.5px; fill:var(--ink-soft); }
+  .trend-change-label{ font-size:8.5px; font-weight:700; }
+  .trend-change-up{ fill:#1A9D5C; }
+  .trend-change-down{ fill:var(--danger); }
+  .trend-change-flat{ fill:var(--ink-soft); }
   .trend-value-label{ font-size:9px; fill:var(--ink-soft); opacity:0; transition:opacity .15s ease; }
   .trend-point-group:hover .trend-value-label{ opacity:1; }
 
@@ -2434,10 +2438,19 @@ async function setMonthlyGP(suffix, year, monthIdx, value){
 
 const monthShortLabels = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
+function computeMoMChange(months, idx){
+  if (idx <= 0) return null;
+  const curr = months[idx].amount;
+  const prev = months[idx-1].amount;
+  if (prev === 0) return curr === 0 ? { pct: 0, dir: 'flat' } : { pct: null, dir: 'up' };
+  const pct = ((curr - prev) / prev) * 100;
+  return { pct, dir: pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat' };
+}
+
 function renderTrendLine(containerId, months){
   const el = $(containerId);
   if (!el) return;
-  const w = 600, h = 140, padTop = 14, padBottom = 20, padX = 12;
+  const w = 600, h = 152, padTop = 14, padBottom = 34, padX = 12;
   const plotW = w - padX*2;
   const plotH = h - padTop - padBottom;
   const max = Math.max(1, ...months.map(m=>m.amount));
@@ -2445,7 +2458,8 @@ function renderTrendLine(containerId, months){
   const points = months.map((m, idx) => ({
     x: padX + stepX*idx,
     y: padTop + plotH - (m.amount/max)*plotH,
-    m
+    m,
+    idx
   }));
   const linePath = points.map((p,i)=> (i===0?'M':'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
   const baseline = (padTop+plotH).toFixed(1);
@@ -2456,7 +2470,19 @@ function renderTrendLine(containerId, months){
       <text class="trend-value-label" x="${p.x.toFixed(1)}" y="${(p.y-8).toFixed(1)}" text-anchor="middle">${fmtMoney(p.m.amount)}</text>
     </g>
   `).join('');
-  const labels = points.map(p => `<text class="trend-label" x="${p.x.toFixed(1)}" y="${h-4}" text-anchor="middle">${p.m.label}</text>`).join('');
+  const labels = points.map(p => {
+    const change = computeMoMChange(months, p.idx);
+    let changeText = '', changeClass = '';
+    if (change){
+      if (change.pct === null){ changeText = '+ใหม่'; changeClass = 'trend-change-up'; }
+      else if (change.dir === 'flat'){ changeText = '0%'; changeClass = 'trend-change-flat'; }
+      else { changeText = (change.pct > 0 ? '+' : '') + change.pct.toFixed(0) + '%'; changeClass = change.dir === 'up' ? 'trend-change-up' : 'trend-change-down'; }
+    }
+    return `
+      <text class="trend-label" x="${p.x.toFixed(1)}" y="${h-18}" text-anchor="middle">${p.m.label}</text>
+      ${changeText ? `<text class="trend-change-label ${changeClass}" x="${p.x.toFixed(1)}" y="${h-6}" text-anchor="middle">${changeText}</text>` : ''}
+    `;
+  }).join('');
   el.innerHTML = `
     <svg viewBox="0 0 ${w} ${h}">
       <defs>
