@@ -973,6 +973,9 @@
   .promo-card-name{ font-family:var(--font-display); font-weight:600; font-size:15px; color:var(--ink); margin-bottom:4px; }
   .promo-card-meta{ font-size:12px; color:var(--ink-soft); }
   .promo-card-progress{ font-size:12px; color:var(--accent); font-weight:600; margin-top:10px; }
+  .promo-progress-bar{ height:6px; background:var(--paper-dim); border-radius:100px; overflow:hidden; margin-top:6px; }
+  .promo-progress-fill{ height:100%; background:var(--accent); border-radius:100px; transition:width .3s ease; }
+  .promo-card-ended .promo-progress-fill{ background:var(--ink-soft); }
   .promo-status-badge{
     display:inline-block;
     font-size:10.5px;
@@ -1515,7 +1518,7 @@
 
       <!-- Promotion tab (admin only) -->
       <div id="tab-promotions" class="tab-panel" style="display:none;">
-        <div class="panel" id="promoCreatePanel">
+        <div class="panel" id="promoCreatePanel" style="display:none;">
           <div class="panel-head"><h3>เพิ่มโปรโมชันใหม่</h3></div>
           <form id="promotionForm">
             <div class="form-grid">
@@ -1544,7 +1547,16 @@
         </div>
 
         <div class="panel">
-          <div class="panel-head"><h3>รายการโปรโมชันทั้งหมด</h3></div>
+          <div class="panel-head">
+            <h3>รายการโปรโมชันทั้งหมด</h3>
+            <div class="filter-bar">
+              <input type="text" id="promoSearch" class="inline-input filter-control" placeholder="ค้นหาชื่อโปรโมชัน" style="width:180px;">
+              <select id="promoCatalogYearFilter" class="inline-input filter-control">
+                <option value="all">ทุกปี</option>
+              </select>
+              <button class="btn" id="promoCreateToggleBtn" type="button" style="display:none;">+ เพิ่มโปรโมชัน</button>
+            </div>
+          </div>
           <div class="promo-catalog" id="promoCatalog"></div>
         </div>
       </div>
@@ -2026,7 +2038,7 @@ async function resolveUserRole(){
     }
   }
   $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
-  $('promoCreatePanel').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('promoCreateToggleBtn').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('ordersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
@@ -2149,6 +2161,7 @@ function attachRealtimeListeners(){
       refreshTargetUserFilter();
       refreshTargetYearFilter();
       refreshPromoYearFilter();
+      refreshPromoCatalogYearFilter();
       render();
       // If the user already clicked to a different tab while data was still loading, stay
       // there instead of yanking them back to the dashboard — just make sure it's rendered.
@@ -2164,6 +2177,7 @@ function attachRealtimeListeners(){
     refreshCustomersCreatorFilter();
     refreshTargetUserFilter();
     refreshTargetYearFilter();
+    refreshPromoCatalogYearFilter();
     renderOrders(); renderWarranty(); renderDashboard(); renderCustomers();
     if ($('tab-users').style.display === 'block') renderUsers();
     if ($('tab-cancelled').style.display === 'block') renderCancelledOrders();
@@ -3857,6 +3871,13 @@ function refreshPromoYearFilter(){
   sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedPromoYear?'selected':''}>ปี ${y+543}</option>`).join('');
 }
 
+let selectedPromoCatalogYear = 'all';
+function refreshPromoCatalogYearFilter(){
+  const years = [...new Set((data.promotions||[]).map(p => Number(p.year)))].sort((a,b)=>b-a);
+  const sel = $('promoCatalogYearFilter');
+  sel.innerHTML = `<option value="all">ทุกปี</option>` + years.map(y => `<option value="${y}" ${String(y)===String(selectedPromoCatalogYear)?'selected':''}>ปี ${y+543}</option>`).join('');
+}
+
 function getPromoQualifyingOrders(promo){
   return getVisibleOrders().filter(o =>
     o.shipDate && new Date(o.shipDate).getMonth() === Number(promo.month) && new Date(o.shipDate).getFullYear() === Number(promo.year)
@@ -3877,10 +3898,18 @@ function renderPromotions(){
   const loadingEl = $('loadingOverlay');
   if (loadingEl) loadingEl.style.display = 'none';
   const body = $('promoCatalog');
-  const list = [...(data.promotions||[])].sort((a,b)=> (b.year - a.year) || (b.month - a.month));
+  const searchTerm = ($('promoSearch').value || '').trim().toLowerCase();
+  let list = [...(data.promotions||[])].sort((a,b)=> (b.year - a.year) || (b.month - a.month));
+  if (selectedPromoCatalogYear !== 'all'){
+    list = list.filter(p => String(p.year) === String(selectedPromoCatalogYear));
+  }
+  if (searchTerm){
+    list = list.filter(p => (p.name||'').toLowerCase().includes(searchTerm));
+  }
   body.innerHTML = list.length ? list.map(p => {
     const qualifying = getPromoQualifyingOrders(p);
     const preparedCount = qualifying.filter(o => isPromoOrderPrepared(p.id, o.id)).length;
+    const progressPct = qualifying.length ? Math.round((preparedCount/qualifying.length)*100) : 0;
     const ended = isPromoEnded(p);
     return `
     <div class="promo-card ${ended ? 'promo-card-ended' : ''}" onclick="openPromoModal('${p.id}')">
@@ -3894,8 +3923,9 @@ function renderPromotions(){
       <div class="promo-card-name">${escapeHtml(p.name)}</div>
       <div class="promo-card-meta">ส่งภายใน ${monthShortLabels[p.month]} ${Number(p.year)+543} · ${escapeHtml(p.giftLabel)}</div>
       <div class="promo-card-progress">เตรียมของแล้ว ${preparedCount} / ${qualifying.length} รายการ</div>
+      <div class="promo-progress-bar"><div class="promo-progress-fill" style="width:${progressPct}%;"></div></div>
     </div>
-  `; }).join('') : `<p style="font-size:13px; color:var(--ink-soft);">ยังไม่มีโปรโมชัน — สร้างรายการแรกได้ด้านบน</p>`;
+  `; }).join('') : `<p style="font-size:13px; color:var(--ink-soft);">${searchTerm || selectedPromoCatalogYear !== 'all' ? 'ไม่พบโปรโมชันตามตัวกรองปัจจุบัน' : 'ยังไม่มีโปรโมชัน — กดปุ่ม + เพิ่มโปรโมชัน เพื่อสร้างรายการแรก'}</p>`;
 }
 
 $('promotionForm').addEventListener('submit', async (e) => {
@@ -3911,12 +3941,23 @@ $('promotionForm').addEventListener('submit', async (e) => {
     logAudit('สร้างโปรโมชัน', name);
     e.target.reset();
     $('promoMonth').value = '8';
+    $('promoCreatePanel').style.display = 'none';
     setSync('ok');
     toast('สร้างโปรโมชันแล้ว');
   }catch(err){
     setSync('error');
     toast('บันทึกไม่สำเร็จ');
   }
+});
+
+$('promoCreateToggleBtn').addEventListener('click', () => {
+  const panel = $('promoCreatePanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+$('promoSearch').addEventListener('input', renderPromotions);
+$('promoCatalogYearFilter').addEventListener('change', (e) => {
+  selectedPromoCatalogYear = e.target.value;
+  renderPromotions();
 });
 
 async function deletePromotion(id){
@@ -4009,7 +4050,7 @@ async function setUserField(kind, id, field, value){
       $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('navAuditTab').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('commissionSettingsBtn').style.display = currentUserRole === 'admin' ? 'inline' : 'none';
-  $('promoCreatePanel').style.display = currentUserRole === 'admin' ? '' : 'none';
+      $('promoCreateToggleBtn').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('ordersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
