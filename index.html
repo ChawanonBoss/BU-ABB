@@ -2587,7 +2587,7 @@ function renderCommissionYearly(){
       <td>${q.gpPercent.toFixed(1)}%</td>
       <td>${q.hasTarget ? q.rate.toFixed(2)+'%' : '-'}</td>
       <td class="commission-amount-cell">
-        <span>${commissionRevealed[idx] ? '฿'+fmtMoneyCompact(q.amount) : 'xx,xxx'}</span>
+        <span>${commissionRevealed[idx] ? fmtMoney(q.amount) : 'xx,xxx'}</span>
         <button class="commission-eye-btn" type="button" onclick="toggleCommissionReveal(${idx})" title="${commissionRevealed[idx] ? 'ซ่อนตัวเลข' : 'แสดงตัวเลข'}">
           ${commissionRevealed[idx] ? EYE_CLOSED_SVG : EYE_OPEN_SVG}
         </button>
