@@ -57,19 +57,6 @@
     --ink-soft: #9AA0AC;
     --line: #2C313D;
   }
-  .theme-toggle-btn{
-    display:flex; align-items:center; gap:8px;
-    width:100%;
-    background:none; border:1px solid var(--line); border-radius:100px;
-    padding:8px 12px;
-    margin-top:8px;
-    font-size:12.5px; color:var(--ink-soft);
-    cursor:pointer;
-    transition:background .15s ease, color .15s ease;
-  }
-  .theme-toggle-btn:hover{ background:var(--paper-dim); color:var(--ink); }
-  .theme-toggle-btn svg{ flex-shrink:0; }
-
   .stat-icon-badge{
     width:38px; height:38px;
     border-radius:12px;
@@ -154,61 +141,111 @@
   .app{ display:flex; min-height:100vh; }
 
   .sidebar{
-    width:240px;
+    width:68px;
     flex-shrink:0;
     background:var(--paper-dim);
     border-right:1px solid var(--line);
     display:flex;
     flex-direction:column;
-    padding:24px 16px;
+    align-items:center;
+    padding:20px 0;
   }
   .sidebar.loading-lock .nav-item{
     pointer-events:none;
     opacity:0.4;
     cursor:not-allowed;
   }
-  .brand{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    font-family:var(--font-brand);
-    font-size:19px;
-    padding:0 8px 28px;
-  }
-  .brand-mark{
-    width:18px; height:18px;
-    border-radius:5px;
-    background:var(--accent);
+  .rail-profile{
+    width:38px; height:38px;
+    border-radius:50%;
+    background:var(--accent-soft);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    margin-bottom:18px;
     flex-shrink:0;
   }
+  .rail-avatar-img{ width:100%; height:100%; object-fit:cover; }
+  .rail-avatar-fallback{ font-family:var(--font-display); font-weight:600; font-size:15px; color:var(--accent); }
   .nav-item{
+    position:relative;
     display:flex;
     align-items:center;
-    gap:10px;
-    padding:11px 12px;
-    border-radius:10px;
-    font-size:14.5px;
+    justify-content:center;
+    width:42px; height:42px;
+    border-radius:11px;
     color:var(--ink-soft);
     background:none;
     border:none;
-    width:100%;
-    text-align:left;
-    transition:background .15s ease, color .15s ease, transform .15s ease;
+    margin-bottom:6px;
+    flex-shrink:0;
+    transition:background .15s ease, color .15s ease;
   }
-  .nav-item:hover{ background:rgba(0,0,0,0.04); color:var(--ink); transform:translateX(2px); }
-  .nav-item.active{ background:var(--card); color:var(--ink); font-weight:500; box-shadow:0 1px 0 var(--line) inset; transform:translateX(0); }
+  .nav-item:hover{ background:rgba(0,0,0,0.05); color:var(--ink); }
+  .nav-item.active{ background:var(--card); color:var(--ink); box-shadow:0 1px 0 var(--line) inset; }
   .nav-icon{ width:20px; height:20px; object-fit:contain; flex-shrink:0; opacity:0.75; transition:opacity .15s ease, transform .2s ease; }
   .nav-item.active .nav-icon{ opacity:1; transform:scale(1.08); }
 
-  .sidebar-footer{
-    margin-top:auto;
-    padding-top:16px;
-    border-top:1px solid var(--line);
-    font-size:12.5px;
-    color:var(--ink-soft);
+  .nav-tooltip{
+    position:absolute;
+    left:calc(100% + 12px);
+    top:50%;
+    transform:translateY(-50%) translateX(-4px);
+    background:var(--ink);
+    color:var(--paper);
+    font-size:12px;
+    font-weight:500;
+    padding:6px 11px;
+    border-radius:7px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .15s ease, transform .15s ease;
+    z-index:400;
   }
-  .sync-status{ display:flex; align-items:center; gap:8px; padding:0 8px; }
-  .sync-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); }
+  .nav-item:hover .nav-tooltip{ opacity:1; transform:translateY(-50%) translateX(0); }
+
+  .rail-spacer{ flex:1; }
+  .rail-menu-wrap{ position:relative; }
+  .rail-menu-popover{
+    position:absolute;
+    left:calc(100% + 12px);
+    bottom:0;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:0 10px 28px rgba(20,24,34,0.16);
+    padding:14px;
+    width:220px;
+    z-index:400;
+    flex-direction:column;
+    gap:10px;
+  }
+  .rail-menu-user{
+    display:flex; flex-direction:column; gap:5px;
+    padding-bottom:10px;
+    margin-bottom:2px;
+    border-bottom:1px solid var(--line);
+    font-size:12.5px;
+  }
+  .rail-menu-user .user-email{ color:var(--ink); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rail-menu-row{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); }
+  .rail-menu-icon-btn{ background:none; border:none; cursor:pointer; color:var(--ink-soft); padding:2px 4px; margin-left:auto; }
+  .rail-menu-item{
+    display:flex; align-items:center; gap:8px;
+    background:none;
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:9px 11px;
+    font-size:12.5px;
+    color:var(--ink);
+    text-align:left;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  .rail-menu-item:hover{ background:var(--paper-dim); }
+  .rail-menu-danger{ color:var(--danger); }
+  .rail-menu-danger:hover{ background:var(--danger-soft); }
+  .sync-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); flex-shrink:0; }
   .sync-dot.saving{ background:var(--sun); animation:pulse 1s ease-in-out infinite; }
   .sync-dot.error{ background:var(--danger); }
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.4;} }
@@ -270,9 +307,20 @@
     .global-search-wrap{ display:none !important; }
   }
 
-  .user-box{ display:flex; align-items:center; gap:12px; }
-  .user-avatar{ width:32px; height:32px; border-radius:50%; }
   .user-email{ font-size:13px; color:var(--ink-soft); }
+
+  .user-avatar-upload, .user-avatar-placeholder{
+    display:flex; align-items:center; justify-content:center;
+    width:32px; height:32px;
+    border-radius:50%;
+    font-size:13px; font-weight:600;
+    flex-shrink:0;
+    overflow:hidden;
+  }
+  .user-avatar-upload{ background:var(--accent-soft); color:var(--accent); cursor:pointer; transition:box-shadow .15s ease; }
+  .user-avatar-upload:hover{ box-shadow:0 0 0 2px var(--accent-soft); }
+  .user-avatar-upload img{ width:100%; height:100%; object-fit:cover; }
+  .user-avatar-placeholder{ background:var(--paper-dim); color:var(--ink-soft); }
 
   .btn{
     padding:10px 18px;
@@ -1061,26 +1109,44 @@
 
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar" style="display:none;">
-    <div class="brand"><span class="brand-mark"></span>BU-ABB</div>
-    <button class="nav-item active" data-tab="dashboard"><img class="nav-icon" src="Dashboard.png" alt="">แดชบอร์ด</button>
-    <button class="nav-item" data-tab="orders"><img class="nav-icon" src="Order.png" alt="">คำสั่งซื้อ</button>
-    <button class="nav-item" data-tab="warranty"><img class="nav-icon" src="Waranty.png" alt="">การรับประกัน</button>
-    <button class="nav-item" data-tab="cancelled"><img class="nav-icon" src="Cancelled.png" alt="">ยกเลิกการสั่งซื้อ</button>
-    <button class="nav-item" data-tab="customers"><img class="nav-icon" src="Customer.png" alt="">รายชื่อลูกค้า</button>
-    <button class="nav-item" data-tab="promotions" id="navPromotionsTab"><img class="nav-icon" src="event.png" alt="">Promotion</button>
-    <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><img class="nav-icon" src="User.png" alt="">ผู้ใช้งาน</button>
-    <button class="nav-item" data-tab="audit" id="navAuditTab" style="display:none;"><svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="9"></circle></svg>ประวัติการแก้ไข</button>
-    <div class="sidebar-footer">
-      <div class="sync-status">
-        <span class="sync-dot" id="syncDot"></span><span id="syncText">ซิงก์แล้ว</span>
-        <button id="syncRetryBtn" title="รีเฟรช/บันทึกใหม่" style="background:none; border:none; cursor:pointer; color:var(--ink-soft); padding:2px 4px; margin-left:auto;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-        </button>
-      </div>
-      <button id="themeToggleBtn" class="theme-toggle-btn" type="button" title="สลับธีมสว่าง/มืด">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
-        <span id="themeToggleLabel">โหมดมืด</span>
+    <div class="rail-profile" id="railProfile" title="">
+      <img class="rail-avatar-img" id="sidebarAvatarImg" src="" alt="" style="display:none;">
+      <span class="rail-avatar-fallback" id="sidebarAvatarFallback">?</span>
+    </div>
+    <button class="nav-item active" data-tab="dashboard"><img class="nav-icon" src="Dashboard.png" alt=""><span class="nav-tooltip">แดชบอร์ด</span></button>
+    <button class="nav-item" data-tab="orders"><img class="nav-icon" src="Order.png" alt=""><span class="nav-tooltip">คำสั่งซื้อ</span></button>
+    <button class="nav-item" data-tab="warranty"><img class="nav-icon" src="Waranty.png" alt=""><span class="nav-tooltip">การรับประกัน</span></button>
+    <button class="nav-item" data-tab="cancelled"><img class="nav-icon" src="Cancelled.png" alt=""><span class="nav-tooltip">ยกเลิกการสั่งซื้อ</span></button>
+    <button class="nav-item" data-tab="customers"><img class="nav-icon" src="Customer.png" alt=""><span class="nav-tooltip">รายชื่อลูกค้า</span></button>
+    <button class="nav-item" data-tab="promotions" id="navPromotionsTab"><img class="nav-icon" src="event.png" alt=""><span class="nav-tooltip">Promotion</span></button>
+    <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><img class="nav-icon" src="User.png" alt=""><span class="nav-tooltip">ผู้ใช้งาน</span></button>
+    <button class="nav-item" data-tab="audit" id="navAuditTab" style="display:none;">
+      <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="9"></circle></svg>
+      <span class="nav-tooltip">ประวัติการแก้ไข</span>
+    </button>
+    <div class="rail-spacer"></div>
+    <div class="rail-menu-wrap">
+      <button class="nav-item" id="railMenuBtn" type="button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <span class="nav-tooltip">เมนู</span>
       </button>
+      <div class="rail-menu-popover" id="railMenuPopover" style="display:none;">
+        <div class="rail-menu-user">
+          <span class="user-email" id="userEmail" title=""></span>
+          <span class="badge-count neutral" id="userRoleBadge"></span>
+        </div>
+        <div class="rail-menu-row">
+          <span class="sync-dot" id="syncDot"></span><span id="syncText">ซิงก์แล้ว</span>
+          <button id="syncRetryBtn" title="รีเฟรช/บันทึกใหม่" class="rail-menu-icon-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
+        </div>
+        <button id="themeToggleBtn" class="rail-menu-item" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
+          <span id="themeToggleLabel">โหมดมืด</span>
+        </button>
+        <button id="signOutBtn" class="rail-menu-item rail-menu-danger" type="button">ออกจากระบบ</button>
+      </div>
     </div>
   </aside>
 
@@ -1101,12 +1167,6 @@
         <svg class="global-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <input type="text" id="globalSearchInput" placeholder="ค้นหา SO, ลูกค้า, สินค้า, PO...">
         <div class="global-search-results" id="globalSearchResults"></div>
-      </div>
-      <div class="user-box" id="userBox" style="display:none;">
-        <img class="user-avatar" id="userAvatar" src="" alt="" onerror="this.style.display='none';" onload="this.style.display='';">
-        <span class="user-email" id="userEmail" title=""></span>
-        <span class="badge-count neutral" id="userRoleBadge"></span>
-        <button class="btn outline" id="signOutBtn">ออกจากระบบ</button>
       </div>
     </div>
 
@@ -1584,7 +1644,7 @@
           <div class="panel-head"><h3>ผู้ใช้งานทั้งหมด</h3></div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจะจับคู่ด้วยอีเมล) หรือปล่อยว่างไว้ก็ได้ — เมื่อมีคนล็อกอินเข้าเว็บนี้ครั้งแรกโดยไม่มีชื่ออยู่ในลิสต์ ระบบจะเพิ่มให้อัตโนมัติเป็น "ผู้ใช้งานทั่วไป"</p>
           <div class="table-scroll"><table>
-            <thead><tr><th>ชื่อ</th><th>อีเมล</th><th>สิทธิ์การใช้งาน</th><th></th></tr></thead>
+            <thead><tr><th>รูป</th><th>ชื่อ</th><th>อีเมล</th><th>สิทธิ์การใช้งาน</th><th></th></tr></thead>
             <tbody id="usersBody"></tbody>
           </table></div>
           <div class="pagination" id="usersPagination"></div>
@@ -1871,6 +1931,17 @@ document.addEventListener('click', (e) => {
   if (!$('globalSearchWrap').contains(e.target)) $('globalSearchResults').style.display = 'none';
 });
 
+$('railMenuBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const pop = $('railMenuPopover');
+  pop.style.display = pop.style.display === 'none' ? 'flex' : 'none';
+});
+document.addEventListener('click', (e) => {
+  if (!$('railMenuBtn').contains(e.target) && !$('railMenuPopover').contains(e.target)){
+    $('railMenuPopover').style.display = 'none';
+  }
+});
+
 function setSync(state){
   const dot = $('syncDot'); const text = $('syncText');
   dot.className = 'sync-dot' + (state==='saving' ? ' saving' : state==='error' ? ' error' : '');
@@ -1973,7 +2044,6 @@ auth.onAuthStateChanged(async (user) => {
     data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [], commissionConfig: null };
     $('gate').style.display = 'block';
     $('sidebar').style.display = 'none';
-    $('userBox').style.display = 'none';
     $('globalSearchWrap').style.display = 'none';
     $('loadingOverlay').style.display = 'none';
     document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
@@ -1987,12 +2057,11 @@ async function onSignedIn(){
   $('gate').style.display = 'none';
   $('sidebar').style.display = 'flex';
   $('sidebar').classList.add('loading-lock');
-  $('userBox').style.display = 'flex';
   $('globalSearchWrap').style.display = 'block';
   $('loadingOverlay').style.display = 'block';
   $('userEmail').textContent = currentUserName || currentUserEmail || '';
   $('userEmail').title = currentUserEmail || '';
-  $('userAvatar').style.display = 'none';
+  updateSidebarAvatar();
   setSync('saving');
   await resolveUserRole();
   attachRealtimeListeners();
@@ -2007,6 +2076,24 @@ function updateRoleBadge(){
   } else {
     badge.textContent = 'ผู้ใช้งานทั่วไป';
     badge.className = 'badge-count neutral';
+  }
+}
+
+function updateSidebarAvatar(){
+  const img = $('sidebarAvatarImg');
+  const fallback = $('sidebarAvatarFallback');
+  if (!img || !fallback) return;
+  const me = (data.users||[]).find(u => u.id === currentUserUid);
+  const label = currentUserName || currentUserEmail || '';
+  $('railProfile').title = label;
+  if (me && me.avatarBase64){
+    img.src = me.avatarBase64;
+    img.style.display = 'block';
+    fallback.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    fallback.style.display = 'flex';
+    fallback.textContent = label ? label.trim().charAt(0).toUpperCase() : '?';
   }
 }
 
@@ -2162,6 +2249,7 @@ function attachRealtimeListeners(){
       refreshTargetYearFilter();
       refreshPromoYearFilter();
       refreshPromoCatalogYearFilter();
+      updateSidebarAvatar();
       render();
       // If the user already clicked to a different tab while data was still loading, stay
       // there instead of yanking them back to the dashboard — just make sure it's rendered.
@@ -2178,6 +2266,7 @@ function attachRealtimeListeners(){
     refreshTargetUserFilter();
     refreshTargetYearFilter();
     refreshPromoCatalogYearFilter();
+    updateSidebarAvatar();
     renderOrders(); renderWarranty(); renderDashboard(); renderCustomers();
     if ($('tab-users').style.display === 'block') renderUsers();
     if ($('tab-cancelled').style.display === 'block') renderCancelledOrders();
@@ -2276,7 +2365,7 @@ $('themeToggleBtn').addEventListener('click', () => {
 });
 
 /* ====== Tabs ====== */
-document.querySelectorAll('.nav-item').forEach(btn => {
+document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => showTab(btn.dataset.tab));
 });
 
@@ -3753,6 +3842,51 @@ async function deleteCustomer(id){
 let usersCurrentPage = 1;
 const USERS_PAGE_SIZE = 10;
 
+function resizeImageToDataUrl(file, maxSize, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height){
+          if (width > maxSize){ height = Math.round(height * maxSize/width); width = maxSize; }
+        } else if (height > maxSize){
+          width = Math.round(width * maxSize/height); height = maxSize;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadUserAvatar(userId, inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')){ toast('กรุณาเลือกไฟล์รูปภาพ'); inputEl.value = ''; return; }
+  setSync('saving');
+  try{
+    const dataUrl = await resizeImageToDataUrl(file, 128, 0.8);
+    await db.collection('users').doc(userId).update({ avatarBase64: dataUrl });
+    if (userId === currentUserUid) updateSidebarAvatar();
+    const u = data.users.find(x=>x.id===userId);
+    logAudit('เปลี่ยนรูปโปรไฟล์', (u && (u.name || u.email)) || userId);
+    setSync('ok');
+    toast('อัปเดตรูปโปรไฟล์แล้ว');
+  }catch(err){
+    setSync('error');
+    toast('อัปโหลดรูปไม่สำเร็จ');
+  }
+  inputEl.value = '';
+}
+
 function renderUsers(){
   const loadingEl = $('loadingOverlay');
   if (loadingEl) loadingEl.style.display = 'none';
@@ -3769,6 +3903,13 @@ function renderUsers(){
 
   body.innerHTML = pagedList.length ? pagedList.map(u => `
     <tr>
+      <td>
+        ${u._kind==='user' ? `
+        <label class="user-avatar-upload" title="เปลี่ยนรูปโปรไฟล์">
+          ${u.avatarBase64 ? `<img src="${u.avatarBase64}" alt="">` : `<span>${escapeHtml((u.name||u.email||'?').trim().charAt(0).toUpperCase())}</span>`}
+          <input type="file" accept="image/*" style="display:none;" onchange="uploadUserAvatar('${escapeHtml(u._id)}', this)">
+        </label>` : `<span class="user-avatar-placeholder">${escapeHtml((u.name||u.email||'?').trim().charAt(0).toUpperCase())}</span>`}
+      </td>
       <td><input type="text" class="inline-input" value="${escapeHtml(u.name||'')}" placeholder="ไม่ระบุชื่อ" onchange="setUserField('${u._kind}','${escapeHtml(u._id)}','name',this.value)"></td>
       <td>${escapeHtml(u.email)}${u._kind==='user' && u._id===currentUserUid ? ' <span class="badge-count neutral">คุณ</span>' : ''}${u._kind==='pending' ? ' <span class="badge-count neutral">รอเข้าสู่ระบบ</span>' : ''}</td>
       <td>
@@ -3784,7 +3925,7 @@ function renderUsers(){
         </button>` : ''}
       </td>
     </tr>
-  `).join('') : `<tr><td colspan="4" class="empty-row">ยังไม่มีใครล็อกอินเข้าใช้งาน — เพิ่มได้ด้านบน</td></tr>`;
+  `).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีใครล็อกอินเข้าใช้งาน — เพิ่มได้ด้านบน</td></tr>`;
 
   const usersPaginationEl = $('usersPagination');
   if (totalPages <= 1){
