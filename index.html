@@ -1256,7 +1256,7 @@
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"></rect><path d="M8 12h8M8 8h8M8 16h5"></path></svg>
           </div>
           <h2 class="serif" id="authTitle">เข้าสู่ระบบ</h2>
-          <p id="authSubtitle">เข้าสู่ระบบเพื่อบันทึกและซิงก์ข้อมูลคำสั่งซื้อกับการรับประกัน</p>
+          <p id="authSubtitle">BU-ABB เว็บไซต์สำหรับบันทึกข้อมูลการขาย</p>
 
           <form id="authForm" style="text-align:left; margin-top:24px;">
             <div class="field" style="margin-bottom:14px;">
@@ -1901,7 +1901,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2067,9 +2067,7 @@ function setSync(state){
 function updateAuthFormMode(){
   const isSignup = authMode === 'signup';
   $('authTitle').textContent = isSignup ? 'สร้างบัญชีใหม่' : 'เข้าสู่ระบบ';
-  $('authSubtitle').textContent = isSignup
-    ? 'สร้างบัญชีเพื่อเริ่มใช้งานระบบคำสั่งซื้อและการรับประกัน'
-    : 'เข้าสู่ระบบเพื่อบันทึกและซิงก์ข้อมูลคำสั่งซื้อกับการรับประกัน';
+  $('authSubtitle').textContent = 'BU-ABB เว็บไซต์สำหรับบันทึกข้อมูลการขาย';
   $('authNameField').style.display = isSignup ? 'flex' : 'none';
   $('authSubmitBtn').textContent = isSignup ? 'สร้างบัญชี' : 'เข้าสู่ระบบ';
   $('authToggleText').textContent = isSignup ? 'มีบัญชีอยู่แล้ว?' : 'ยังไม่มีบัญชี?';
@@ -2480,7 +2478,7 @@ const I18N = {
   // Login screen
   'เข้าสู่ระบบ': 'Sign In', 'อีเมล': 'Email', 'ชื่อ': 'Name', 'รหัสผ่าน': 'Password',
   'ชื่อของคุณ': 'Your name', 'อย่างน้อย 6 ตัวอักษร': 'At least 6 characters',
-  'เข้าสู่ระบบเพื่อบันทึกและซิงก์ข้อมูลคำสั่งซื้อกับการรับประกัน': 'Sign in to save and sync your orders and warranty data',
+  'BU-ABB เว็บไซต์สำหรับบันทึกข้อมูลการขาย': 'BU-ABB — a website for recording sales data',
   'ยังไม่มีบัญชี?': "Don't have an account?", 'สร้างบัญชีใหม่': 'Create account',
   'ลืมรหัสผ่าน?': 'Forgot password?', 'มีบัญชีอยู่แล้ว?': 'Already have an account?',
   'ข้อมูลจะถูกเก็บไว้อย่างปลอดภัยบน Firebase': 'Your data is securely stored on Firebase',
