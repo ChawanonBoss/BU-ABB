@@ -252,6 +252,7 @@
   .rail-menu-item:hover{ background:var(--paper-dim); }
   .rail-menu-danger{ color:var(--danger); }
   .rail-menu-danger:hover{ background:var(--danger-soft); }
+  .rail-menu-version{ text-align:center; font-size:11px; color:var(--ink-soft); padding-top:2px; }
   .sync-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); flex-shrink:0; }
   .sync-dot.saving{ background:var(--sun); animation:pulse 1s ease-in-out infinite; }
   .sync-dot.error{ background:var(--danger); }
@@ -1187,6 +1188,7 @@
           <span id="langToggleLabel">English</span>
         </button>
         <button id="signOutBtn" class="rail-menu-item rail-menu-danger" type="button">ออกจากระบบ</button>
+        <div class="rail-menu-version" id="railMenuVersion"></div>
       </div>
     </div>
   </aside>
@@ -1866,6 +1868,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+// Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
+const APP_VERSION = '1.0.0';
+const railMenuVersionEl = document.getElementById('railMenuVersion');
+if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
 /* ====== State ====== */
 let data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [], commissionConfig: null };
