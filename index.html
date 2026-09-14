@@ -1271,6 +1271,10 @@
               <label>รหัสผ่าน</label>
               <input type="password" id="authPassword" placeholder="อย่างน้อย 6 ตัวอักษร" autocomplete="current-password" required>
             </div>
+            <label class="gate-remember-row" style="display:flex; align-items:center; gap:7px; margin-bottom:14px; cursor:pointer; font-size:13px; color:var(--ink-soft);">
+              <input type="checkbox" id="authRememberMe" style="width:15px; height:15px; cursor:pointer;">
+              <span>จดจำรหัสผ่าน</span>
+            </label>
             <p id="authError" class="gate-form-error"></p>
             <button type="submit" class="btn gate-submit-btn" id="authSubmitBtn">เข้าสู่ระบบ</button>
           </form>
@@ -1901,7 +1905,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -1913,6 +1917,38 @@ let currentUserUid = null;
 let currentUserRole = 'user';
 let unsubOrders = null, unsubCustomers = null, unsubUsers = null, unsubPendingRoles = null, unsubMonthlyGP = null, unsubUserTargets = null, unsubPromotions = null, unsubPromotionPrepared = null, unsubAuditLog = null, unsubCommissionConfig = null;
 let authMode = 'signin'; // 'signin' | 'signup'
+
+/* ====== Auth: remembered credentials + 4-hour session expiry ====== */
+const REMEMBER_CRED_KEY = 'bu-abb-remember-cred';
+const LOGIN_TS_KEY = 'bu-abb-login-ts';
+const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
+let sessionExpiryTimer = null;
+
+function prefillRememberedCredentials(){
+  try{
+    const raw = localStorage.getItem(REMEMBER_CRED_KEY);
+    if (!raw) return;
+    const cred = JSON.parse(raw);
+    if (cred && cred.email){
+      $('authEmail').value = cred.email;
+      $('authPassword').value = cred.password || '';
+      $('authRememberMe').checked = true;
+    }
+  }catch(e){ localStorage.removeItem(REMEMBER_CRED_KEY); }
+}
+prefillRememberedCredentials();
+
+function ensureSessionValid(){
+  if (sessionExpiryTimer){ clearTimeout(sessionExpiryTimer); sessionExpiryTimer = null; }
+  const ts = parseInt(localStorage.getItem(LOGIN_TS_KEY) || '0', 10);
+  const remaining = SESSION_MAX_AGE_MS - (Date.now() - ts);
+  if (!ts || remaining <= 0){
+    auth.signOut();
+    return false;
+  }
+  sessionExpiryTimer = setTimeout(() => { auth.signOut(); }, remaining);
+  return true;
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -2107,6 +2143,7 @@ $('authForgotLink').addEventListener('click', async (e) => {
 });
 
 let pendingSignupName = '';
+let justLoggedInViaForm = false;
 
 $('authForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -2116,6 +2153,7 @@ $('authForm').addEventListener('submit', async (e) => {
   $('authError').textContent = '';
   $('authSubmitBtn').disabled = true;
   try{
+    justLoggedInViaForm = true;
     if (authMode === 'signup'){
       pendingSignupName = name;
       const cred = await auth.createUserWithEmailAndPassword(email, password);
@@ -2123,8 +2161,9 @@ $('authForm').addEventListener('submit', async (e) => {
     } else {
       await auth.signInWithEmailAndPassword(email, password);
     }
-    // onAuthStateChanged below handles the rest
+    // onAuthStateChanged below handles the rest (session timestamp + remember-password)
   }catch(err){
+    justLoggedInViaForm = false;
     pendingSignupName = '';
     $('authError').textContent = authErrorMessage(err);
   }
@@ -2141,8 +2180,19 @@ auth.onAuthStateChanged(async (user) => {
     currentUserName = user.displayName || pendingSignupName || '';
     pendingSignupName = '';
     currentUserUid = user.uid;
+    if (justLoggedInViaForm){
+      justLoggedInViaForm = false;
+      localStorage.setItem(LOGIN_TS_KEY, String(Date.now()));
+      if ($('authRememberMe').checked){
+        localStorage.setItem(REMEMBER_CRED_KEY, JSON.stringify({ email: currentUserEmail, password: $('authPassword').value }));
+      } else {
+        localStorage.removeItem(REMEMBER_CRED_KEY);
+      }
+    }
+    if (!ensureSessionValid()){ currentUserEmail = null; currentUserName = ''; currentUserUid = null; return; }
     await onSignedIn();
   } else {
+    if (sessionExpiryTimer){ clearTimeout(sessionExpiryTimer); sessionExpiryTimer = null; }
     if (unsubOrders) unsubOrders();
     if (unsubCustomers) unsubCustomers();
     if (unsubUsers) unsubUsers();
@@ -2163,6 +2213,7 @@ auth.onAuthStateChanged(async (user) => {
     authMode = 'signin';
     updateAuthFormMode();
     $('authForm').reset();
+    prefillRememberedCredentials();
   }
 });
 
@@ -2481,6 +2532,7 @@ const I18N = {
   'BU-ABB เว็บไซต์สำหรับบันทึกข้อมูลการขาย': 'BU-ABB — a website for recording sales data',
   'ยังไม่มีบัญชี?': "Don't have an account?", 'สร้างบัญชีใหม่': 'Create account',
   'ลืมรหัสผ่าน?': 'Forgot password?', 'มีบัญชีอยู่แล้ว?': 'Already have an account?',
+  'จดจำรหัสผ่าน': 'Remember password',
   'ข้อมูลจะถูกเก็บไว้อย่างปลอดภัยบน Firebase': 'Your data is securely stored on Firebase',
   // Dashboard
   'สรุปรวม': 'Overview', 'สรุปการส่งสินค้า': 'Shipping Summary', 'เคลียร์ตัวกรอง': 'Clear Filters',
