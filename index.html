@@ -1659,7 +1659,12 @@
 <div class="modal-overlay" id="commissionSettingsModal" style="display:none;">
   <div class="modal" style="max-width:640px;">
     <h3 class="serif" style="font-size:18px; margin-bottom:6px;">ตั้งค่าตารางอัตราค่าคอมมิชชั่น</h3>
-    <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:18px;">สูตรนี้เป็นการประมาณจากตัวอย่างข้อมูลที่มี ไม่ใช่นโยบายที่เป็นทางการ — ปรับตัวเลขให้ตรงกับความเป็นจริงได้ตลอด<br>ค่าคอม = (อัตราตาม GP% + ส่วนปรับตาม % เทียบเป้า) × ยอดส่งสินค้าในช่วงที่เลือก</p>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:18px;">สูตรนี้เป็นการประมาณจากตัวอย่างข้อมูลที่มี ไม่ใช่นโยบายที่เป็นทางการ — ปรับตัวเลขให้ตรงกับความเป็นจริงได้ตลอด<br>ค่าคอม = max(อัตราต่ำสุด, อัตราตาม GP% + ส่วนปรับตาม % เทียบเป้า) × ยอดส่งสินค้าในช่วงที่เลือก</p>
+
+    <div class="field" style="max-width:220px; margin-bottom:20px;">
+      <label>อัตราต่ำสุด (%)</label>
+      <input type="number" step="0.01" class="inline-input" id="commissionMinRateInput" onchange="commissionConfigDraft.minRate = Number(this.value)||0;">
+    </div>
 
     <h4 style="font-size:13px; margin-bottom:10px; color:var(--ink);">อัตราตาม GP (%)</h4>
     <div id="commissionGpRows" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
@@ -2464,6 +2469,7 @@ const monthShortLabels = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ
 // Admin can tune every threshold/rate via the ⚙️ next to the commission stat card; edits
 // are saved to Firestore (commissionConfig/default) so they persist and sync everywhere.
 const DEFAULT_COMMISSION_CONFIG = {
+  minRate: 0.5,
   gpBrackets: [
     { min: null, max: 14, rate: 0.80 },
     { min: 14, max: 16, rate: 0.85 },
@@ -2492,13 +2498,16 @@ function calcCommission(shippedTotal, gpPercent, targetAmount){
   const targetPct = (shippedTotal / targetAmount) * 100;
   const gpBracket = lookupBracket(cfg.gpBrackets, gpPercent);
   const targetBracket = lookupBracket(cfg.targetBrackets, targetPct);
-  const rate = gpBracket.rate + targetBracket.adjustment;
+  const minRate = cfg.minRate ?? 0.5;
+  const rate = Math.max(minRate, gpBracket.rate + targetBracket.adjustment);
   return { rate, amount: shippedTotal * rate / 100, targetPct };
 }
 
 let commissionConfigDraft = null;
 function openCommissionSettingsModal(){
   commissionConfigDraft = JSON.parse(JSON.stringify(getCommissionConfig()));
+  if (commissionConfigDraft.minRate === undefined) commissionConfigDraft.minRate = 0.5;
+  $('commissionMinRateInput').value = commissionConfigDraft.minRate;
   renderCommissionSettingsRows();
   $('commissionSettingsModal').style.display = 'flex';
 }
