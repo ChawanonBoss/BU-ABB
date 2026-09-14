@@ -1644,8 +1644,11 @@
 
         <div class="panel">
           <div class="panel-head">
-            <h3>ผู้ใช้งานทั้งหมด</h3>
-            <button class="btn" id="userCreateToggleBtn" type="button">+ เพิ่มผู้ใช้งาน</button>
+            <h3>ผู้ใช้งานทั้งหมด <span class="badge-count neutral" id="usersTotalCount" style="display:none;"></span></h3>
+            <div class="filter-bar">
+              <input type="text" id="usersSearch" class="inline-input filter-control" placeholder="ค้นหาชื่อ, อีเมล" style="width:200px;">
+              <button class="btn" id="userCreateToggleBtn" type="button">+ เพิ่มผู้ใช้งาน</button>
+            </div>
           </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจะจับคู่ด้วยอีเมล) หรือปล่อยว่างไว้ก็ได้ — เมื่อมีคนล็อกอินเข้าเว็บนี้ครั้งแรกโดยไม่มีชื่ออยู่ในลิสต์ ระบบจะเพิ่มให้อัตโนมัติเป็น "ผู้ใช้งานทั่วไป"</p>
           <div class="table-scroll"><table>
@@ -3916,7 +3919,20 @@ function renderUsers(){
   const body = $('usersBody');
   const real = (data.users||[]).map(u => ({...u, _kind:'user', _id:u.id}));
   const pending = (data.pendingRoles||[]).map(p => ({...p, email:p.id, _kind:'pending', _id:p.id}));
-  const list = [...real, ...pending].sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
+  let list = [...real, ...pending].sort((a,b)=> (a.name||a.email).localeCompare(b.name||b.email));
+
+  const searchTerm = ($('usersSearch').value || '').trim().toLowerCase();
+  if (searchTerm){
+    list = list.filter(u => (u.name||'').toLowerCase().includes(searchTerm) || (u.email||'').toLowerCase().includes(searchTerm));
+  }
+
+  const totalBadge = $('usersTotalCount');
+  if (list.length){
+    totalBadge.textContent = `(${list.length})`;
+    totalBadge.style.display = 'inline-block';
+  } else {
+    totalBadge.style.display = 'none';
+  }
 
   const totalPages = Math.max(1, Math.ceil(list.length / USERS_PAGE_SIZE));
   if (usersCurrentPage > totalPages) usersCurrentPage = totalPages;
@@ -3936,7 +3952,7 @@ function renderUsers(){
       <td><input type="text" class="inline-input" value="${escapeHtml(u.name||'')}" placeholder="ไม่ระบุชื่อ" onchange="setUserField('${u._kind}','${escapeHtml(u._id)}','name',this.value)"></td>
       <td>${escapeHtml(u.email)}${u._kind==='user' && u._id===currentUserUid ? ' <span class="badge-count neutral">คุณ</span>' : ''}${u._kind==='pending' ? ' <span class="badge-count neutral">รอเข้าสู่ระบบ</span>' : ''}</td>
       <td>
-        <select class="inline-input badge-select" onchange="setUserField('${u._kind}','${escapeHtml(u._id)}','role',this.value)">
+        <select class="inline-input badge-select" data-prev-role="${u.role||'user'}" onchange="handleUserRoleChange(this,'${u._kind}','${escapeHtml(u._id)}')">
           <option value="user" ${u.role==='user'?'selected':''}>ผู้ใช้งานทั่วไป</option>
           <option value="admin" ${u.role==='admin'?'selected':''}>ผู้ดูแลระบบ</option>
         </select>
@@ -3948,7 +3964,7 @@ function renderUsers(){
         </button>` : ''}
       </td>
     </tr>
-  `).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีใครล็อกอินเข้าใช้งาน — เพิ่มได้ด้านบน</td></tr>`;
+  `).join('') : `<tr><td colspan="5" class="empty-row">${searchTerm ? 'ไม่พบผู้ใช้งานตามคำค้นหา' : 'ยังไม่มีใครล็อกอินเข้าใช้งาน — เพิ่มได้ด้านบน'}</td></tr>`;
 
   const usersPaginationEl = $('usersPagination');
   if (totalPages <= 1){
@@ -4131,6 +4147,7 @@ $('userCreateToggleBtn').addEventListener('click', () => {
   const panel = $('userCreatePanel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 });
+$('usersSearch').addEventListener('input', () => { usersCurrentPage = 1; renderUsers(); });
 $('promoSearch').addEventListener('input', renderPromotions);
 $('promoCatalogYearFilter').addEventListener('change', (e) => {
   selectedPromoCatalogYear = e.target.value;
@@ -4214,6 +4231,19 @@ function renderUserTargets(){
       <td><input type="text" inputmode="decimal" class="inline-input" value="${fmtMoneyPlain(t.shippedTarget)}" oninput="formatMoneyLive(this)" onchange="setUserTarget('${u.id}', ${selectedTargetYear}, 'shippedTarget', this.value)"></td>
     </tr>
   `; }).join('') : `<tr><td colspan="3" class="empty-row">ยังไม่มีผู้ใช้งานทั่วไปที่ต้องตั้งเป้าหมาย (ผู้ดูแลระบบไม่ต้องตั้งเป้าหมาย)</td></tr>`;
+}
+
+function handleUserRoleChange(selectEl, kind, id){
+  const newRole = selectEl.value;
+  const prevRole = selectEl.dataset.prevRole || 'user';
+  if (newRole === prevRole) return;
+  selectEl.value = prevRole;
+  const roleLabel = newRole === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งานทั่วไป';
+  confirmAction(`ต้องการเปลี่ยนสิทธิ์เป็น "${roleLabel}" ใช่ไหม?`, () => {
+    selectEl.value = newRole;
+    selectEl.dataset.prevRole = newRole;
+    setUserField(kind, id, 'role', newRole);
+  }, 'ยืนยันการเปลี่ยนสิทธิ์');
 }
 
 async function setUserField(kind, id, field, value){
