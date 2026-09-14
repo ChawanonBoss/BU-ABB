@@ -2452,6 +2452,8 @@ function goToDashboardPage(suffix, page){
 async function setMonthlyGP(suffix, year, monthIdx, value){
   const num = parseMoneyValue(value);
   const docId = `${suffix}_${year}_${monthIdx}`;
+  const existing = data.monthlyGP.find(x => x.id === docId);
+  if (existing) existing.value = num; else data.monthlyGP.push({ id: docId, value: num });
   setSync('saving');
   try{
     await db.collection('monthlyGP').doc(docId).set({ value: num });
