@@ -2471,7 +2471,13 @@ const monthShortLabels = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ
 const DEFAULT_COMMISSION_CONFIG = {
   minRate: 0.5,
   gpBrackets: [
-    { min: null, max: 14, rate: 0.80 },
+    { min: null, max: 2, rate: 0.50 },
+    { min: 2, max: 4, rate: 0.55 },
+    { min: 4, max: 6, rate: 0.60 },
+    { min: 6, max: 8, rate: 0.65 },
+    { min: 8, max: 10, rate: 0.70 },
+    { min: 10, max: 12, rate: 0.75 },
+    { min: 12, max: 14, rate: 0.80 },
     { min: 14, max: 16, rate: 0.85 },
     { min: 16, max: 18, rate: 0.90 },
     { min: 18, max: 20, rate: 0.95 },
