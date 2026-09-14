@@ -1379,7 +1379,7 @@
 
       <!-- Orders tab -->
       <div id="tab-orders" class="tab-panel" style="display:none;">
-        <div class="panel">
+        <div class="panel" id="orderCreatePanel" style="display:none;">
           <div class="panel-head"><h3>เพิ่มคำสั่งซื้อใหม่</h3></div>
           <form id="orderForm">
             <div class="form-grid">
@@ -1406,18 +1406,20 @@
           </form>
           <datalist id="customerOptions"></datalist>
           <datalist id="productOptions"></datalist>
-          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap;">
-            <button class="btn outline" id="downloadReportBtn" type="button">ดาวน์โหลดรายงาน</button>
-            <a class="btn outline" id="downloadOrderTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
-            <button class="btn outline" id="importExcelBtn">นำเข้าจาก Excel</button>
-            <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
-          </div>
         </div>
 
         <div class="panel">
           <div class="panel-head">
             <h3>รายการคำสั่งซื้อทั้งหมด <span class="badge-count neutral" id="ordersTotalCount" style="display:none;"></span></h3>
             <div class="filter-bar">
+              <button class="btn" id="orderCreateToggleBtn" type="button">+ เพิ่มคำสั่งซื้อ</button>
+              <button class="btn outline" id="downloadReportBtn" type="button">ดาวน์โหลดรายงาน</button>
+              <a class="btn outline" id="downloadOrderTemplateBtn" href="#" download>ดาวน์โหลดไฟล์ตัวอย่าง</a>
+              <button class="btn outline" id="importExcelBtn" type="button">นำเข้าจาก Excel</button>
+              <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+            </div>
+          </div>
+          <div class="filter-bar" style="margin-bottom:16px;">
               <input type="text" id="ordersSearch" class="inline-input filter-control" placeholder="ค้นหาชื่อลูกค้า, สินค้า, SO, PO" style="width:220px;">
               <select id="ordersMonthFilter" class="inline-input filter-control">
                 <option value="all">เดือนสั่งซื้อ: ทุกเดือน</option>
@@ -1465,7 +1467,6 @@
                 <option value="100">แสดง 100</option>
               </select>
               <button class="btn outline" id="ordersClearBtn" type="button">เคลียร์ตัวกรอง</button>
-            </div>
           </div>
           <div class="table-scroll"><table>
             <thead><tr><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th id="ordersCreatorHeader" style="display:none;">สร้างโดย</th></tr></thead>
@@ -3599,6 +3600,7 @@ $('orderForm').addEventListener('submit', async (e) => {
     logAudit('สร้างคำสั่งซื้อ', `${newSo} — ${knownCustomer.name}`);
     e.target.reset();
     $('ordDateDisplay').textContent = 'วัน/เดือน/ปี';
+    $('orderCreatePanel').style.display = 'none';
     if (newOrderDate){
       const newOrderYear = new Date(newOrderDate).getFullYear();
       if (newOrderYear !== selectedOrdersYear){
@@ -4093,6 +4095,11 @@ $('promotionForm').addEventListener('submit', async (e) => {
 
 $('promoCreateToggleBtn').addEventListener('click', () => {
   const panel = $('promoCreatePanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+
+$('orderCreateToggleBtn').addEventListener('click', () => {
+  const panel = $('orderCreatePanel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 });
 $('promoSearch').addEventListener('input', renderPromotions);
