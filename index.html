@@ -1905,7 +1905,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -1922,7 +1922,6 @@ let authMode = 'signin'; // 'signin' | 'signup'
 const REMEMBER_CRED_KEY = 'bu-abb-remember-cred';
 const LOGIN_TS_KEY = 'bu-abb-login-ts';
 const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
-let sessionExpiryTimer = null;
 
 function prefillRememberedCredentials(){
   try{
@@ -1939,14 +1938,16 @@ function prefillRememberedCredentials(){
 prefillRememberedCredentials();
 
 function ensureSessionValid(){
-  if (sessionExpiryTimer){ clearTimeout(sessionExpiryTimer); sessionExpiryTimer = null; }
+  // Checked only at the moment auth state resolves (fresh login, or a page reload restoring
+  // a persisted Firebase session) -- deliberately NOT a running timer, so an already-open tab
+  // is never force-signed-out mid-session. The 4-hour limit only takes effect the next time
+  // the page is closed and reopened.
   const ts = parseInt(localStorage.getItem(LOGIN_TS_KEY) || '0', 10);
-  const remaining = SESSION_MAX_AGE_MS - (Date.now() - ts);
-  if (!ts || remaining <= 0){
+  const expired = !ts || (Date.now() - ts) >= SESSION_MAX_AGE_MS;
+  if (expired){
     auth.signOut();
     return false;
   }
-  sessionExpiryTimer = setTimeout(() => { auth.signOut(); }, remaining);
   return true;
 }
 
@@ -2192,7 +2193,6 @@ auth.onAuthStateChanged(async (user) => {
     if (!ensureSessionValid()){ currentUserEmail = null; currentUserName = ''; currentUserUid = null; return; }
     await onSignedIn();
   } else {
-    if (sessionExpiryTimer){ clearTimeout(sessionExpiryTimer); sessionExpiryTimer = null; }
     if (unsubOrders) unsubOrders();
     if (unsubCustomers) unsubCustomers();
     if (unsubUsers) unsubUsers();
@@ -2854,11 +2854,18 @@ document.querySelectorAll('.subtab-item').forEach(btn => {
     document.querySelectorAll('.subtab-item').forEach(b => b.classList.toggle('active', b===btn));
     document.querySelectorAll('.dash-subpanel').forEach(p => p.style.display = 'none');
     $(`dashSub-${btn.dataset.dashsub}`).style.display = 'block';
+    // The trend chart's draw-in animation only plays while its container is visible — it was
+    // already rendered (fully drawn, no animation) once at dashboard load while this subtab was
+    // still hidden, so replay it now that the container is actually on screen.
+    if (btn.dataset.dashsub === 'shipped' && lastShippedTrendMonths){
+      renderTrendLine('trendChart_shipped', lastShippedTrendMonths);
+    }
   });
 });
 
 let selectedDashboardMonths = { all: [], shipped: [] };
 let dashboardRecentPage = { all: 1, shipped: 1 };
+let lastShippedTrendMonths = null;
 const RECENT_PAGE_SIZE = 10;
 
 function selectDashboardMonth(suffix, idx){
@@ -3269,6 +3276,7 @@ function renderDashboardSection(suffix, orders){
     if (gpTotalEl) animateNumber(gpTotalEl, totalGP, fmtMoney);
     const gpPercentEl = $('statGPPercent');
     if (gpPercentEl) animateNumber(gpPercentEl, gpPercent, v => v.toFixed(1) + '%');
+    lastShippedTrendMonths = months;
     renderTrendLine('trendChart_shipped', months);
     renderQuarterButtons('shipped');
 
