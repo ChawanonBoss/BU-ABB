@@ -1264,6 +1264,11 @@
               <div class="stat-label">GP (%)</div>
               <div class="stat-value" id="statGPPercent">0%</div>
             </div>
+            <div class="stat-card small commission-card">
+              <div class="stat-label">ค่าคอมมิชชั่นโดยประมาณ <span id="commissionSettingsBtn" title="ตั้งค่าตารางอัตราค่าคอม" style="display:none; cursor:pointer;">⚙️</span></div>
+              <div class="stat-value" id="statCommission">฿0</div>
+              <div class="stat-sub" id="statCommissionSub"></div>
+            </div>
           </div>
           <div class="panel">
             <div class="panel-head">
@@ -1650,6 +1655,27 @@
   </div>
 </div>
 
+<!-- Commission rate table settings modal (admin only) -->
+<div class="modal-overlay" id="commissionSettingsModal" style="display:none;">
+  <div class="modal" style="max-width:640px;">
+    <h3 class="serif" style="font-size:18px; margin-bottom:6px;">ตั้งค่าตารางอัตราค่าคอมมิชชั่น</h3>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:18px;">สูตรนี้เป็นการประมาณจากตัวอย่างข้อมูลที่มี ไม่ใช่นโยบายที่เป็นทางการ — ปรับตัวเลขให้ตรงกับความเป็นจริงได้ตลอด<br>ค่าคอม = (อัตราตาม GP% + ส่วนปรับตาม % เทียบเป้า) × ยอดส่งสินค้าในช่วงที่เลือก</p>
+
+    <h4 style="font-size:13px; margin-bottom:10px; color:var(--ink);">อัตราตาม GP (%)</h4>
+    <div id="commissionGpRows" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+    <button class="btn outline" type="button" id="addGpBracketBtn" style="margin-bottom:22px;">+ เพิ่มช่วง GP</button>
+
+    <h4 style="font-size:13px; margin-bottom:10px; color:var(--ink);">ส่วนปรับตาม % เทียบเป้า</h4>
+    <div id="commissionTargetRows" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+    <button class="btn outline" type="button" id="addTargetBracketBtn">+ เพิ่มช่วงเป้า</button>
+
+    <div class="modal-actions">
+      <button class="btn outline" id="commissionSettingsCancelBtn" type="button">ยกเลิก</button>
+      <button class="btn" id="commissionSettingsSaveBtn" type="button">บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirm action modal (delete / cancel) -->
 <div class="modal-overlay" id="confirmModal" style="display:none;">
   <div class="modal" style="max-width:400px;">
@@ -1679,12 +1705,12 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 /* ====== State ====== */
-let data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [] };
+let data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [], commissionConfig: null };
 let currentUserEmail = null;
 let currentUserName = '';
 let currentUserUid = null;
 let currentUserRole = 'user';
-let unsubOrders = null, unsubCustomers = null, unsubUsers = null, unsubPendingRoles = null, unsubMonthlyGP = null, unsubUserTargets = null, unsubPromotions = null, unsubPromotionPrepared = null, unsubAuditLog = null;
+let unsubOrders = null, unsubCustomers = null, unsubUsers = null, unsubPendingRoles = null, unsubMonthlyGP = null, unsubUserTargets = null, unsubPromotions = null, unsubPromotionPrepared = null, unsubAuditLog = null, unsubCommissionConfig = null;
 let authMode = 'signin'; // 'signin' | 'signup'
 
 const $ = (id) => document.getElementById(id);
@@ -1908,8 +1934,9 @@ auth.onAuthStateChanged(async (user) => {
     if (unsubPromotions) unsubPromotions();
     if (unsubPromotionPrepared) unsubPromotionPrepared();
     if (unsubAuditLog) unsubAuditLog();
+    if (unsubCommissionConfig) unsubCommissionConfig();
     currentUserEmail = null; currentUserName = ''; currentUserUid = null; currentUserRole = 'user';
-    data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [] };
+    data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [], commissionConfig: null };
     $('gate').style.display = 'block';
     $('sidebar').style.display = 'none';
     $('userBox').style.display = 'none';
@@ -2083,12 +2110,12 @@ function renderTargetRing(ringId, pctId, actual, goal, color){
 
 /* ====== Firestore realtime sync ====== */
 function attachRealtimeListeners(){
-  const loaded = { orders:false, customers:false, users:false, pendingRoles:false, monthlyGP:false, userTargets:false, promotions:false, promotionPrepared:false, auditLog:false };
+  const loaded = { orders:false, customers:false, users:false, pendingRoles:false, monthlyGP:false, userTargets:false, promotions:false, promotionPrepared:false, auditLog:false, commissionConfig:false };
   let firstLoadDone = false;
 
   function onAnyUpdate(){
     if (!firstLoadDone){
-      if (!(loaded.orders && loaded.customers && loaded.users && loaded.pendingRoles && loaded.monthlyGP && loaded.userTargets && loaded.promotions && loaded.promotionPrepared && loaded.auditLog)) return;
+      if (!(loaded.orders && loaded.customers && loaded.users && loaded.pendingRoles && loaded.monthlyGP && loaded.userTargets && loaded.promotions && loaded.promotionPrepared && loaded.auditLog && loaded.commissionConfig)) return;
       firstLoadDone = true;
       setSync('ok');
       refreshDatalists();
@@ -2176,6 +2203,12 @@ function attachRealtimeListeners(){
     loaded.auditLog = true;
     onAnyUpdate();
   }, () => { setSync('error'); loaded.auditLog = true; onAnyUpdate(); });
+
+  unsubCommissionConfig = db.collection('commissionConfig').doc('default').onSnapshot((doc) => {
+    data.commissionConfig = doc.exists ? doc.data() : null;
+    loaded.commissionConfig = true;
+    onAnyUpdate();
+  }, () => { setSync('error'); loaded.commissionConfig = true; onAnyUpdate(); });
 }
 
 function logAudit(action, entityLabel, details){
@@ -2426,6 +2459,104 @@ async function setMonthlyGP(suffix, year, monthIdx, value){
 
 const monthShortLabels = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
+// Best-effort guessed commission formula — reverse-engineered from a handful of known
+// examples and two real paid quarters (Q1/2026, Q2/2026), NOT an official written policy.
+// Admin can tune every threshold/rate via the ⚙️ next to the commission stat card; edits
+// are saved to Firestore (commissionConfig/default) so they persist and sync everywhere.
+const DEFAULT_COMMISSION_CONFIG = {
+  gpBrackets: [
+    { min: null, max: 14, rate: 0.80 },
+    { min: 14, max: 16, rate: 0.85 },
+    { min: 16, max: 18, rate: 0.90 },
+    { min: 18, max: 20, rate: 0.95 },
+    { min: 20, max: null, rate: 1.00 }
+  ],
+  targetBrackets: [
+    { min: null, max: 60, adjustment: -0.20 },
+    { min: 60, max: 100, adjustment: -0.15 },
+    { min: 100, max: 150, adjustment: 0.15 },
+    { min: 150, max: null, adjustment: 0.20 }
+  ]
+};
+
+function getCommissionConfig(){
+  return data.commissionConfig || DEFAULT_COMMISSION_CONFIG;
+}
+function lookupBracket(brackets, value){
+  return brackets.find(b => (b.min === null || value >= b.min) && (b.max === null || value < b.max))
+    || brackets[brackets.length-1];
+}
+function calcCommission(shippedTotal, gpPercent, targetAmount){
+  if (!targetAmount) return null;
+  const cfg = getCommissionConfig();
+  const targetPct = (shippedTotal / targetAmount) * 100;
+  const gpBracket = lookupBracket(cfg.gpBrackets, gpPercent);
+  const targetBracket = lookupBracket(cfg.targetBrackets, targetPct);
+  const rate = gpBracket.rate + targetBracket.adjustment;
+  return { rate, amount: shippedTotal * rate / 100, targetPct };
+}
+
+let commissionConfigDraft = null;
+function openCommissionSettingsModal(){
+  commissionConfigDraft = JSON.parse(JSON.stringify(getCommissionConfig()));
+  renderCommissionSettingsRows();
+  $('commissionSettingsModal').style.display = 'flex';
+}
+function renderCommissionSettingsRows(){
+  $('commissionGpRows').innerHTML = commissionConfigDraft.gpBrackets.map((b, idx) => `
+    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+      <input type="number" step="0.1" class="inline-input" placeholder="ต่ำสุด" value="${b.min ?? ''}" onchange="updateCommissionBracket('gpBrackets',${idx},'min',this.value)" style="width:70px;">
+      <span style="font-size:11.5px; color:var(--ink-soft);">– GP% ไม่ถึง –</span>
+      <input type="number" step="0.1" class="inline-input" placeholder="ไม่จำกัด" value="${b.max ?? ''}" onchange="updateCommissionBracket('gpBrackets',${idx},'max',this.value)" style="width:70px;">
+      <span style="font-size:11.5px; color:var(--ink-soft);">→ อัตรา</span>
+      <input type="number" step="0.01" class="inline-input" value="${b.rate}" onchange="updateCommissionBracket('gpBrackets',${idx},'rate',this.value)" style="width:70px;">
+      <span style="font-size:11.5px; color:var(--ink-soft);">%</span>
+      <button class="icon-btn delete-btn" type="button" onclick="removeCommissionBracket('gpBrackets',${idx})" title="ลบแถว">✕</button>
+    </div>
+  `).join('');
+  $('commissionTargetRows').innerHTML = commissionConfigDraft.targetBrackets.map((b, idx) => `
+    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+      <input type="number" step="1" class="inline-input" placeholder="ต่ำสุด" value="${b.min ?? ''}" onchange="updateCommissionBracket('targetBrackets',${idx},'min',this.value)" style="width:70px;">
+      <span style="font-size:11.5px; color:var(--ink-soft);">– %เป้า ไม่ถึง –</span>
+      <input type="number" step="1" class="inline-input" placeholder="ไม่จำกัด" value="${b.max ?? ''}" onchange="updateCommissionBracket('targetBrackets',${idx},'max',this.value)" style="width:70px;">
+      <span style="font-size:11.5px; color:var(--ink-soft);">→ ปรับ</span>
+      <input type="number" step="0.01" class="inline-input" value="${b.adjustment}" onchange="updateCommissionBracket('targetBrackets',${idx},'adjustment',this.value)" style="width:70px;">
+      <span style="font-size:11.5px; color:var(--ink-soft);">%</span>
+      <button class="icon-btn delete-btn" type="button" onclick="removeCommissionBracket('targetBrackets',${idx})" title="ลบแถว">✕</button>
+    </div>
+  `).join('');
+}
+function updateCommissionBracket(kind, idx, field, value){
+  commissionConfigDraft[kind][idx][field] = value === '' ? null : Number(value);
+}
+function removeCommissionBracket(kind, idx){
+  commissionConfigDraft[kind].splice(idx, 1);
+  renderCommissionSettingsRows();
+}
+$('addGpBracketBtn').addEventListener('click', () => {
+  commissionConfigDraft.gpBrackets.push({ min: null, max: null, rate: 1.0 });
+  renderCommissionSettingsRows();
+});
+$('addTargetBracketBtn').addEventListener('click', () => {
+  commissionConfigDraft.targetBrackets.push({ min: null, max: null, adjustment: 0 });
+  renderCommissionSettingsRows();
+});
+$('commissionSettingsCancelBtn').addEventListener('click', () => { $('commissionSettingsModal').style.display = 'none'; });
+$('commissionSettingsSaveBtn').addEventListener('click', async () => {
+  setSync('saving');
+  try{
+    await db.collection('commissionConfig').doc('default').set(commissionConfigDraft);
+    logAudit('แก้ไขตารางค่าคอมมิชชั่น', 'commissionConfig');
+    $('commissionSettingsModal').style.display = 'none';
+    setSync('ok');
+    toast('บันทึกตารางค่าคอมแล้ว');
+  }catch(err){
+    setSync('error');
+    toast('บันทึกไม่สำเร็จ');
+  }
+});
+$('commissionSettingsBtn').addEventListener('click', openCommissionSettingsModal);
+
 function computeMoMChange(months, idx){
   if (idx <= 0) return null;
   const curr = months[idx].amount;
@@ -2585,6 +2716,29 @@ function renderDashboardSection(suffix, orders){
     if (gpPercentEl) animateNumber(gpPercentEl, gpPercent, v => v.toFixed(1) + '%');
     renderTrendLine('trendChart_shipped', months);
     renderQuarterButtons('shipped');
+
+    let annualShipTarget = 0;
+    if (currentUserRole === 'admin'){
+      data.userTargets.forEach(t => {
+        if (t.id.endsWith(`_${selectedDashboardYear}`)) annualShipTarget += Number(t.shippedTarget||0);
+      });
+    } else {
+      annualShipTarget = getUserTarget(currentUserUid, selectedDashboardYear).shippedTarget;
+    }
+    const periodMonths = hasSelection ? selMonths.length : 12;
+    const scaledTarget = annualShipTarget * periodMonths / 12;
+    const commissionEl = $('statCommission');
+    const commissionSubEl = $('statCommissionSub');
+    const result = calcCommission(totalRevenue, gpPercent, scaledTarget);
+    if (commissionEl){
+      if (result){
+        animateNumber(commissionEl, result.amount, fmtMoney);
+        if (commissionSubEl) commissionSubEl.textContent = `เทียบเป้า ${result.targetPct.toFixed(0)}% · อัตรา ${result.rate.toFixed(2)}%`;
+      } else {
+        commissionEl.textContent = '฿0';
+        if (commissionSubEl) commissionSubEl.textContent = 'ยังไม่ได้ตั้งเป้าหมาย';
+      }
+    }
   }
 
   const barsEl = $(`monthlyBars_${suffix}`);
@@ -3764,6 +3918,7 @@ async function setUserField(kind, id, field, value){
       updateRoleBadge();
       $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('navAuditTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+      $('commissionSettingsBtn').style.display = currentUserRole === 'admin' ? 'inline' : 'none';
   $('promoCreatePanel').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
