@@ -590,7 +590,7 @@
 
   /* ---- Trend line chart (SVG, sales trend across months) ---- */
   .trend-chart{ width:100%; }
-  .trend-chart svg{ width:100%; height:auto; overflow:visible; }
+  .trend-chart svg{ display:block; width:100%; height:160px; overflow:visible; }
   .trend-line{ fill:none; stroke:var(--accent); stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
   .trend-area{ fill:url(#trendAreaFill); opacity:0.5; }
   .trend-dot{ fill:var(--card); stroke:var(--accent); stroke-width:2; transform-box:fill-box; transform-origin:center; }
@@ -1481,7 +1481,7 @@
             <div class="bars" id="monthlyBars_shipped"></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>แนวโน้มยอดขาย</h3></div>
+            <div class="panel-head"><h3>แนวโน้มยอดส่งสินค้า</h3></div>
             <div id="trendChart_shipped" class="trend-chart"></div>
           </div>
           <div class="panel">
@@ -1946,7 +1946,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.8';
+const APP_VERSION = '1.0.9';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2580,7 +2580,7 @@ const I18N = {
   'สรุปโปรโมชัน': 'Promotions Summary', 'เป้าหมายประจำปี': 'Annual Target',
   'Commission ประจำปี': 'Annual Commission', 'ยอดส่งสินค้า': 'Shipped Amount', 'อัตรา': 'Rate',
   'ค่าคอม': 'Commission', 'คำสั่งส่งสินค้ารายเดือน': 'Monthly Shipments',
-  'แนวโน้มยอดขาย': 'Sales Trend', 'คำสั่งส่งสินค้าล่าสุด': 'Recent Shipments',
+  'แนวโน้มยอดส่งสินค้า': 'Shipping Trend', 'คำสั่งส่งสินค้าล่าสุด': 'Recent Shipments',
   'ลูกค้า': 'Customer', 'สินค้า': 'Product', 'วันที่ส่งสินค้า': 'Ship Date',
   'ยอดเงิน': 'Amount', 'สถานะ': 'Status', 'ทั้งหมด': 'All',
   'สรุปคำสั่งซื้อ': 'Order Summary', 'จำนวนคำสั่งซื้อ': 'Order Count',
@@ -3152,7 +3152,13 @@ function computeMoMChange(months, idx){
 function renderTrendLine(containerId, months){
   const el = $(containerId);
   if (!el) return;
-  const w = 600, h = 152, padTop = 14, padBottom = 34, padX = 12;
+  // The SVG's coordinate space (viewBox) is set to the container's real pixel width so that
+  // font-size/stroke-width (defined in that space) map 1:1 to real screen pixels instead of
+  // being stretched up on wide panels — width:100% + height:auto used to keep the fixed 600x152
+  // viewBox's aspect ratio, so on a wide dashboard panel the whole chart (text included) was
+  // scaled up well past its intended size. Falls back to 600 while the container is hidden
+  // (display:none on an inactive subtab) — corrected by the replay-on-subtab-switch call below.
+  const w = el.clientWidth || 600, h = 160, padTop = 14, padBottom = 34, padX = 12;
   const plotW = w - padX*2;
   const plotH = h - padTop - padBottom;
   const max = Math.max(1, ...months.map(m=>m.amount));
@@ -3186,7 +3192,7 @@ function renderTrendLine(containerId, months){
     `;
   }).join('');
   el.innerHTML = `
-    <svg viewBox="0 0 ${w} ${h}">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
       <defs>
         <linearGradient id="trendAreaFill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" style="stop-color:var(--accent); stop-opacity:0.35"></stop>
