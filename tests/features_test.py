@@ -203,12 +203,64 @@ def check_commission_config_anchor_guard():
     print("check_commission_config_anchor_guard: OK")
 
 
+def check_warranty_alert_dismiss():
+    with serve_repo() as base_url:
+        with new_page() as (page, errors):
+            sign_in_as_admin(page, base_url)
+            page.evaluate("""
+                async () => {
+                  await db.collection('orders').doc('o1').set({
+                    so:'A1', customer:'Cust A1', product:'X', price:1000,
+                    date:'2025-09-25', shipDate:'2025-09-30', po:'INV001',
+                    warrantyMonths: 12, status:'done', createdBy:'admin1'
+                  });
+                }
+            """)
+            page.wait_for_timeout(500)
+            page.evaluate("() => showTab('dashboard')")
+            page.wait_for_timeout(300)
+
+            has_dismiss_btn = page.evaluate(
+                "() => !!document.getElementById('dashboardAlert').querySelector('.alert-dismiss-btn')"
+            )
+            assert has_dismiss_btn, "warranty-soon banner should show a dismiss button"
+
+            page.click("#dashboardAlert .alert-dismiss-btn")
+            page.wait_for_timeout(100)
+            after_dismiss = page.evaluate("() => document.getElementById('dashboardAlert').style.display")
+            assert after_dismiss == "none", "clicking dismiss should hide the banner"
+
+            # re-rendering with the exact same underlying alert must stay dismissed (localStorage-backed)
+            page.evaluate("() => renderDashboard()")
+            page.wait_for_timeout(100)
+            after_rerender = page.evaluate("() => document.getElementById('dashboardAlert').style.display")
+            assert after_rerender == "none", "dismissal should survive a re-render of the same alert"
+
+            # a genuinely NEW warranty-soon order must bring the banner back (different signature)
+            page.evaluate("""
+                async () => {
+                  await db.collection('orders').doc('o2').set({
+                    so:'A2', customer:'Cust A2', product:'Y', price:500,
+                    date:'2025-09-20', shipDate:'2025-09-25', po:'INV002',
+                    warrantyMonths: 12, status:'done', createdBy:'admin1'
+                  });
+                }
+            """)
+            page.wait_for_timeout(400)
+            after_new_alert = page.evaluate("() => document.getElementById('dashboardAlert').style.display")
+            assert after_new_alert == "flex", "a new order entering warranty-soon status should reopen the banner"
+
+            assert errors == [], f"JS error(s) during warranty alert dismiss check: {errors}"
+    print("check_warranty_alert_dismiss: OK")
+
+
 CHECKS = [
     check_order_date_and_price_inline_edit,
     check_orders_animation_plays_once,
     check_sign_out_hides_person_filter,
     check_trash_purge_banner_and_bulk_delete,
     check_commission_config_anchor_guard,
+    check_warranty_alert_dismiss,
 ]
 
 

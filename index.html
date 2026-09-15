@@ -1100,6 +1100,20 @@
     gap:10px;
   }
   .alert-banner b{ color:var(--ink); }
+  .alert-dismiss-btn{
+    margin-left:auto;
+    flex-shrink:0;
+    background:transparent;
+    border:1px solid var(--sun);
+    color:var(--sun);
+    border-radius:100px;
+    padding:5px 14px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .alert-dismiss-btn:hover{ background:var(--sun); color:#fff; }
 
   .badge.soon{ background:var(--sun-soft); color:var(--sun); }
   .countdown{ font-size:12.5px; color:var(--ink-soft); }
@@ -2199,7 +2213,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.31';
+const APP_VERSION = '1.0.32';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2612,7 +2626,7 @@ const I18N = {
   'กำลังดำเนินการ': 'Ongoing', 'สิ้นสุดโปรโมชั่น': 'Ended', 'ไม่ระบุชื่อ': 'Unnamed',
   'ผลรวมกำไรของทุกคน — เลือกคนใดคนหนึ่งในตัวกรองด้านบนเพื่อแก้ไข': "Everyone's combined profit — pick one person in the filter above to edit",
   '(คลิกเพื่อเลือกหลายเดือน)': '(click to select multiple months)',
-  'ลบ': 'Delete',
+  'ลบ': 'Delete', 'ปิดการแจ้งเตือน': 'Dismiss notification', 'รับทราบ': 'Got it',
   'ส่งภายใน': 'Due within', 'กำหนดส่งภายในเดือน': 'Due within month of',
   'ของแจก': 'Gift',
   'ไม่มีคำสั่งซื้อที่กำหนดส่งภายในเดือนนี้': 'No orders due within this month',
@@ -3435,6 +3449,15 @@ function refreshDatalists(){
   $('productOptions').innerHTML = products.map(p=>`<option value="${escapeHtml(p)}">`).join('');
 }
 
+// ALERT_DISMISSED_KEY (localStorage) stores a signature of whichever specific orders/promotions
+// were behind the banner the last time someone dismissed it — not just a boolean/timestamp, since
+// a plain "seen it" flag would also hide a genuinely NEW warranty/promo alert that shows up later.
+// Comparing signatures means: the same set of items stays dismissed (survives reloads), but the
+// moment a different order enters "soon" status or a different promo starts ending soon, the
+// signature changes and the banner reappears. The nav-dot/rail-notify-dot are deliberately NOT
+// gated by this — those are meant to always reflect real status at a glance, only the banner text
+// itself (which takes up real layout space) is dismissible.
+const ALERT_DISMISSED_KEY = 'bu-abb-alert-dismissed';
 function renderAlerts(){
   const soon = getVisibleOrders().filter(o => isWarrantyCandidate(o) && warrantyDisplayStatus(o)==='soon');
   const promosEndingSoon = (data.promotions||[]).filter(p => {
@@ -3451,10 +3474,20 @@ function renderAlerts(){
   if (notifyDot) notifyDot.style.display = messages.length ? 'block' : 'none';
   const warrantyDot = $('warrantyNavDot');
   if (warrantyDot) warrantyDot.classList.toggle('alert', soon.length > 0);
+
+  const signature = [...soon.map(o=>o.id), ...promosEndingSoon.map(p=>p.id)].sort().join(',');
+  let dismissedSignature = '';
+  try{ dismissedSignature = localStorage.getItem(ALERT_DISMISSED_KEY) || ''; }catch(e){}
+  const isDismissed = messages.length > 0 && signature === dismissedSignature;
+
   banners.forEach(el=>{
-    if (messages.length){
+    if (messages.length && !isDismissed){
       el.style.display = 'flex';
-      el.innerHTML = `🔔 <span>${messages.map(m=>`<b>${m}</b>`).join(' &nbsp;·&nbsp; ')}</span>`;
+      el.innerHTML = `🔔 <span>${messages.map(m=>`<b>${m}</b>`).join(' &nbsp;·&nbsp; ')}</span><button type="button" class="alert-dismiss-btn" title="${t('ปิดการแจ้งเตือน')}">${t('รับทราบ')}</button>`;
+      el.querySelector('.alert-dismiss-btn').addEventListener('click', () => {
+        try{ localStorage.setItem(ALERT_DISMISSED_KEY, signature); }catch(e){}
+        el.style.display = 'none';
+      });
     } else {
       el.style.display = 'none';
     }
