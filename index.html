@@ -153,7 +153,23 @@
     flex-direction:column;
     align-items:center;
     padding:20px 0;
+  }
+  /* Everything between the avatar and the gear button lives in here, not directly in .sidebar,
+     so that on a short viewport THIS is the only thing that can ever scroll — the avatar above it
+     and the gear/menu button below it always stay fully visible and clickable with no scrolling
+     needed. Per explicit correction: a scrollbar on the whole rail (this used to be
+     `.sidebar{ overflow-y:auto }`) made the gear button itself require scrolling to reach, which
+     defeats the point of it always opening its popover "in front" on click. */
+  .rail-nav-scroll{
+    width:100%;
+    flex:1 1 auto;
+    min-height:0;
     overflow-y:auto;
+    overflow-x:hidden;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    scrollbar-width:thin;
   }
   .sidebar.loading-lock .nav-item{
     pointer-events:none;
@@ -206,6 +222,24 @@
   .nav-status-dot.alert{ background:var(--danger); }
   .nav-item.active .nav-status-dot{ border-color:var(--card); }
 
+  .nav-count-badge{
+    position:absolute; top:1px; right:1px;
+    min-width:15px; height:15px;
+    padding:0 3px;
+    border-radius:100px;
+    background:#22B573;
+    color:#fff;
+    font-size:9px;
+    font-weight:700;
+    line-height:15px;
+    text-align:center;
+    border:2px solid var(--paper-dim);
+    box-sizing:content-box;
+  }
+  .nav-count-badge.warn{ background:#FF9F43; }
+  .nav-count-badge.critical{ background:#B3261E; }
+  .nav-item.active .nav-count-badge{ border-color:var(--card); }
+
   .nav-tooltip{
     position:absolute;
     left:calc(100% + 12px);
@@ -225,8 +259,7 @@
   }
   .nav-item:hover .nav-tooltip{ opacity:1; transform:translateY(-50%) translateX(0); }
 
-  .rail-spacer{ flex:1; }
-  .rail-menu-wrap{ position:relative; }
+  .rail-menu-wrap{ position:relative; flex-shrink:0; }
   .rail-menu-popover{
     position:absolute;
     left:calc(100% + 12px);
@@ -693,6 +726,9 @@
   select.inline-input.badge-select:hover{ border-color:var(--accent); background:var(--accent-soft); }
   .badge.expired{ background:var(--danger-soft); color:var(--danger); }
   .badge.claimed{ background:var(--sun-soft); color:var(--sun); }
+  .badge.severity-critical{ background:var(--danger-soft); color:var(--danger); }
+  .badge.severity-major{ background:var(--sun-soft); color:var(--sun); }
+  .badge.severity-minor{ background:var(--accent-soft); color:var(--accent); }
   .badge.pending{ background:var(--sun-soft); color:var(--sun); }
   .badge.done{ background:var(--accent-soft); color:var(--accent); }
   .badge.cancelled{ background:var(--danger-soft); color:var(--danger); }
@@ -1215,22 +1251,24 @@
       </div>
       <span class="rail-notify-dot" id="railNotifyDot" style="display:none;" title="มีรายการที่ต้องดู"></span>
     </div>
-    <button class="nav-item active" data-tab="dashboard"><img class="nav-icon" src="Dashboard.png" alt=""><span class="nav-tooltip">แดชบอร์ด</span></button>
-    <button class="nav-item" data-tab="orders"><img class="nav-icon" src="Order.png" alt=""><span class="nav-tooltip">คำสั่งซื้อ</span></button>
-    <button class="nav-item" data-tab="warranty"><img class="nav-icon" src="Waranty.png" alt=""><span class="nav-status-dot ok" id="warrantyNavDot"></span><span class="nav-tooltip">การรับประกัน</span></button>
-    <button class="nav-item" data-tab="cancelled"><img class="nav-icon" src="Cancelled.png" alt=""><span class="nav-tooltip">ยกเลิกการสั่งซื้อ</span></button>
-    <button class="nav-item" data-tab="customers"><img class="nav-icon" src="Customer.png" alt=""><span class="nav-tooltip">รายชื่อลูกค้า</span></button>
-    <button class="nav-item" data-tab="promotions" id="navPromotionsTab"><img class="nav-icon" src="event.png" alt=""><span class="nav-tooltip">Promotion</span></button>
-    <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><img class="nav-icon" src="User.png" alt=""><span class="nav-tooltip">ผู้ใช้งาน</span></button>
-    <button class="nav-item" data-tab="audit" id="navAuditTab" style="display:none;">
-      <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="9"></circle></svg>
-      <span class="nav-tooltip">ประวัติการแก้ไข</span>
-    </button>
-    <button class="nav-item" data-tab="trash" id="navTrashTab" style="display:none;">
-      <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
-      <span class="nav-tooltip">ถังขยะ</span>
-    </button>
-    <div class="rail-spacer"></div>
+    <div class="rail-nav-scroll" id="railNavScroll">
+      <button class="nav-item active" data-tab="dashboard"><img class="nav-icon" src="Dashboard.png" alt=""><span class="nav-tooltip">แดชบอร์ด</span></button>
+      <button class="nav-item" data-tab="orders"><img class="nav-icon" src="Order.png" alt=""><span class="nav-tooltip">คำสั่งซื้อ</span></button>
+      <button class="nav-item" data-tab="warranty"><img class="nav-icon" src="Waranty.png" alt=""><span class="nav-status-dot ok" id="warrantyNavDot"></span><span class="nav-tooltip">การรับประกัน</span></button>
+      <button class="nav-item" data-tab="cancelled"><img class="nav-icon" src="Cancelled.png" alt=""><span class="nav-tooltip">ยกเลิกการสั่งซื้อ</span></button>
+      <button class="nav-item" data-tab="customers"><img class="nav-icon" src="Customer.png" alt=""><span class="nav-tooltip">รายชื่อลูกค้า</span></button>
+      <button class="nav-item" data-tab="promotions" id="navPromotionsTab"><img class="nav-icon" src="event.png" alt=""><span class="nav-tooltip">Promotion</span></button>
+      <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><img class="nav-icon" src="User.png" alt=""><span class="nav-tooltip">ผู้ใช้งาน</span></button>
+      <button class="nav-item" data-tab="audit" id="navAuditTab" style="display:none;">
+        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="9"></circle></svg>
+        <span class="nav-count-badge ok" id="errorNavBadge" style="display:none;" title="จำนวนข้อผิดพลาดระบบ"></span>
+        <span class="nav-tooltip">ประวัติการแก้ไข</span>
+      </button>
+      <button class="nav-item" data-tab="trash" id="navTrashTab" style="display:none;">
+        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+        <span class="nav-tooltip">ถังขยะ</span>
+      </button>
+    </div>
     <div class="rail-menu-wrap">
       <button class="nav-item" id="railMenuBtn" type="button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -1890,7 +1928,7 @@
               <button class="btn outline" id="auditClearBtn" type="button">เคลียร์ตัวกรอง</button>
             </div>
           </div>
-          <div class="filter-bar" style="margin-bottom:10px;">
+          <div class="filter-bar" style="margin-bottom:16px;">
             <input type="text" id="auditSearch" class="inline-input filter-control" placeholder="ค้นหาผู้ทำรายการ, การกระทำ, รายละเอียด" style="width:260px;">
             <select id="auditActionFilter" class="inline-input filter-control">
               <option value="all">ทุกการกระทำ</option>
@@ -1898,8 +1936,6 @@
             <select id="auditUserFilter" class="inline-input filter-control">
               <option value="all">ทุกคน</option>
             </select>
-          </div>
-          <div class="filter-bar" style="margin-bottom:16px;">
             <span style="font-size:12.5px; color:var(--ink-soft);">ตั้งแต่</span>
             <input type="datetime-local" id="auditStartTime" class="inline-input filter-control">
             <span style="font-size:12.5px; color:var(--ink-soft);">ถึง</span>
@@ -1925,9 +1961,17 @@
             <div class="panel-head">
               <h3>ข้อผิดพลาดระบบ <span class="badge-count neutral" id="errorLogTotalCount" style="display:none;"></span></h3>
             </div>
-            <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">ข้อผิดพลาด JavaScript ที่เกิดขึ้นจริงในเครื่องผู้ใช้งาน (ไม่ใช่ข้อผิดพลาดจากการกรอกฟอร์ม) แสดง 200 รายการล่าสุด — เรียงจากล่าสุดไปเก่าสุด</p>
+            <div class="filter-bar" style="margin-bottom:16px;">
+              <select id="errorSeverityFilter" class="inline-input filter-control">
+                <option value="all">ทุกระดับความรุนแรง</option>
+                <option value="critical">สูง (Critical)</option>
+                <option value="major">กลาง (Major)</option>
+                <option value="minor">ต่ำ (Minor)</option>
+              </select>
+            </div>
+            <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">ข้อผิดพลาด JavaScript ที่เกิดขึ้นจริงในเครื่องผู้ใช้งาน (ไม่ใช่ข้อผิดพลาดจากการกรอกฟอร์ม) แสดง 200 รายการล่าสุด — เรียงจากล่าสุดไปเก่าสุด ระดับความรุนแรงประเมินอัตโนมัติจากลักษณะของข้อผิดพลาด</p>
             <div class="table-scroll"><table>
-              <thead><tr><th>เวลา</th><th>ผู้ใช้งาน</th><th>ข้อความ</th><th>หน้า</th></tr></thead>
+              <thead><tr><th>เวลา</th><th>ความรุนแรง</th><th>ผู้ใช้งาน</th><th>ข้อความ</th><th>หน้า</th></tr></thead>
               <tbody id="errorLogBody"></tbody>
             </table></div>
           </div>
@@ -2092,7 +2136,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.19';
+const APP_VERSION = '1.0.20';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2755,9 +2799,29 @@ function attachRealtimeListeners(){
   if (currentUserRole === 'admin'){
     unsubErrorLog = db.collection('errorLog').orderBy('timestamp', 'desc').limit(200).onSnapshot((snap) => {
       data.errorLog = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      updateErrorNavBadge();
       if ($('tab-audit').style.display === 'block') renderErrorLog();
     }, () => { /* non-critical — silently skip */ });
   }
+}
+
+// Mirrors the warranty nav icon's status dot (green/red) — but errors have 3 severity tiers, not
+// just ok/alert, so this is a small numbered badge instead: green with no badge at all when
+// data.errorLog is empty, orange once anything is logged, dark red (a color distinct from the
+// app's usual pink --danger, so it doesn't get lost among other pink UI accents) the moment any
+// entry classifies as critical. Admin-only, same as the errorLog listener that feeds it.
+function updateErrorNavBadge(){
+  const badge = $('errorNavBadge');
+  if (!badge) return;
+  const list = data.errorLog || [];
+  if (!list.length){
+    badge.style.display = 'none';
+    return;
+  }
+  const hasCritical = list.some(e => (e.severity || classifyErrorSeverity(e.message, e.stack)) === 'critical');
+  badge.textContent = list.length > 99 ? '99+' : String(list.length);
+  badge.className = 'nav-count-badge ' + (hasCritical ? 'critical' : 'warn');
+  badge.style.display = 'block';
 }
 
 function logAudit(action, entityLabel, details){
@@ -2778,6 +2842,30 @@ function logAudit(action, entityLabel, details){
    fire-and-forget record to Firestore instead (mirrors logAudit's pattern), visible to admins under
    the Audit Log tab's "ข้อผิดพลาดระบบ" subtab. Same-message throttling stops an error that fires
    repeatedly (e.g. inside a render loop) from writing hundreds of near-identical documents. */
+// Best-effort automatic severity classification, based on which part of the app the error's
+// message/stack trace mentions -- there's no real way to know an error's true blast radius from
+// outside the app, so this is a heuristic, not a certainty. Order matters: critical is checked
+// first (favor flagging something as critical over under-alerting on it), then the narrower
+// "cosmetic, app still works fine" minor bucket, and everything else defaults to major (breaks
+// one specific feature/action but not the whole app). Applied both when an error is first logged
+// and again at render time as a fallback for older entries logged before `severity` existed.
+const ERROR_SEVERITY_CRITICAL_PATTERNS = [
+  /firestore|firebase/, /permission-denied/, /failed to fetch|network ?error|net::err/,
+  /quota.?exceeded/, /resolveuserrole|onauthstatechanged|ensuresessionvalid|onsignedin\b/,
+  /attachrealtimelisteners|onanyupdate|showtab\b/,
+  /cannot read propert(y|ies) of (undefined|null) \(reading '(data|db|currentuser\w*)'\)/,
+];
+const ERROR_SEVERITY_MINOR_PATTERNS = [
+  /playchime|audiocontext/, /applytheme|themetogglebtn/, /setlanguage|translatestaticdom|langtogglebtn/,
+  /positionautocompletepanel|attachautocomplete|autocomplete/, /rendertrendline/,
+];
+function classifyErrorSeverity(message, stack){
+  const text = `${message || ''} ${stack || ''}`.toLowerCase();
+  if (ERROR_SEVERITY_CRITICAL_PATTERNS.some(re => re.test(text))) return 'critical';
+  if (ERROR_SEVERITY_MINOR_PATTERNS.some(re => re.test(text))) return 'minor';
+  return 'major';
+}
+
 const recentlyLoggedErrors = new Map();
 function logClientError(message, stack){
   const key = String(message).slice(0, 300);
@@ -2789,6 +2877,7 @@ function logClientError(message, stack){
     db.collection('errorLog').add({
       message: key,
       stack: String(stack || '').slice(0, 2000),
+      severity: classifyErrorSeverity(message, stack),
       url: location.href,
       userAgent: navigator.userAgent,
       userUid: currentUserUid || null,
@@ -2885,7 +2974,10 @@ const I18N = {
   'ทุกการกระทำ': 'All Actions', 'ค้นหาผู้ทำรายการ, การกระทำ, รายละเอียด': 'Search user, action, details',
   'ทุกคน': 'Everyone', 'ตั้งแต่': 'From', 'ถึง': 'To',
   'การแก้ไข': 'Changes', 'ข้อผิดพลาดระบบ': 'System Errors', 'ข้อความ': 'Message', 'หน้า': 'Page',
-  'ไม่พบข้อผิดพลาด': 'No errors found',
+  'ไม่พบข้อผิดพลาด': 'No errors found', 'ไม่พบรายการที่ตรงกับตัวกรอง': 'No matching entries',
+  'ความรุนแรง': 'Severity', 'ทุกระดับความรุนแรง': 'All Severities',
+  'สูง (Critical)': 'High (Critical)', 'กลาง (Major)': 'Medium (Major)', 'ต่ำ (Minor)': 'Low (Minor)',
+  'สูง': 'High', 'กลาง': 'Medium', 'ต่ำ': 'Low',
   // Trash
   'ถังขยะ': 'Trash', 'ทุกประเภท': 'All Types', 'โปรโมชัน': 'Promotion', 'รีเฟรช': 'Refresh',
   'รายการ': 'Item',
@@ -5068,10 +5160,15 @@ $('auditClearBtn').addEventListener('click', () => {
   toast('เคลียร์ตัวกรองแล้ว');
 });
 
+const errorSeverityLabel = { critical: 'สูง', major: 'กลาง', minor: 'ต่ำ' };
 function renderErrorLog(){
   const body = $('errorLogBody');
   if (!body) return;
-  const list = data.errorLog || [];
+  // e.severity falls back to a fresh classification for entries logged before this field existed.
+  const fullList = (data.errorLog || []).map(e => ({ ...e, severity: e.severity || classifyErrorSeverity(e.message, e.stack) }));
+  const severityFilter = $('errorSeverityFilter').value;
+  const list = severityFilter === 'all' ? fullList : fullList.filter(e => e.severity === severityFilter);
+
   const totalBadge = $('errorLogTotalCount');
   if (list.length){
     totalBadge.textContent = `(${list.length})`;
@@ -5082,12 +5179,14 @@ function renderErrorLog(){
   body.innerHTML = list.length ? list.map(e => `
     <tr>
       <td>${fmtDateTime(e.timestamp)}</td>
+      <td><span class="badge severity-${e.severity}">${t(errorSeverityLabel[e.severity] || e.severity)}</span></td>
       <td>${escapeHtml(e.userName || '-')}</td>
       <td>${escapeHtml(e.message || '-')}</td>
       <td title="${escapeHtml(e.url || '')}">${escapeHtml((e.url||'').replace(/^https?:\/\/[^/]+/, '') || '-')}</td>
     </tr>
-  `).join('') : `<tr><td colspan="4" class="empty-row">ไม่พบข้อผิดพลาด</td></tr>`;
+  `).join('') : `<tr><td colspan="5" class="empty-row">${fullList.length ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : 'ไม่พบข้อผิดพลาด'}</td></tr>`;
 }
+$('errorSeverityFilter').addEventListener('change', renderErrorLog);
 
 let selectedTargetYear = new Date().getFullYear();
 
