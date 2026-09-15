@@ -581,6 +581,19 @@
   }
   .bar-gp-input:hover{ border-color:var(--sun); }
   .bar-gp-input:focus{ outline:none; border-color:var(--sun); background:var(--card); }
+  .bar-gp-readonly{
+    width:100%;
+    max-width:74px;
+    margin:0 auto;
+    font-size:10px;
+    font-weight:600;
+    color:var(--sun);
+    background:var(--sun-soft);
+    border:1px solid transparent;
+    padding:2px 4px;
+    border-radius:100px;
+    text-align:center;
+  }
 
   .quarter-btn-group{ display:flex; gap:6px; }
   .quarter-btn{
@@ -1621,7 +1634,7 @@
             <button class="btn outline" type="button" onclick="clearOrdersSelection()">ล้างการเลือก</button>
           </div>
           <div class="table-scroll"><table>
-            <thead><tr><th style="width:34px;"><input type="checkbox" id="ordersSelectAllCb" title="เลือกทั้งหมดในหน้านี้" onchange="toggleSelectAllOrdersOnPage(this.checked)"></th><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th id="ordersCreatorHeader" style="display:none;">สร้างโดย</th></tr></thead>
+            <thead><tr><th style="width:34px;"><input type="checkbox" id="ordersSelectAllCb" title="เลือกทั้งหมดในหน้านี้" onchange="toggleSelectAllOrdersOnPage(this.checked)"></th><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>Invoice <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th id="ordersCreatorHeader" style="display:none;">สร้างโดย</th></tr></thead>
             <tbody id="ordersBody"></tbody>
           </table></div>
           <div class="pagination" id="ordersPagination"></div>
@@ -2062,7 +2075,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.13';
+const APP_VERSION = '1.0.14';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2424,13 +2437,18 @@ async function resolveUserRole(){
       const p = pendingSnap.data();
       role = p.role || 'user';
       name = p.name || currentUserName || '';
-      await pendingRef.delete();
     } else {
       const countSnap = await db.collection('users').limit(1).get();
       role = countSnap.empty ? 'admin' : 'user';
       name = currentUserName || '';
     }
+    // Create the user doc BEFORE deleting the matched pendingRoles entry (not after, as this used
+    // to do) — the security rule that allows self-creating a 'users' doc with role:'admin' checks
+    // that a matching pendingRoles/{email} doc with role:'admin' still exists at that moment; if the
+    // pending doc were already gone, that create would be rejected as a bootstrap privilege-escalation
+    // attempt. See "Security rules" in CLAUDE.md.
     await ref.set({ email: currentUserEmail, name, role });
+    if (pendingSnap.exists) await pendingRef.delete();
     currentUserRole = role;
   } else {
     const d = snap.data();
@@ -2487,7 +2505,9 @@ async function setUserTarget(uid, year, field, value){
   const docId = `${uid}_${year}`;
   setSync('saving');
   try{
-    await db.collection('userTargets').doc(docId).set({ [field]: num }, { merge: true });
+    // uid is stored as a real field (not just encoded in the doc id) so the security rule and the
+    // non-admin scoped query (scopedByUid, above) can both filter on it directly.
+    await db.collection('userTargets').doc(docId).set({ [field]: num, uid }, { merge: true });
     setSync('ok');
   }catch(err){
     setSync('error');
@@ -2547,6 +2567,19 @@ function renderTargetRing(ringId, pctId, actual, goal, color){
 }
 
 /* ====== Firestore realtime sync ====== */
+// monthlyGP/userTargets scope a non-admin's read to a plain .where('uid','==',uid) field-equality
+// query -- deliberately NOT a document-ID prefix trick, even though both collections key their
+// per-user docs as ${uid}_... and that would also correctly filter the data. Firestore's security
+// rules can only verify a *list* query is safe when the query's own where-clause structurally
+// matches the rule's condition; a rule written as resource.data.uid == request.auth.uid is
+// provably satisfied by a .where('uid','==',uid) query, but NOT by a documentId() range query --
+// Firestore would reject that one outright as unprovable, even though every resulting document
+// would individually pass. Keep the query shape and the rule condition in this same field-based
+// form together -- don't "simplify" one without the other.
+function scopedByUid(collectionName, uid){
+  return db.collection(collectionName).where('uid', '==', uid);
+}
+
 function attachRealtimeListeners(){
   const loaded = { orders:false, customers:false, users:false, pendingRoles:false, monthlyGP:false, userTargets:false, promotions:false, promotionPrepared:false, auditLog:false, commissionConfig:false };
   let firstLoadDone = false;
@@ -2596,13 +2629,21 @@ function attachRealtimeListeners(){
   // at the single place every part of the app reads orders/customers from, so the rest of the
   // codebase (tables, dashboard, exports, autocomplete...) never has to know soft-delete exists.
   // The admin-only Trash tab reads them back with its own separate one-time queries instead.
-  unsubOrders = db.collection('orders').onSnapshot((snap) => {
+  //
+  // Scoped by createdBy for non-admins: a regular user's browser used to receive every OTHER
+  // user's orders/customers too (just hidden client-side by getVisibleOrders()/getVisibleCustomers()
+  // in the UI) — visible in plain text to anyone opening devtools. Matching Firestore security rules
+  // (see firestore.rules) now reject an unscoped read from a non-admin, so this query and those rules
+  // must be kept in sync — don't widen one without the other.
+  const ordersQuery = currentUserRole === 'admin' ? db.collection('orders') : db.collection('orders').where('createdBy', '==', currentUserUid);
+  unsubOrders = ordersQuery.onSnapshot((snap) => {
     data.orders = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(o => !o.deletedAt);
     loaded.orders = true;
     onAnyUpdate();
   }, () => { setSync('error'); toast('โหลดคำสั่งซื้อไม่สำเร็จ'); });
 
-  unsubCustomers = db.collection('customers').onSnapshot((snap) => {
+  const customersQuery = currentUserRole === 'admin' ? db.collection('customers') : db.collection('customers').where('createdBy', '==', currentUserUid);
+  unsubCustomers = customersQuery.onSnapshot((snap) => {
     data.customers = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.deletedAt);
     loaded.customers = true;
     onAnyUpdate();
@@ -2614,21 +2655,46 @@ function attachRealtimeListeners(){
     onAnyUpdate();
   }, () => { setSync('error'); toast('โหลดผู้ใช้งานไม่สำเร็จ'); });
 
-  unsubPendingRoles = db.collection('pendingRoles').onSnapshot((snap) => {
-    data.pendingRoles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  // Non-admins never need this collection — the one place they touch it (resolveUserRole(), on
+  // first-ever login) is a separate one-time .get()/.delete() on their own matching doc, not this
+  // listener. Feeding `loaded.pendingRoles = true` immediately for a non-admin keeps them out of
+  // the first-load gate the same way the errorLog listener stays out of it for everyone.
+  if (currentUserRole === 'admin'){
+    unsubPendingRoles = db.collection('pendingRoles').onSnapshot((snap) => {
+      data.pendingRoles = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      loaded.pendingRoles = true;
+      onAnyUpdate();
+    }, () => { setSync('error'); toast('โหลดข้อมูลไม่สำเร็จ'); });
+  } else {
     loaded.pendingRoles = true;
-    onAnyUpdate();
-  }, () => { setSync('error'); toast('โหลดข้อมูลไม่สำเร็จ'); });
+  }
 
-  unsubMonthlyGP = db.collection('monthlyGP').onSnapshot((snap) => {
+  // monthlyGP: admin reads the whole collection (needs everyone's entries to compute the "ทั้งหมด"
+  // aggregate, and the pre-existing company-wide legacy docs — see "Per-user monthly GP" below —
+  // are only ever relevant to that aggregate view). A non-admin only ever needs their own entries.
+  const monthlyGPQuery = currentUserRole === 'admin' ? db.collection('monthlyGP') : scopedByUid('monthlyGP', currentUserUid);
+  unsubMonthlyGP = monthlyGPQuery.onSnapshot((snap) => {
     data.monthlyGP = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     loaded.monthlyGP = true;
     onAnyUpdate();
   }, () => { setSync('error'); toast('โหลดข้อมูลกำไรไม่สำเร็จ'); });
 
-  unsubUserTargets = db.collection('userTargets').onSnapshot((snap) => {
+  const userTargetsQuery = currentUserRole === 'admin' ? db.collection('userTargets') : scopedByUid('userTargets', currentUserUid);
+  unsubUserTargets = userTargetsQuery.onSnapshot((snap) => {
     data.userTargets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     loaded.userTargets = true;
+    // One-time self-healing backfill: userTargets predates the explicit `uid` field a non-admin's
+    // scoped query now needs (docId already encoded it as `${uid}_${year}`, just not as real data).
+    // Only an admin ever sees the unscoped collection, so only an admin session can notice and
+    // backfill a doc that's missing it — after which the affected user's own scoped query finds it.
+    if (currentUserRole === 'admin'){
+      data.userTargets.forEach(t => {
+        if (!t.uid){
+          const uidFromId = t.id.split('_')[0];
+          if (uidFromId) db.collection('userTargets').doc(t.id).update({ uid: uidFromId }).catch(() => {});
+        }
+      });
+    }
     onAnyUpdate();
   }, () => { setSync('error'); toast('โหลดข้อมูลเป้าหมายไม่สำเร็จ'); });
 
@@ -3143,13 +3209,15 @@ function goToDashboardPage(suffix, page){
 }
 
 async function setMonthlyGP(suffix, year, monthIdx, value){
+  const targetUid = getMonthlyGPTargetUid();
+  if (!targetUid) return; // aggregate "ทั้งหมด" view — a summed figure across everyone isn't directly editable
   const num = parseMoneyValue(value);
-  const docId = `${suffix}_${year}_${monthIdx}`;
+  const docId = `${targetUid}_${suffix}_${year}_${monthIdx}`;
   const existing = data.monthlyGP.find(x => x.id === docId);
-  if (existing) existing.value = num; else data.monthlyGP.push({ id: docId, value: num });
+  if (existing) existing.value = num; else data.monthlyGP.push({ id: docId, value: num, uid: targetUid });
   setSync('saving');
   try{
-    await db.collection('monthlyGP').doc(docId).set({ value: num });
+    await db.collection('monthlyGP').doc(docId).set({ value: num, uid: targetUid });
     setSync('ok');
   }catch(err){
     setSync('error');
@@ -3225,9 +3293,10 @@ function computeQuarterlyCommissionData(year){
     m.amount += Number(o.price||0);
     m.gpAuto += Number(o.gp||0);
   });
+  const gpTargetUid = getMonthlyGPTargetUid();
   monthly.forEach((m, idx) => {
-    const override = data.monthlyGP.find(x => x.id === `shipped_${year}_${idx}`);
-    m.gpFinal = override ? Number(override.value) : m.gpAuto;
+    const overrideValue = getMonthlyGPValue('shipped', year, idx, gpTargetUid);
+    m.gpFinal = overrideValue !== null ? overrideValue : m.gpAuto;
   });
   const annualShipTarget = getAnnualShipTarget(year);
   const quarterTarget = annualShipTarget / 4;
@@ -3503,9 +3572,10 @@ function renderDashboardSection(suffix, orders){
     m.amount += Number(o.price||0);
     m.gpAuto += Number(o.gp||0);
   });
+  const gpTargetUid = getMonthlyGPTargetUid();
   months.forEach((m, idx) => {
-    const override = data.monthlyGP.find(x => x.id === `${suffix}_${selectedDashboardYear}_${idx}`);
-    m.gpFinal = override ? Number(override.value) : m.gpAuto;
+    const overrideValue = getMonthlyGPValue(suffix, selectedDashboardYear, idx, gpTargetUid);
+    m.gpFinal = overrideValue !== null ? overrideValue : m.gpAuto;
   });
   const max = Math.max(1, ...months.map(m=>m.count));
 
@@ -3561,10 +3631,10 @@ function renderDashboardSection(suffix, orders){
         <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
         <div class="bar-label ${dim ? 'dim-text' : ''}">${t(m.label)}</div>
         <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
-        ${suffix === 'shipped' ? `<input type="text" inputmode="decimal" class="bar-gp-input" value="${fmtMoneyPlain(Math.round(m.gpFinal * 100) / 100)}" title="กำไร ${m.label} — แก้ไขได้"
+        ${suffix === 'shipped' ? (gpTargetUid ? `<input type="text" inputmode="decimal" class="bar-gp-input" value="${fmtMoneyPlain(Math.round(m.gpFinal * 100) / 100)}" title="กำไร ${m.label} — แก้ไขได้"
           onclick="event.stopPropagation()"
           oninput="formatMoneyLive(this)"
-          onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">` : ''}
+          onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">` : `<div class="bar-gp-readonly" onclick="event.stopPropagation()" title="ผลรวมกำไรของทุกคน — เลือกคนใดคนหนึ่งในตัวกรองด้านบนเพื่อแก้ไข">${fmtMoney(m.gpFinal)}</div>`) : ''}
       </div>
     `; }).join('');
     requestAnimationFrame(() => {
@@ -3628,6 +3698,37 @@ function getDashboardScopedOrders(){
     return data.orders.filter(o => o.createdBy === targetSel);
   }
   return getVisibleOrders();
+}
+
+/* ====== Per-user monthly GP (see "Per-user monthly GP" in CLAUDE.md for the full picture) ======
+   monthlyGP docs used to be one shared number per `${suffix}_${year}_${monthIdx}` (e.g. everyone's
+   GP% blended into a single company-wide figure) — by explicit request this is now per person, so
+   one rep's entry can no longer silently change what commission everyone else sees. New docs are
+   keyed `${uid}_${suffix}_${year}_${monthIdx}` (plus a `uid` field, for the security rule). The old
+   un-prefixed docs are left exactly as they were — they're already-paid historical figures (e.g.
+   the real Q1/Q2 2026 payouts referenced in the commission section below) — and are only read back
+   as a fallback for months where nobody has entered a per-person figure yet, in the "ทั้งหมด"
+   aggregate view. Returns null (not 0) when nothing is on file, so callers can fall back to
+   auto-calculated GP (summed from orders' rarely-used `gp` field) exactly like before. */
+function getMonthlyGPTargetUid(){
+  if (currentUserRole !== 'admin') return currentUserUid;
+  const sel = getDashboardTargetSel();
+  return sel === 'all' ? null : sel;
+}
+function getMonthlyGPValue(suffix, year, idx, targetUid){
+  if (targetUid){
+    const doc = data.monthlyGP.find(x => x.id === `${targetUid}_${suffix}_${year}_${idx}`);
+    return doc ? Number(doc.value) : null;
+  }
+  // Aggregate ("all", admin only): sum every per-person entry for this month; only fall back to
+  // the legacy shared entry when nobody has a per-person figure on file for it yet.
+  const suffixTag = `_${suffix}_${year}_${idx}`;
+  const perUserEntries = data.monthlyGP.filter(x => x.id.endsWith(suffixTag));
+  if (perUserEntries.length){
+    return perUserEntries.reduce((s,x)=>s+Number(x.value||0), 0);
+  }
+  const legacy = data.monthlyGP.find(x => x.id === `${suffix}_${year}_${idx}`);
+  return legacy ? Number(legacy.value) : null;
 }
 
 function renderDashboard(){
@@ -3787,7 +3888,7 @@ function renderOrders(){
     const poCell = `
       <div class="locked-input-group compact ${poFilled ? 'po-filled' : ''}">
         <span class="locked-prefix">INV</span>
-        <input type="text" class="inline-input" value="${escapeHtml(poSuffix)}" placeholder="เลข PO"
+        <input type="text" class="inline-input" value="${escapeHtml(poSuffix)}" placeholder="เลขที่ INV"
           onchange="setOrderField('${o.id}','po', this.value.trim() ? 'INV' + this.value.trim() : '')">
       </div>
     `;
