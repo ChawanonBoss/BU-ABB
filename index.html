@@ -1261,7 +1261,7 @@
       <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;"><img class="nav-icon" src="User.png" alt=""><span class="nav-tooltip">ผู้ใช้งาน</span></button>
       <button class="nav-item" data-tab="audit" id="navAuditTab" style="display:none;">
         <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="9"></circle></svg>
-        <span class="nav-count-badge ok" id="errorNavBadge" style="display:none;" title="จำนวนข้อผิดพลาดระบบ"></span>
+        <span class="nav-count-badge ok" id="errorNavBadge" style="display:none;"></span>
         <span class="nav-tooltip">ประวัติการแก้ไข</span>
       </button>
       <button class="nav-item" data-tab="trash" id="navTrashTab" style="display:none;">
@@ -2136,7 +2136,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.20';
+const APP_VERSION = '1.0.21';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2810,10 +2810,28 @@ function attachRealtimeListeners(){
 // data.errorLog is empty, orange once anything is logged, dark red (a color distinct from the
 // app's usual pink --danger, so it doesn't get lost among other pink UI accents) the moment any
 // entry classifies as critical. Admin-only, same as the errorLog listener that feeds it.
+//
+// It's an *unread* count, not a running total — per explicit request, once the admin has actually
+// opened the ข้อผิดพลาดระบบ subtab the badge should stop nagging about the same already-seen
+// errors. ERROR_LAST_VIEWED_KEY (localStorage, survives reloads) stores the timestamp of the last
+// visit; markErrorLogViewed() stamps it and only errors logged *after* that moment count toward
+// the badge from then on. It intentionally does not delete or mark the Firestore docs themselves
+// (errorLog is meant to stay a full history for whoever's investigating) — this is purely a
+// per-browser "have I looked at this yet" marker, same spirit as the theme/language prefs already
+// kept in localStorage.
+const ERROR_LAST_VIEWED_KEY = 'bu-abb-errorlog-last-viewed';
+function getErrorLogLastViewed(){
+  try{ return localStorage.getItem(ERROR_LAST_VIEWED_KEY) || ''; }catch(e){ return ''; }
+}
+function markErrorLogViewed(){
+  try{ localStorage.setItem(ERROR_LAST_VIEWED_KEY, new Date().toISOString()); }catch(e){}
+  updateErrorNavBadge();
+}
 function updateErrorNavBadge(){
   const badge = $('errorNavBadge');
   if (!badge) return;
-  const list = data.errorLog || [];
+  const lastViewed = getErrorLogLastViewed();
+  const list = (data.errorLog || []).filter(e => !lastViewed || (e.timestamp && e.timestamp > lastViewed));
   if (!list.length){
     badge.style.display = 'none';
     return;
@@ -2844,13 +2862,31 @@ function logAudit(action, entityLabel, details){
    repeatedly (e.g. inside a render loop) from writing hundreds of near-identical documents. */
 // Best-effort automatic severity classification, based on which part of the app the error's
 // message/stack trace mentions -- there's no real way to know an error's true blast radius from
-// outside the app, so this is a heuristic, not a certainty. Order matters: critical is checked
-// first (favor flagging something as critical over under-alerting on it), then the narrower
-// "cosmetic, app still works fine" minor bucket, and everything else defaults to major (breaks
-// one specific feature/action but not the whole app). Applied both when an error is first logged
-// and again at render time as a fallback for older entries logged before `severity` existed.
+// outside the app, so this is a heuristic, not a certainty. Order matters:
+//   1. the CRUD reinforcement list is checked first, so a routine create/delete/edit failure for
+//      one order/customer/etc. is never miscategorized as critical just because the Firestore SDK's
+//      own error message happens to mention "Firestore" or "permission" in passing -- deliberately
+//      NOT relying on a bare "firestore|firebase" keyword for critical, since that would match
+//      almost every write error in the app, CRUD ones included.
+//   2. critical is checked next (favor flagging something as critical over under-alerting on it),
+//   3. then the narrower "cosmetic, app still works fine" minor bucket,
+//   4. everything else defaults to major (breaks one specific feature/action but not the whole app).
+// Applied both when an error is first logged and again at render time as a fallback for older
+// entries logged before `severity` existed.
+const ERROR_SEVERITY_MAJOR_CRUD_PATTERNS = [
+  // create/delete/restore for every entity type the app manages
+  /deleteorder|deletecustomer|deletepromotion|deleteuser\b/,
+  /restoretrashitem|permanentlydeletetrashitem/,
+  /bulkdeleteselectedorders|bulkmarkordersdone|bulkexportselectedorders/,
+  /cancelorder\b|toggleorderstatus/,
+  // per-field edits and the create forms themselves
+  /setorderfield|setcustomerfield|setuserfield|setusertarget|setmonthlygp/,
+  /orderform|customerform|userform/,
+  // Excel bulk import (also a form of bulk add)
+  /neworders|newcustomers|importexcel/,
+];
 const ERROR_SEVERITY_CRITICAL_PATTERNS = [
-  /firestore|firebase/, /permission-denied/, /failed to fetch|network ?error|net::err/,
+  /permission-denied/, /failed to fetch|network ?error|net::err/,
   /quota.?exceeded/, /resolveuserrole|onauthstatechanged|ensuresessionvalid|onsignedin\b/,
   /attachrealtimelisteners|onanyupdate|showtab\b/,
   /cannot read propert(y|ies) of (undefined|null) \(reading '(data|db|currentuser\w*)'\)/,
@@ -2861,6 +2897,7 @@ const ERROR_SEVERITY_MINOR_PATTERNS = [
 ];
 function classifyErrorSeverity(message, stack){
   const text = `${message || ''} ${stack || ''}`.toLowerCase();
+  if (ERROR_SEVERITY_MAJOR_CRUD_PATTERNS.some(re => re.test(text))) return 'major';
   if (ERROR_SEVERITY_CRITICAL_PATTERNS.some(re => re.test(text))) return 'critical';
   if (ERROR_SEVERITY_MINOR_PATTERNS.some(re => re.test(text))) return 'minor';
   return 'major';
@@ -3146,7 +3183,10 @@ function showTab(tab){
   if (tab==='promotions') renderPromotions();
   if (tab==='audit'){
     renderAuditLog();
-    if ($('auditSub-errors').style.display === 'block') renderErrorLog();
+    if ($('auditSub-errors').style.display === 'block'){
+      renderErrorLog();
+      markErrorLogViewed();
+    }
   }
   if (tab==='trash') loadTrash();
 }
@@ -3284,7 +3324,10 @@ document.querySelectorAll('.subtab-item[data-auditsub]').forEach(btn => {
     document.querySelectorAll('.subtab-item[data-auditsub]').forEach(b => b.classList.toggle('active', b===btn));
     $('auditSub-log').style.display = btn.dataset.auditsub === 'log' ? 'block' : 'none';
     $('auditSub-errors').style.display = btn.dataset.auditsub === 'errors' ? 'block' : 'none';
-    if (btn.dataset.auditsub === 'errors') renderErrorLog();
+    if (btn.dataset.auditsub === 'errors'){
+      renderErrorLog();
+      markErrorLogViewed();
+    }
   });
 });
 
