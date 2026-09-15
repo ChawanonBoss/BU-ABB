@@ -1024,7 +1024,7 @@
   }
   .locked-input-group input:focus{ outline:none !important; }
 
-  .locked-input-group.compact{ min-width:130px; height:30px; box-sizing:border-box; }
+  .locked-input-group.compact{ min-width:105px; height:30px; box-sizing:border-box; }
   .locked-input-group.compact .locked-prefix{ padding:0 8px; font-size:12px; }
   .locked-input-group.compact input{ padding:0 8px; font-size:12.5px; height:100%; box-sizing:border-box; }
   .locked-input-group.po-filled{ border-color:var(--accent); background:var(--accent-soft); }
@@ -1699,7 +1699,7 @@
             <button class="btn outline" type="button" onclick="clearOrdersSelection()">ล้างการเลือก</button>
           </div>
           <div class="table-scroll"><table>
-            <thead><tr><th style="width:34px;"><input type="checkbox" id="ordersSelectAllCb" title="เลือกทั้งหมดในหน้านี้" onchange="toggleSelectAllOrdersOnPage(this.checked)"></th><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>Invoice <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th id="ordersCreatorHeader" style="display:none;">สร้างโดย</th></tr></thead>
+            <thead><tr><th style="width:34px;"><input type="checkbox" id="ordersSelectAllCb" title="เลือกทั้งหมดในหน้านี้" onchange="toggleSelectAllOrdersOnPage(this.checked)"></th><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th style="width:116px;">ยอดเงิน</th><th style="width:143px;">Invoice <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th id="ordersCreatorHeader" style="display:none;">สร้างโดย</th></tr></thead>
             <tbody id="ordersBody"></tbody>
           </table></div>
           <div class="pagination" id="ordersPagination"></div>
@@ -2195,7 +2195,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.29';
+const APP_VERSION = '1.0.30';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
