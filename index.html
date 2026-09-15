@@ -1183,8 +1183,14 @@
     background:none; border:none; color:var(--ink-soft);
     padding:4px; border-radius:6px; opacity:0; transition:opacity .15s ease;
   }
-  .promo-card:hover .promo-card-delete{ opacity:1; }
+  .promo-card-edit{
+    position:absolute; top:12px; right:40px;
+    background:none; border:none; color:var(--ink-soft);
+    padding:4px; border-radius:6px; opacity:0; transition:opacity .15s ease;
+  }
+  .promo-card:hover .promo-card-delete, .promo-card:hover .promo-card-edit{ opacity:1; }
   .promo-card-delete:hover{ color:var(--danger); background:var(--danger-soft); }
+  .promo-card-edit:hover{ color:var(--accent); background:var(--accent-soft); }
 
   .promo-check-label{ display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; }
   .promo-check-label input{ width:17px; height:17px; cursor:pointer; accent-color:var(--accent); }
@@ -1821,7 +1827,7 @@
       <!-- Promotion tab (admin only) -->
       <div id="tab-promotions" class="tab-panel" style="display:none;">
         <div class="panel" id="promoCreatePanel" style="display:none;">
-          <div class="panel-head"><h3>เพิ่มโปรโมชันใหม่</h3></div>
+          <div class="panel-head"><h3 id="promoFormHeading">เพิ่มโปรโมชันใหม่</h3></div>
           <form id="promotionForm">
             <div class="form-grid">
               <div class="field"><label>ชื่อโปรโมชัน</label><input type="text" id="promoName" placeholder="เช่น โปรโมชั่นประจำเดือนกันยายน" required></div>
@@ -1844,7 +1850,7 @@
               <div class="field"><label>ปี</label><select id="promoYear"></select></div>
               <div class="field"><label>ของที่แจกให้ลูกค้า</label><input type="text" id="promoGift" placeholder="เช่น กระเป๋าผ้า U-Tech" required></div>
             </div>
-            <button type="submit" class="btn">สร้างโปรโมชัน</button>
+            <button type="submit" class="btn" id="promoFormSubmitBtn">สร้างโปรโมชัน</button>
           </form>
         </div>
 
@@ -2182,7 +2188,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.24';
+const APP_VERSION = '1.0.25';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2378,12 +2384,12 @@ function setSync(state){
 /* ====== Auth: email/password (Firebase) ====== */
 function updateAuthFormMode(){
   const isSignup = authMode === 'signup';
-  $('authTitle').textContent = isSignup ? 'สร้างบัญชีใหม่' : 'เข้าสู่ระบบ';
-  $('authSubtitle').textContent = 'BU-ABB เว็บไซต์สำหรับบันทึกข้อมูลการขาย';
+  $('authTitle').textContent = t(isSignup ? 'สร้างบัญชีใหม่' : 'เข้าสู่ระบบ');
+  $('authSubtitle').textContent = t('BU-ABB เว็บไซต์สำหรับบันทึกข้อมูลการขาย');
   $('authNameField').style.display = isSignup ? 'flex' : 'none';
-  $('authSubmitBtn').textContent = isSignup ? 'สร้างบัญชี' : 'เข้าสู่ระบบ';
-  $('authToggleText').textContent = isSignup ? 'มีบัญชีอยู่แล้ว?' : 'ยังไม่มีบัญชี?';
-  $('authToggleLink').textContent = isSignup ? 'เข้าสู่ระบบ' : 'สร้างบัญชีใหม่';
+  $('authSubmitBtn').textContent = t(isSignup ? 'สร้างบัญชี' : 'เข้าสู่ระบบ');
+  $('authToggleText').textContent = t(isSignup ? 'มีบัญชีอยู่แล้ว?' : 'ยังไม่มีบัญชี?');
+  $('authToggleLink').textContent = t(isSignup ? 'เข้าสู่ระบบ' : 'สร้างบัญชีใหม่');
   $('authError').textContent = '';
 }
 
@@ -2450,6 +2456,148 @@ $('signOutBtn').addEventListener('click', () => {
   auth.signOut();
 });
 
+/* ====== Language toggle dictionary/state (moved above auth.onAuthStateChanged on purpose:
+   the real Firebase SDK always defers this callback, but must still be safe if it or anything
+   else ever resolves synchronously before the rest of the script runs — see updateAuthFormMode(),
+   which calls t() from inside the signed-out branch below) ====== */
+const I18N = {
+  // Sidebar / rail menu
+  'แดชบอร์ด': 'Dashboard', 'คำสั่งซื้อ': 'Orders', 'การรับประกัน': 'Warranty',
+  'ยกเลิกการสั่งซื้อ': 'Cancelled Orders', 'รายชื่อลูกค้า': 'Customers',
+  'ผู้ใช้งาน': 'Users', 'ประวัติการแก้ไข': 'Audit Log', 'เมนู': 'Menu',
+  'ออกจากระบบ': 'Sign Out', 'ซิงก์แล้ว': 'Synced', 'กำลังบันทึก...': 'Saving...',
+  'บันทึกไม่สำเร็จ': 'Save failed', 'โหมดมืด': 'Dark Mode', 'โหมดสว่าง': 'Light Mode',
+  'ผู้ดูแลระบบ': 'Admin', 'ผู้ใช้งานทั่วไป': 'User',
+  // Login screen
+  'เข้าสู่ระบบ': 'Sign In', 'อีเมล': 'Email', 'ชื่อ': 'Name', 'รหัสผ่าน': 'Password',
+  'ชื่อของคุณ': 'Your name', 'อย่างน้อย 6 ตัวอักษร': 'At least 6 characters',
+  'BU-ABB เว็บไซต์สำหรับบันทึกข้อมูลการขาย': 'BU-ABB — a website for recording sales data',
+  'ยังไม่มีบัญชี?': "Don't have an account?", 'สร้างบัญชีใหม่': 'Create account',
+  'สร้างบัญชี': 'Sign Up',
+  'แสดงเฉพาะคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน — นับประกันมาตรฐาน 12 เดือนจากวันที่ส่งสินค้า แก้ระยะเวลาและประเภทได้ในตาราง':
+    'Shows only orders with both a ship date and PO number — standard 12-month warranty counted from ship date, duration and type are editable in the table',
+  'แสดงข้อมูลอย่างเดียว ไม่สามารถแก้ไขได้ (ผู้ดูแลระบบลบรายการได้)': 'Read-only — cannot be edited (admin can delete)',
+  'ยังไม่มีคำสั่งซื้อที่ถูกยกเลิก': 'No cancelled orders yet',
+  'ลืมรหัสผ่าน?': 'Forgot password?', 'มีบัญชีอยู่แล้ว?': 'Already have an account?',
+  'ข้อมูลจะถูกเก็บไว้อย่างปลอดภัยบน Firebase': 'Your data is securely stored on Firebase',
+  // Dashboard
+  'สรุปรวม': 'Overview', 'สรุปการส่งสินค้า': 'Shipping Summary', 'เคลียร์ตัวกรอง': 'Clear Filters',
+  'สรุปโปรโมชัน': 'Promotions Summary', 'เป้าหมายประจำปี': 'Annual Target',
+  'Commission ประจำปี': 'Annual Commission', 'ยอดส่งสินค้า': 'Shipped Amount', 'อัตรา': 'Rate',
+  'ค่าคอม': 'Commission', 'คำสั่งส่งสินค้ารายเดือน': 'Monthly Shipments',
+  'แนวโน้มยอดส่งสินค้า': 'Shipping Trend', 'คำสั่งส่งสินค้าล่าสุด': 'Recent Shipments',
+  'ลูกค้า': 'Customer', 'สินค้า': 'Product', 'วันที่ส่งสินค้า': 'Ship Date',
+  'ยอดเงิน': 'Amount', 'สถานะ': 'Status', 'ทั้งหมด': 'All',
+  'สรุปคำสั่งซื้อ': 'Order Summary', 'จำนวนคำสั่งซื้อ': 'Order Count',
+  'ยอดคำสั่งซื้อรวม': 'Total Order Amount', 'คำสั่งซื้อรายเดือน': 'Monthly Orders',
+  'แนวโน้มคำสั่งซื้อ': 'Order Trend', 'คำสั่งซื้อล่าสุด': 'Recent Orders',
+  // Orders
+  'เพิ่มคำสั่งซื้อใหม่': 'Add New Order', 'เลขที่ใบเสนอราคา (SO)': 'Quote No. (SO)',
+  'ชื่อลูกค้า': 'Customer Name', 'ราคารวม (บาท)': 'Total Price (THB)', 'วันที่สั่งซื้อ': 'Order Date',
+  'บันทึกคำสั่งซื้อ': 'Save Order', '+ เพิ่มคำสั่งซื้อ': '+ Add Order',
+  'ดาวน์โหลดรายงาน': 'Download Report', 'ดาวน์โหลดไฟล์ตัวอย่าง': 'Download Template',
+  'นำเข้าจาก Excel': 'Import from Excel', 'สร้างโดย': 'Created By',
+  'รายการคำสั่งซื้อทั้งหมด': 'All Orders',
+  'เลือกไว้': 'Selected', 'ทำเครื่องหมายว่าจัดส่งแล้ว': 'Mark as Shipped',
+  'ส่งออกที่เลือก': 'Export Selected', 'ลบที่เลือก': 'Delete Selected', 'ล้างการเลือก': 'Clear Selection',
+  'คุณ': 'You', 'รอเข้าสู่ระบบ': 'Pending',
+  'นำเข้า (': 'Import (', 'แถว)': 'rows)',
+  '+ เพิ่มช่วง GP': '+ Add GP Range', '+ เพิ่มช่วงเป้า': '+ Add Target Range',
+  // Dashboard stat cards / labels missed in the first pass
+  'คำสั่งซื้อทั้งหมด': 'Total Orders', 'ใบเสนอราคา': 'Quotation',
+  'คำสั่งซื้อที่ส่งแล้ว': 'Shipped Orders', 'ยกเลิก': 'Cancel', 'รับประกัน': 'Warranty',
+  'เป้าหมายคำสั่งซื้อ (บาท)': 'Order Target (THB)', 'เป้าหมายส่งสินค้า (บาท)': 'Shipping Target (THB)',
+  'คำสั่งซื้อที่จัดส่งแล้ว': 'Orders Shipped', 'ยอดขายรวม': 'Total Sales',
+  'กำไรรวมสุทธิ (GP)': 'Total Net Profit (GP)', 'ค่าคอมมิชชั่นโดยประมาณ': 'Estimated Commission',
+  'โปรโมชันที่กำลังดำเนินการ': 'Ongoing Promotions', 'คำสั่งซื้อที่เข้าเงื่อนไข': 'Qualifying Orders',
+  'เตรียมของแล้ว': 'Prepared', 'เทียบเป้า': 'vs Target', 'ยังไม่ได้ตั้งเป้าหมาย': 'Target not set',
+  // Warranty
+  'รายการรับประกันทั้งหมด': 'All Warranties', 'ส่งสินค้า': 'Shipped',
+  'ประเภทการรับประกัน': 'Warranty Type', 'ระยะเวลา (เดือน)': 'Duration (Months)',
+  'หมดอายุ': 'Expiry', 'เหลือเวลา': 'Remaining', 'หมายเหตุ': 'Notes',
+  'ใช้งานอยู่': 'Active', 'ใกล้หมดอายุ': 'Expiring Soon', 'เคลมแล้ว': 'Claimed',
+  'ค้นหาลูกค้า, สินค้า, PO': 'Search customer, product, PO',
+  // Cancelled
+  'รายการยกเลิกการสั่งซื้อ': 'Cancelled Orders',
+  // Customers
+  'เพิ่มลูกค้าใหม่': 'Add New Customer', 'บันทึกลูกค้า': 'Save Customer',
+  '+ เพิ่มลูกค้า': '+ Add Customer', 'รายชื่อลูกค้าทั้งหมด': 'All Customers',
+  'จำนวนคำสั่งซื้อ': 'Order Count', 'จำนวนเงิน': 'Amount',
+  // Promotion
+  'เพิ่มโปรโมชันใหม่': 'Add New Promotion', 'ชื่อโปรโมชัน': 'Promotion Name',
+  'เดือนที่กำหนดส่ง': 'Delivery Month', 'ปี': 'Year', 'ของที่แจกให้ลูกค้า': 'Customer Gift',
+  'สร้างโปรโมชัน': 'Create Promotion', 'รายการโปรโมชันทั้งหมด': 'All Promotions',
+  'แก้ไขโปรโมชัน': 'Edit Promotion', 'บันทึกการแก้ไข': 'Save Changes',
+  '+ เพิ่มโปรโมชัน': '+ Add Promotion', 'ค้นหาชื่อโปรโมชัน': 'Search promotion name',
+  // Users
+  'เพิ่มผู้ใช้งาน': 'Add User', 'อีเมล Google': 'Google Email', 'สิทธิ์การใช้งาน': 'Role',
+  'บันทึกผู้ใช้งาน': 'Save User', '+ เพิ่มผู้ใช้งาน': '+ Add User', 'ผู้ใช้งานทั้งหมด': 'All Users',
+  'รูป': 'Photo', 'เป้าหมายคำสั่งซื้อ (บาท)': 'Order Target (THB)',
+  'เป้าหมายส่งสินค้า (บาท)': 'Shipping Target (THB)', 'ค้นหาชื่อ, อีเมล': 'Search name, email',
+  // Audit
+  'เวลา': 'Time', 'ผู้ทำรายการ': 'User', 'การกระทำ': 'Action', 'รายละเอียด': 'Details',
+  'โหลดประวัติเก่าเพิ่มเติม': 'Load older history', 'กำลังโหลด...': 'Loading...',
+  'ทุกการกระทำ': 'All Actions', 'ค้นหาผู้ทำรายการ, การกระทำ, รายละเอียด': 'Search user, action, details',
+  'ทุกคน': 'Everyone', 'ตั้งแต่': 'From', 'ถึง': 'To',
+  'การแก้ไข': 'Changes', 'ข้อผิดพลาดระบบ': 'System Errors', 'ข้อความ': 'Message', 'หน้า': 'Page',
+  'ไม่พบข้อผิดพลาด': 'No errors found', 'ไม่พบรายการที่ตรงกับตัวกรอง': 'No matching entries',
+  'ความรุนแรง': 'Severity', 'ทุกระดับความรุนแรง': 'All Severities',
+  'สูง (Critical)': 'High (Critical)', 'กลาง (Major)': 'Medium (Major)', 'ต่ำ (Minor)': 'Low (Minor)',
+  'สูง': 'High', 'กลาง': 'Medium', 'ต่ำ': 'Low',
+  // Trash
+  'ถังขยะ': 'Trash', 'ทุกประเภท': 'All Types', 'โปรโมชัน': 'Promotion', 'รีเฟรช': 'Refresh',
+  'รายการ': 'Item',
+  'ลบโดย': 'Deleted By', 'วันที่ลบ': 'Deleted At', 'กู้คืน': 'Restore', 'ลบถาวร': 'Delete Permanently',
+  'ไม่มีรายการในถังขยะ': 'Trash is empty',
+  'คำสั่งซื้อ/ลูกค้า/โปรโมชันที่ถูกลบ — กู้คืนหรือลบถาวรได้': 'Deleted orders/customers/promotions — restore or permanently delete them',
+  // Modals
+  'นำเข้าข้อมูลจาก Excel': 'Import from Excel', 'ยกเลิก': 'Cancel',
+  'ดาวน์โหลดรายงานคำสั่งซื้อ': 'Download Order Report', 'ประเภท': 'Type', 'เดือน': 'Month',
+  'ดาวน์โหลดรายงานการรับประกัน': 'Download Warranty Report', 'ดาวน์โหลดรายงานลูกค้า': 'Download Customer Report',
+  'เลือกช่วงเวลาที่ต้องการออกรายงาน': 'Select the period for the report',
+  'เลือกช่วงเวลาที่ต้องการออกรายงาน (อิงจากวันที่ส่งสินค้า)': 'Select the period for the report (based on ship date)',
+  'เลือกปีที่ต้องการออกรายงาน': 'Select the year for the report',
+  'ดาวน์โหลด': 'Download', 'ปิด': 'Close', 'ตั้งค่าตารางอัตราค่าคอมมิชชั่น': 'Commission Rate Settings',
+  'อัตราต่ำสุด (%)': 'Minimum Rate (%)', 'บันทึก': 'Save', 'ยืนยันการทำรายการ': 'Confirm Action',
+  'ยืนยัน': 'Confirm', 'รายเดือน': 'Monthly', 'รายปี': 'Yearly',
+  // Search placeholders
+  'ค้นหา SO, ลูกค้า, สินค้า, PO...': 'Search SO, customer, product, PO...',
+  'พิมพ์เพื่อค้นหาจากรายชื่อลูกค้า': 'Type to search customers',
+  'ค้นหาชื่อลูกค้า, สินค้า, SO, PO': 'Search customer, product, SO, PO',
+  'ค้นหาชื่อลูกค้า': 'Search customer name',
+  // Filter dropdowns
+  'ทุกสถานะ': 'All Statuses', 'ทุกปี': 'All Years',
+  'แสดง 10': 'Show 10', 'แสดง 20': 'Show 20', 'แสดง 50': 'Show 50', 'แสดง 100': 'Show 100',
+  'ชื่อลูกค้า (ก-ฮ)': 'Customer Name (A-Z)', 'ชื่อลูกค้า (ฮ-ก)': 'Customer Name (Z-A)',
+  'จำนวนคำสั่งซื้อ (น้อย-มาก)': 'Order Count (Low-High)', 'จำนวนคำสั่งซื้อ (มาก-น้อย)': 'Order Count (High-Low)',
+  'จำนวนเงิน (น้อย-มาก)': 'Amount (Low-High)', 'จำนวนเงิน (มาก-น้อย)': 'Amount (High-Low)',
+  'ไม่บังคับ': 'Optional',
+  // Page headings (titles object subtitles)
+  'แดชบอร์ดประจำปี': 'Annual Dashboard',
+  'สรุปคำสั่งซื้อและการรับประกันทั้งหมด': 'Overview of all orders and warranties',
+  'บันทึกและติดตามคำสั่งซื้อทั้งหมด': 'Record and track all orders',
+  'ติดตามสถานะการรับประกันสินค้า': 'Track product warranty status',
+  'รายการคำสั่งซื้อที่ถูกยกเลิก (แสดงข้อมูลอย่างเดียว)': 'List of cancelled orders (read-only)',
+  'ข้อมูลลูกค้าและจำนวนคำสั่งซื้อที่จัดส่งแล้ว': 'Customer data and shipped order counts',
+  'จัดการโปรโมชันและติดตามการเตรียมของแจกลูกค้า': 'Manage promotions and track gift preparation',
+  'กำหนดสิทธิ์การเข้าถึงของแต่ละคน': "Set each person's access permissions",
+  'บันทึกการสร้าง/แก้ไข/ลบรายการทั้งหมดในระบบ': 'Log of all create/edit/delete actions in the system',
+};
+const MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const MONTH_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+MONTH_TH.forEach((th, i) => {
+  I18N[th] = MONTH_EN[i];
+  I18N[`เดือนสั่งซื้อ: ${th}`] = `Order Month: ${MONTH_EN[i]}`;
+  I18N[`เดือนส่งสินค้า: ${th}`] = `Ship Month: ${MONTH_EN[i]}`;
+});
+I18N['เดือนสั่งซื้อ: ทุกเดือน'] = 'Order Month: All Months';
+I18N['เดือนส่งสินค้า: ทุกเดือน'] = 'Ship Month: All Months';
+const I18N_REVERSE = {};
+Object.keys(I18N).forEach(th => { I18N_REVERSE[I18N[th]] = th; });
+
+let currentLang = (() => { try{ return localStorage.getItem('bu-abb-lang') || 'th'; }catch(e){ return 'th'; } })();
+function t(th){ return currentLang === 'en' ? (I18N[th] || th) : th; }
+
 auth.onAuthStateChanged(async (user) => {
   if (user){
     currentUserEmail = user.email;
@@ -2480,6 +2628,7 @@ auth.onAuthStateChanged(async (user) => {
     $('gate').style.display = 'block';
     $('sidebar').style.display = 'none';
     $('globalSearchWrap').style.display = 'none';
+    $('targetUserFilter').style.display = 'none';
     $('loadingOverlay').style.display = 'none';
     document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
     authMode = 'signin';
@@ -2976,139 +3125,6 @@ $('syncRetryBtn').addEventListener('click', () => {
   toast('ข้อมูลซิงก์แบบเรียลไทม์อยู่แล้ว ไม่ต้องกดรีเฟรช');
 });
 
-/* ====== Language toggle (core UI chrome only — Thai <-> English) ====== */
-const I18N = {
-  // Sidebar / rail menu
-  'แดชบอร์ด': 'Dashboard', 'คำสั่งซื้อ': 'Orders', 'การรับประกัน': 'Warranty',
-  'ยกเลิกการสั่งซื้อ': 'Cancelled Orders', 'รายชื่อลูกค้า': 'Customers',
-  'ผู้ใช้งาน': 'Users', 'ประวัติการแก้ไข': 'Audit Log', 'เมนู': 'Menu',
-  'ออกจากระบบ': 'Sign Out', 'ซิงก์แล้ว': 'Synced', 'กำลังบันทึก...': 'Saving...',
-  'บันทึกไม่สำเร็จ': 'Save failed', 'โหมดมืด': 'Dark Mode', 'โหมดสว่าง': 'Light Mode',
-  'ผู้ดูแลระบบ': 'Admin', 'ผู้ใช้งานทั่วไป': 'User',
-  // Login screen
-  'เข้าสู่ระบบ': 'Sign In', 'อีเมล': 'Email', 'ชื่อ': 'Name', 'รหัสผ่าน': 'Password',
-  'ชื่อของคุณ': 'Your name', 'อย่างน้อย 6 ตัวอักษร': 'At least 6 characters',
-  'BU-ABB เว็บไซต์สำหรับบันทึกข้อมูลการขาย': 'BU-ABB — a website for recording sales data',
-  'ยังไม่มีบัญชี?': "Don't have an account?", 'สร้างบัญชีใหม่': 'Create account',
-  'ลืมรหัสผ่าน?': 'Forgot password?', 'มีบัญชีอยู่แล้ว?': 'Already have an account?',
-  'ข้อมูลจะถูกเก็บไว้อย่างปลอดภัยบน Firebase': 'Your data is securely stored on Firebase',
-  // Dashboard
-  'สรุปรวม': 'Overview', 'สรุปการส่งสินค้า': 'Shipping Summary', 'เคลียร์ตัวกรอง': 'Clear Filters',
-  'สรุปโปรโมชัน': 'Promotions Summary', 'เป้าหมายประจำปี': 'Annual Target',
-  'Commission ประจำปี': 'Annual Commission', 'ยอดส่งสินค้า': 'Shipped Amount', 'อัตรา': 'Rate',
-  'ค่าคอม': 'Commission', 'คำสั่งส่งสินค้ารายเดือน': 'Monthly Shipments',
-  'แนวโน้มยอดส่งสินค้า': 'Shipping Trend', 'คำสั่งส่งสินค้าล่าสุด': 'Recent Shipments',
-  'ลูกค้า': 'Customer', 'สินค้า': 'Product', 'วันที่ส่งสินค้า': 'Ship Date',
-  'ยอดเงิน': 'Amount', 'สถานะ': 'Status', 'ทั้งหมด': 'All',
-  'สรุปคำสั่งซื้อ': 'Order Summary', 'จำนวนคำสั่งซื้อ': 'Order Count',
-  'ยอดคำสั่งซื้อรวม': 'Total Order Amount', 'คำสั่งซื้อรายเดือน': 'Monthly Orders',
-  'แนวโน้มคำสั่งซื้อ': 'Order Trend', 'คำสั่งซื้อล่าสุด': 'Recent Orders',
-  // Orders
-  'เพิ่มคำสั่งซื้อใหม่': 'Add New Order', 'เลขที่ใบเสนอราคา (SO)': 'Quote No. (SO)',
-  'ชื่อลูกค้า': 'Customer Name', 'ราคารวม (บาท)': 'Total Price (THB)', 'วันที่สั่งซื้อ': 'Order Date',
-  'บันทึกคำสั่งซื้อ': 'Save Order', '+ เพิ่มคำสั่งซื้อ': '+ Add Order',
-  'ดาวน์โหลดรายงาน': 'Download Report', 'ดาวน์โหลดไฟล์ตัวอย่าง': 'Download Template',
-  'นำเข้าจาก Excel': 'Import from Excel', 'สร้างโดย': 'Created By',
-  'รายการคำสั่งซื้อทั้งหมด': 'All Orders',
-  'เลือกไว้': 'Selected', 'ทำเครื่องหมายว่าจัดส่งแล้ว': 'Mark as Shipped',
-  'ส่งออกที่เลือก': 'Export Selected', 'ลบที่เลือก': 'Delete Selected', 'ล้างการเลือก': 'Clear Selection',
-  'คุณ': 'You', 'รอเข้าสู่ระบบ': 'Pending',
-  'นำเข้า (': 'Import (', 'แถว)': 'rows)',
-  '+ เพิ่มช่วง GP': '+ Add GP Range', '+ เพิ่มช่วงเป้า': '+ Add Target Range',
-  // Dashboard stat cards / labels missed in the first pass
-  'คำสั่งซื้อทั้งหมด': 'Total Orders', 'ใบเสนอราคา': 'Quotation',
-  'คำสั่งซื้อที่ส่งแล้ว': 'Shipped Orders', 'ยกเลิก': 'Cancel', 'รับประกัน': 'Warranty',
-  'เป้าหมายคำสั่งซื้อ (บาท)': 'Order Target (THB)', 'เป้าหมายส่งสินค้า (บาท)': 'Shipping Target (THB)',
-  'คำสั่งซื้อที่จัดส่งแล้ว': 'Orders Shipped', 'ยอดขายรวม': 'Total Sales',
-  'กำไรรวมสุทธิ (GP)': 'Total Net Profit (GP)', 'ค่าคอมมิชชั่นโดยประมาณ': 'Estimated Commission',
-  'โปรโมชันที่กำลังดำเนินการ': 'Ongoing Promotions', 'คำสั่งซื้อที่เข้าเงื่อนไข': 'Qualifying Orders',
-  'เตรียมของแล้ว': 'Prepared', 'เทียบเป้า': 'vs Target', 'ยังไม่ได้ตั้งเป้าหมาย': 'Target not set',
-  // Warranty
-  'รายการรับประกันทั้งหมด': 'All Warranties', 'ส่งสินค้า': 'Shipped',
-  'ประเภทการรับประกัน': 'Warranty Type', 'ระยะเวลา (เดือน)': 'Duration (Months)',
-  'หมดอายุ': 'Expiry', 'เหลือเวลา': 'Remaining', 'หมายเหตุ': 'Notes',
-  'ใช้งานอยู่': 'Active', 'ใกล้หมดอายุ': 'Expiring Soon', 'เคลมแล้ว': 'Claimed',
-  'ค้นหาลูกค้า, สินค้า, PO': 'Search customer, product, PO',
-  // Cancelled
-  'รายการยกเลิกการสั่งซื้อ': 'Cancelled Orders',
-  // Customers
-  'เพิ่มลูกค้าใหม่': 'Add New Customer', 'บันทึกลูกค้า': 'Save Customer',
-  '+ เพิ่มลูกค้า': '+ Add Customer', 'รายชื่อลูกค้าทั้งหมด': 'All Customers',
-  'จำนวนคำสั่งซื้อ': 'Order Count', 'จำนวนเงิน': 'Amount',
-  // Promotion
-  'เพิ่มโปรโมชันใหม่': 'Add New Promotion', 'ชื่อโปรโมชัน': 'Promotion Name',
-  'เดือนที่กำหนดส่ง': 'Delivery Month', 'ปี': 'Year', 'ของที่แจกให้ลูกค้า': 'Customer Gift',
-  'สร้างโปรโมชัน': 'Create Promotion', 'รายการโปรโมชันทั้งหมด': 'All Promotions',
-  '+ เพิ่มโปรโมชัน': '+ Add Promotion', 'ค้นหาชื่อโปรโมชัน': 'Search promotion name',
-  // Users
-  'เพิ่มผู้ใช้งาน': 'Add User', 'อีเมล Google': 'Google Email', 'สิทธิ์การใช้งาน': 'Role',
-  'บันทึกผู้ใช้งาน': 'Save User', '+ เพิ่มผู้ใช้งาน': '+ Add User', 'ผู้ใช้งานทั้งหมด': 'All Users',
-  'รูป': 'Photo', 'เป้าหมายคำสั่งซื้อ (บาท)': 'Order Target (THB)',
-  'เป้าหมายส่งสินค้า (บาท)': 'Shipping Target (THB)', 'ค้นหาชื่อ, อีเมล': 'Search name, email',
-  // Audit
-  'เวลา': 'Time', 'ผู้ทำรายการ': 'User', 'การกระทำ': 'Action', 'รายละเอียด': 'Details',
-  'โหลดประวัติเก่าเพิ่มเติม': 'Load older history', 'กำลังโหลด...': 'Loading...',
-  'ทุกการกระทำ': 'All Actions', 'ค้นหาผู้ทำรายการ, การกระทำ, รายละเอียด': 'Search user, action, details',
-  'ทุกคน': 'Everyone', 'ตั้งแต่': 'From', 'ถึง': 'To',
-  'การแก้ไข': 'Changes', 'ข้อผิดพลาดระบบ': 'System Errors', 'ข้อความ': 'Message', 'หน้า': 'Page',
-  'ไม่พบข้อผิดพลาด': 'No errors found', 'ไม่พบรายการที่ตรงกับตัวกรอง': 'No matching entries',
-  'ความรุนแรง': 'Severity', 'ทุกระดับความรุนแรง': 'All Severities',
-  'สูง (Critical)': 'High (Critical)', 'กลาง (Major)': 'Medium (Major)', 'ต่ำ (Minor)': 'Low (Minor)',
-  'สูง': 'High', 'กลาง': 'Medium', 'ต่ำ': 'Low',
-  // Trash
-  'ถังขยะ': 'Trash', 'ทุกประเภท': 'All Types', 'โปรโมชัน': 'Promotion', 'รีเฟรช': 'Refresh',
-  'รายการ': 'Item',
-  'ลบโดย': 'Deleted By', 'วันที่ลบ': 'Deleted At', 'กู้คืน': 'Restore', 'ลบถาวร': 'Delete Permanently',
-  'ไม่มีรายการในถังขยะ': 'Trash is empty',
-  'คำสั่งซื้อ/ลูกค้า/โปรโมชันที่ถูกลบ — กู้คืนหรือลบถาวรได้': 'Deleted orders/customers/promotions — restore or permanently delete them',
-  // Modals
-  'นำเข้าข้อมูลจาก Excel': 'Import from Excel', 'ยกเลิก': 'Cancel',
-  'ดาวน์โหลดรายงานคำสั่งซื้อ': 'Download Order Report', 'ประเภท': 'Type', 'เดือน': 'Month',
-  'ดาวน์โหลดรายงานการรับประกัน': 'Download Warranty Report', 'ดาวน์โหลดรายงานลูกค้า': 'Download Customer Report',
-  'เลือกช่วงเวลาที่ต้องการออกรายงาน': 'Select the period for the report',
-  'เลือกช่วงเวลาที่ต้องการออกรายงาน (อิงจากวันที่ส่งสินค้า)': 'Select the period for the report (based on ship date)',
-  'เลือกปีที่ต้องการออกรายงาน': 'Select the year for the report',
-  'ดาวน์โหลด': 'Download', 'ปิด': 'Close', 'ตั้งค่าตารางอัตราค่าคอมมิชชั่น': 'Commission Rate Settings',
-  'อัตราต่ำสุด (%)': 'Minimum Rate (%)', 'บันทึก': 'Save', 'ยืนยันการทำรายการ': 'Confirm Action',
-  'ยืนยัน': 'Confirm', 'รายเดือน': 'Monthly', 'รายปี': 'Yearly',
-  // Search placeholders
-  'ค้นหา SO, ลูกค้า, สินค้า, PO...': 'Search SO, customer, product, PO...',
-  'พิมพ์เพื่อค้นหาจากรายชื่อลูกค้า': 'Type to search customers',
-  'ค้นหาชื่อลูกค้า, สินค้า, SO, PO': 'Search customer, product, SO, PO',
-  'ค้นหาชื่อลูกค้า': 'Search customer name',
-  // Filter dropdowns
-  'ทุกสถานะ': 'All Statuses', 'ทุกปี': 'All Years',
-  'แสดง 10': 'Show 10', 'แสดง 20': 'Show 20', 'แสดง 50': 'Show 50', 'แสดง 100': 'Show 100',
-  'ชื่อลูกค้า (ก-ฮ)': 'Customer Name (A-Z)', 'ชื่อลูกค้า (ฮ-ก)': 'Customer Name (Z-A)',
-  'จำนวนคำสั่งซื้อ (น้อย-มาก)': 'Order Count (Low-High)', 'จำนวนคำสั่งซื้อ (มาก-น้อย)': 'Order Count (High-Low)',
-  'จำนวนเงิน (น้อย-มาก)': 'Amount (Low-High)', 'จำนวนเงิน (มาก-น้อย)': 'Amount (High-Low)',
-  'ไม่บังคับ': 'Optional',
-  // Page headings (titles object subtitles)
-  'แดชบอร์ดประจำปี': 'Annual Dashboard',
-  'สรุปคำสั่งซื้อและการรับประกันทั้งหมด': 'Overview of all orders and warranties',
-  'บันทึกและติดตามคำสั่งซื้อทั้งหมด': 'Record and track all orders',
-  'ติดตามสถานะการรับประกันสินค้า': 'Track product warranty status',
-  'รายการคำสั่งซื้อที่ถูกยกเลิก (แสดงข้อมูลอย่างเดียว)': 'List of cancelled orders (read-only)',
-  'ข้อมูลลูกค้าและจำนวนคำสั่งซื้อที่จัดส่งแล้ว': 'Customer data and shipped order counts',
-  'จัดการโปรโมชันและติดตามการเตรียมของแจกลูกค้า': 'Manage promotions and track gift preparation',
-  'กำหนดสิทธิ์การเข้าถึงของแต่ละคน': "Set each person's access permissions",
-  'บันทึกการสร้าง/แก้ไข/ลบรายการทั้งหมดในระบบ': 'Log of all create/edit/delete actions in the system',
-};
-const MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-const MONTH_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-MONTH_TH.forEach((th, i) => {
-  I18N[th] = MONTH_EN[i];
-  I18N[`เดือนสั่งซื้อ: ${th}`] = `Order Month: ${MONTH_EN[i]}`;
-  I18N[`เดือนส่งสินค้า: ${th}`] = `Ship Month: ${MONTH_EN[i]}`;
-});
-I18N['เดือนสั่งซื้อ: ทุกเดือน'] = 'Order Month: All Months';
-I18N['เดือนส่งสินค้า: ทุกเดือน'] = 'Ship Month: All Months';
-const I18N_REVERSE = {};
-Object.keys(I18N).forEach(th => { I18N_REVERSE[I18N[th]] = th; });
-
-let currentLang = (() => { try{ return localStorage.getItem('bu-abb-lang') || 'th'; }catch(e){ return 'th'; } })();
-function t(th){ return currentLang === 'en' ? (I18N[th] || th) : th; }
-
 function translateStaticDOM(){
   const toEnglish = currentLang === 'en';
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
@@ -3353,7 +3369,7 @@ function buildYearOptionsList(){
 function refreshDashboardYearFilter(){
   const years = buildYearOptionsList();
   const sel = $('dashboardYearFilter');
-  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedDashboardYear?'selected':''}>ปี ${y+543}</option>`).join('');
+  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedDashboardYear?'selected':''}>${t('ปี')} ${y+543}</option>`).join('');
 }
 
 // Scoped to [data-dashsub] specifically (not the bare .subtab-item class, which the Audit tab's
@@ -4064,7 +4080,7 @@ let selectedOrderIds = new Set();
 function refreshOrdersYearFilter(){
   const years = buildYearOptionsList();
   const sel = $('ordersYearFilter');
-  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedOrdersYear?'selected':''}>ปี ${y+543}</option>`).join('');
+  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedOrdersYear?'selected':''}>${t('ปี')} ${y+543}</option>`).join('');
 }
 
 function renderOrders(){
@@ -4328,7 +4344,7 @@ function renderCancelledOrders(){
         </button>` : ''}
       </td>
     </tr>
-  `).join('') : `<tr><td colspan="9" class="empty-row">ยังไม่มีคำสั่งซื้อที่ถูกยกเลิก</td></tr>`;
+  `).join('') : `<tr><td colspan="9" class="empty-row">${t('ยังไม่มีคำสั่งซื้อที่ถูกยกเลิก')}</td></tr>`;
 
   const paginationEl = $('cancelledPagination');
   if (totalPages <= 1){
@@ -4886,7 +4902,7 @@ let customersCurrentPage = 1;
 function refreshCustomersYearFilter(){
   const years = buildYearOptionsList();
   const sel = $('customersYearFilter');
-  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedCustomersYear?'selected':''}>ปี ${y+543}</option>`).join('');
+  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedCustomersYear?'selected':''}>${t('ปี')} ${y+543}</option>`).join('');
 }
 
 function customerOrdersInYear(customerName, year = selectedCustomersYear){
@@ -5330,24 +5346,25 @@ let selectedTargetYear = new Date().getFullYear();
 function refreshTargetYearFilter(){
   const years = buildYearOptionsList();
   const sel = $('targetYearFilter');
-  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedTargetYear?'selected':''}>ปี ${y+543}</option>`).join('');
+  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedTargetYear?'selected':''}>${t('ปี')} ${y+543}</option>`).join('');
 }
 
 /* ====== Promotion (admin only) ====== */
 let selectedPromoYear = new Date().getFullYear();
 let currentPromoId = null;
+let editingPromoId = null;
 
 function refreshPromoYearFilter(){
   const years = buildYearOptionsList();
   const sel = $('promoYear');
-  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedPromoYear?'selected':''}>ปี ${y+543}</option>`).join('');
+  sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedPromoYear?'selected':''}>${t('ปี')} ${y+543}</option>`).join('');
 }
 
 let selectedPromoCatalogYear = 'all';
 function refreshPromoCatalogYearFilter(){
   const years = [...new Set((data.promotions||[]).map(p => Number(p.year)))].sort((a,b)=>b-a);
   const sel = $('promoCatalogYearFilter');
-  sel.innerHTML = `<option value="all">${t('ทุกปี')}</option>` + years.map(y => `<option value="${y}" ${String(y)===String(selectedPromoCatalogYear)?'selected':''}>ปี ${y+543}</option>`).join('');
+  sel.innerHTML = `<option value="all">${t('ทุกปี')}</option>` + years.map(y => `<option value="${y}" ${String(y)===String(selectedPromoCatalogYear)?'selected':''}>${t('ปี')} ${y+543}</option>`).join('');
 }
 
 function getPromoQualifyingOrders(promo){
@@ -5385,6 +5402,9 @@ function renderPromotions(){
     const ended = isPromoEnded(p);
     return `
     <div class="promo-card ${ended ? 'promo-card-ended' : ''}" onclick="openPromoModal('${p.id}')">
+      ${currentUserRole==='admin' ? `<button class="promo-card-edit" onclick="event.stopPropagation(); openPromoEditForm('${p.id}')" title="แก้ไขโปรโมชัน">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg>
+      </button>` : ''}
       ${currentUserRole==='admin' ? `<button class="promo-card-delete" onclick="event.stopPropagation(); confirmAction('ต้องการลบโปรโมชันนี้ใช่ไหม?', () => deletePromotion('${p.id}'))" title="ลบโปรโมชัน">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
       </button>` : ''}
@@ -5400,6 +5420,29 @@ function renderPromotions(){
   `; }).join('') : `<p style="font-size:13px; color:var(--ink-soft);">${searchTerm || selectedPromoCatalogYear !== 'all' ? 'ไม่พบโปรโมชันตามตัวกรองปัจจุบัน' : 'ยังไม่มีโปรโมชัน — กดปุ่ม + เพิ่มโปรโมชัน เพื่อสร้างรายการแรก'}</p>`;
 }
 
+function resetPromoFormToCreateMode(){
+  editingPromoId = null;
+  $('promotionForm').reset();
+  $('promoMonth').value = '8';
+  $('promoFormHeading').textContent = t('เพิ่มโปรโมชันใหม่');
+  $('promoFormSubmitBtn').textContent = t('สร้างโปรโมชัน');
+}
+
+function openPromoEditForm(promoId){
+  const p = (data.promotions||[]).find(x => x.id === promoId);
+  if (!p) return;
+  editingPromoId = promoId;
+  $('promoName').value = p.name;
+  $('promoMonth').value = String(p.month);
+  $('promoGift').value = p.giftLabel;
+  $('promoFormHeading').textContent = t('แก้ไขโปรโมชัน');
+  $('promoFormSubmitBtn').textContent = t('บันทึกการแก้ไข');
+  $('promoCreatePanel').style.display = 'block';
+  refreshPromoYearFilter();
+  $('promoYear').value = String(p.year);
+  $('promoCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 $('promotionForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = $('promoName').value.trim();
@@ -5409,13 +5452,18 @@ $('promotionForm').addEventListener('submit', async (e) => {
   if (!name || !giftLabel) return;
   setSync('saving');
   try{
-    await db.collection('promotions').add({ name, month, year, giftLabel, createdBy: currentUserUid });
-    logAudit('สร้างโปรโมชัน', name);
-    e.target.reset();
-    $('promoMonth').value = '8';
+    if (editingPromoId){
+      await db.collection('promotions').doc(editingPromoId).update({ name, month, year, giftLabel });
+      logAudit('แก้ไขโปรโมชัน', name);
+      toast('บันทึกการแก้ไขแล้ว');
+    } else {
+      await db.collection('promotions').add({ name, month, year, giftLabel, createdBy: currentUserUid });
+      logAudit('สร้างโปรโมชัน', name);
+      toast('สร้างโปรโมชันแล้ว');
+    }
+    resetPromoFormToCreateMode();
     $('promoCreatePanel').style.display = 'none';
     setSync('ok');
-    toast('สร้างโปรโมชันแล้ว');
   }catch(err){
     setSync('error');
     toast('บันทึกไม่สำเร็จ');
@@ -5424,7 +5472,18 @@ $('promotionForm').addEventListener('submit', async (e) => {
 
 $('promoCreateToggleBtn').addEventListener('click', () => {
   const panel = $('promoCreatePanel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  const wasOpenForEdit = panel.style.display !== 'none' && editingPromoId;
+  if (wasOpenForEdit){
+    resetPromoFormToCreateMode();
+    panel.style.display = 'block';
+    return;
+  }
+  if (panel.style.display !== 'none'){
+    panel.style.display = 'none';
+  } else {
+    resetPromoFormToCreateMode();
+    panel.style.display = 'block';
+  }
 });
 
 $('orderCreateToggleBtn').addEventListener('click', () => {
