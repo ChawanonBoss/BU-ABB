@@ -137,8 +137,12 @@
   button{ font-family:inherit; cursor:pointer; }
   input, select{ font-family:inherit; }
 
-  /* ---- Layout ---- */
-  .app{ display:flex; min-height:100vh; }
+  /* ---- Layout ----
+     .app is a fixed 100vh (not min-height) with overflow hidden, so the sidebar and topbar never
+     scroll away on a long page — only .content (below) scrolls internally. Was min-height before,
+     which let the whole page (sidebar included) grow taller than the viewport and scroll as one
+     unit on any page with enough rows/panels to overflow. */
+  .app{ display:flex; height:100vh; overflow:hidden; }
 
   .sidebar{
     width:68px;
@@ -149,6 +153,7 @@
     flex-direction:column;
     align-items:center;
     padding:20px 0;
+    overflow-y:auto;
   }
   .sidebar.loading-lock .nav-item{
     pointer-events:none;
@@ -2078,7 +2083,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.17';
+const APP_VERSION = '1.0.18';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
