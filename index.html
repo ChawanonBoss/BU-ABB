@@ -2188,7 +2188,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.27';
+const APP_VERSION = '1.0.28';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -4250,7 +4250,7 @@ function renderOrders(){
       <td>${escapeHtml(o.so||'-')}</td>
       <td>${escapeHtml(o.customer)}</td>
       <td>${escapeHtml(o.product)}</td>
-      <td>${fmtMoney(o.price)}</td>
+      <td><input type="text" inputmode="decimal" class="inline-input" value="${fmtMoneyPlain(o.price)}" oninput="formatMoneyLive(this)" onchange="setOrderField('${o.id}','price',parseMoneyValue(this.value))"></td>
       <td>${poCell}</td>
       <td>
         <div class="date-edit-wrap">
