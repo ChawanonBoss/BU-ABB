@@ -2188,7 +2188,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.25';
+const APP_VERSION = '1.0.26';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2497,6 +2497,7 @@ const I18N = {
   'บันทึกคำสั่งซื้อ': 'Save Order', '+ เพิ่มคำสั่งซื้อ': '+ Add Order',
   'ดาวน์โหลดรายงาน': 'Download Report', 'ดาวน์โหลดไฟล์ตัวอย่าง': 'Download Template',
   'นำเข้าจาก Excel': 'Import from Excel', 'สร้างโดย': 'Created By',
+  '+ เพิ่มลูกค้าใหม่': '+ Add New Customer', 'เลขที่ INV': 'INV No.', 'วัน/เดือน/ปี': 'dd/mm/yyyy',
   'รายการคำสั่งซื้อทั้งหมด': 'All Orders',
   'เลือกไว้': 'Selected', 'ทำเครื่องหมายว่าจัดส่งแล้ว': 'Mark as Shipped',
   'ส่งออกที่เลือก': 'Export Selected', 'ลบที่เลือก': 'Delete Selected', 'ล้างการเลือก': 'Clear Selection',
@@ -2516,6 +2517,8 @@ const I18N = {
   'ประเภทการรับประกัน': 'Warranty Type', 'ระยะเวลา (เดือน)': 'Duration (Months)',
   'หมดอายุ': 'Expiry', 'เหลือเวลา': 'Remaining', 'หมายเหตุ': 'Notes',
   'ใช้งานอยู่': 'Active', 'ใกล้หมดอายุ': 'Expiring Soon', 'เคลมแล้ว': 'Claimed',
+  'สั่งซื้อใหม่': 'New Order', 'งานซ่อม': 'Repair', 'งานบำรุงรักษา': 'Maintenance',
+  'หมดอายุวันนี้': 'Expires today',
   'ค้นหาลูกค้า, สินค้า, PO': 'Search customer, product, PO',
   // Cancelled
   'รายการยกเลิกการสั่งซื้อ': 'Cancelled Orders',
@@ -2541,6 +2544,32 @@ const I18N = {
   'ทุกคน': 'Everyone', 'ตั้งแต่': 'From', 'ถึง': 'To',
   'การแก้ไข': 'Changes', 'ข้อผิดพลาดระบบ': 'System Errors', 'ข้อความ': 'Message', 'หน้า': 'Page',
   'ไม่พบข้อผิดพลาด': 'No errors found', 'ไม่พบรายการที่ตรงกับตัวกรอง': 'No matching entries',
+  'ไม่พบรายการที่ตรงกับตัวกรอง/คำค้นหา': 'No entries match the current filters/search',
+  'ยังไม่มีประวัติการแก้ไข': 'No change history yet',
+  // Audit log action labels (logAudit() callers use free-text Thai, so this is a best-effort
+  // dictionary of the known ones, not an enforced enum — unmapped future action strings just
+  // fall through t() unchanged, same as any other missing key)
+  'ยกเลิกคำสั่งซื้อ': 'Cancel Order', 'ลบคำสั่งซื้อ (หลายรายการ)': 'Delete Orders (Bulk)',
+  'ลบคำสั่งซื้อ': 'Delete Order', 'ลบผู้ใช้งาน': 'Delete User', 'ลบลูกค้า': 'Delete Customer',
+  'ลบโปรโมชัน': 'Delete Promotion',
+  'สร้างคำสั่งซื้อ': 'Create Order', 'เปลี่ยนรูปโปรไฟล์': 'Change Profile Photo',
+  'เปลี่ยนสถานะคำสั่งซื้อ (หลายรายการ)': 'Change Order Status (Bulk)',
+  'เปลี่ยนสถานะคำสั่งซื้อ': 'Change Order Status',
+  'เพิ่มผู้ใช้งาน (รอเข้าสู่ระบบครั้งแรก)': 'Add User (Pending First Login)',
+  'เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจะจับคู่ด้วยอีเมล) หรือปล่อยว่างไว้ก็ได้ — เมื่อมีคนล็อกอินเข้าเว็บนี้ครั้งแรกโดยไม่มีชื่ออยู่ในลิสต์ ระบบจะเพิ่มให้อัตโนมัติเป็น "ผู้ใช้งานทั่วไป"':
+    'You can pre-add someone before they ever log in (matched by email), or leave it blank — anyone who logs in for the first time without being on the list is added automatically as a "regular user"',
+  'กำหนดเป้าหมายยอดขาย (บาท) ของคำสั่งซื้อและของยอดที่ส่งแล้ว ของแต่ละคนในแต่ละปี ใช้เทียบผลงานจริงในหน้าแดชบอร์ด — เฉพาะคนที่เคยล็อกอินแล้วเท่านั้นที่ตั้งเป้าหมายได้':
+    "Set each person's annual sales target (THB) for orders and for shipped amount, compared against real performance on the Dashboard — only people who have logged in at least once can have a target set",
+  'บันทึกการสร้าง/แก้ไข/ลบ/ยกเลิกรายการต่างๆ ในระบบ เรียงจากล่าสุดไปเก่าสุด': 'Log of every create/edit/delete/cancel action in the system, newest first',
+  'ข้อผิดพลาด JavaScript ที่เกิดขึ้นจริงในเครื่องผู้ใช้งาน (ไม่ใช่ข้อผิดพลาดจากการกรอกฟอร์ม) แสดง 200 รายการล่าสุด — เรียงจากล่าสุดไปเก่าสุด ระดับความรุนแรงประเมินอัตโนมัติจากลักษณะของข้อผิดพลาด':
+    'Real JavaScript errors that occurred on a user\'s device (not form-validation messages). Shows the latest 200 entries, newest first — severity is auto-classified from the nature of the error',
+  'รายการที่ถูกลบจะแสดงที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กดปุ่ม "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด)':
+    'Deleted items show up here and can be restored — nothing is auto-purged. Press "Refresh" to load the latest list (this page does not update live)',
+  'เพิ่มลูกค้า': 'Add Customer', 'แก้ไขตารางค่าคอมมิชชั่น': 'Edit Commission Table',
+  'แก้ไขสิทธิ์ผู้ใช้งาน': 'Edit User Role',
+  'กู้คืนคำสั่งซื้อ': 'Restore Order', 'กู้คืนลูกค้า': 'Restore Customer', 'กู้คืนโปรโมชัน': 'Restore Promotion',
+  'ลบถาวรคำสั่งซื้อ': 'Permanently Delete Order', 'ลบถาวรลูกค้า': 'Permanently Delete Customer',
+  'ลบถาวรโปรโมชัน': 'Permanently Delete Promotion',
   'ความรุนแรง': 'Severity', 'ทุกระดับความรุนแรง': 'All Severities',
   'สูง (Critical)': 'High (Critical)', 'กลาง (Major)': 'Medium (Major)', 'ต่ำ (Minor)': 'Low (Minor)',
   'สูง': 'High', 'กลาง': 'Medium', 'ต่ำ': 'Low',
@@ -2558,6 +2587,24 @@ const I18N = {
   'เลือกช่วงเวลาที่ต้องการออกรายงาน (อิงจากวันที่ส่งสินค้า)': 'Select the period for the report (based on ship date)',
   'เลือกปีที่ต้องการออกรายงาน': 'Select the year for the report',
   'ดาวน์โหลด': 'Download', 'ปิด': 'Close', 'ตั้งค่าตารางอัตราค่าคอมมิชชั่น': 'Commission Rate Settings',
+  'ดูข้อมูลของ': 'View data for', 'รีเฟรช/บันทึกใหม่': 'Refresh / Retry Save',
+  'แสดงตัวเลข': 'Show numbers', 'ซ่อนตัวเลข': 'Hide numbers',
+  'ไปที่หน้าการรับประกัน': 'Go to Warranty page',
+  'ไปที่หน้าคำสั่งซื้อ (กรองจัดส่งแล้ว)': 'Go to Orders page (filtered: shipped)',
+  'ไปที่หน้าคำสั่งซื้อ (กรองรอดำเนินการ)': 'Go to Orders page (filtered: pending)',
+  'ไปที่หน้ายกเลิกการสั่งซื้อ': 'Go to Cancelled Orders page',
+  'คลิกเพื่อสลับสถานะ': 'Click to toggle status', 'เลือกทั้งหมดในหน้านี้': 'Select all on this page',
+  'ดูเฉพาะที่หมดอายุ': 'Show only expired', 'ดูเฉพาะที่ใกล้หมดอายุ': 'Show only expiring soon',
+  'ดูเฉพาะที่ใช้งานอยู่': 'Show only active', 'คลิกเพื่อดูประวัติคำสั่งซื้อ': 'Click to view order history',
+  'กำลังดำเนินการ': 'Ongoing', 'สิ้นสุดโปรโมชั่น': 'Ended', 'ไม่ระบุชื่อ': 'Unnamed',
+  'ผลรวมกำไรของทุกคน — เลือกคนใดคนหนึ่งในตัวกรองด้านบนเพื่อแก้ไข': "Everyone's combined profit — pick one person in the filter above to edit",
+  '(คลิกเพื่อเลือกหลายเดือน)': '(click to select multiple months)',
+  'ลบ': 'Delete',
+  'ส่งภายใน': 'Due within', 'กำหนดส่งภายในเดือน': 'Due within month of',
+  'ของแจก': 'Gift',
+  'ไม่มีคำสั่งซื้อที่กำหนดส่งภายในเดือนนี้': 'No orders due within this month',
+  'ไม่พบโปรโมชันตามตัวกรองปัจจุบัน': 'No promotions match the current filters',
+  'ยังไม่มีโปรโมชัน — กดปุ่ม + เพิ่มโปรโมชัน เพื่อสร้างรายการแรก': 'No promotions yet — press + Add Promotion to create the first one',
   'อัตราต่ำสุด (%)': 'Minimum Rate (%)', 'บันทึก': 'Save', 'ยืนยันการทำรายการ': 'Confirm Action',
   'ยืนยัน': 'Confirm', 'รายเดือน': 'Monthly', 'รายปี': 'Yearly',
   // Search placeholders
@@ -3174,6 +3221,37 @@ function setLanguage(lang){
 }
 $('langToggleBtn').addEventListener('click', () => {
   setLanguage(currentLang === 'en' ? 'th' : 'en');
+  // These rebuild <option> lists (year pickers, the "view as" person filter) purely from JS —
+  // they only regenerate their text when explicitly called (on data load, or here), never on a
+  // plain tab switch, so without a call here they'd keep showing whatever language was active
+  // the last time Firestore data changed instead of following the toggle. Deliberately NOT
+  // folded into refreshDynamicLangBits()/setLanguage() itself: those also run once at cold page
+  // load (before sign-in, before selectedOrdersYear/selectedDashboardYear/etc. — all declared
+  // much further down the script — have executed their own top-level `let ... =` yet), and
+  // calling any of these that early throws a temporal-dead-zone ReferenceError. Only a real
+  // user click on this button happens late enough (well after the whole script has finished its
+  // first top-to-bottom run) for these to be safe.
+  refreshTargetUserFilter();
+  refreshDashboardYearFilter();
+  refreshOrdersYearFilter();
+  refreshCustomersYearFilter();
+  refreshTargetYearFilter();
+  refreshPromoYearFilter();
+  refreshPromoCatalogYearFilter();
+  const activeNav = document.querySelector('.nav-item.active[data-tab]');
+  const activeTab = activeNav ? activeNav.dataset.tab : null;
+  if (activeTab==='dashboard') renderDashboard();
+  if (activeTab==='orders') renderOrders();
+  if (activeTab==='warranty') renderWarranty();
+  if (activeTab==='cancelled') renderCancelledOrders();
+  if (activeTab==='customers') renderCustomers();
+  if (activeTab==='users') renderUsers();
+  if (activeTab==='promotions') renderPromotions();
+  if (activeTab==='audit'){
+    renderAuditLog();
+    if ($('auditSub-errors').style.display === 'block') renderErrorLog();
+  }
+  if (activeTab==='trash') renderTrash();
 });
 
 function applyTheme(theme){
@@ -3251,6 +3329,8 @@ function showTab(tab){
     if (shipRing) shipRing.dataset.rawPct = 0;
     renderDashboard();
   }
+  if (tab==='orders') renderOrders();
+  if (tab==='warranty') renderWarranty();
   if (tab==='cancelled') renderCancelledOrders();
   if (tab==='customers') renderCustomers();
   if (tab==='users') renderUsers();
@@ -3287,8 +3367,18 @@ function animateNumber(el, endValue, formatFn){
   }
   requestAnimationFrame(frame);
 }
-function fmtDate(d){ if(!d) return '-'; const dt = new Date(d); return dt.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'}); }
-function fmtDateTime(d){ if(!d) return '-'; const dt = new Date(d); return dt.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'}) + ' ' + dt.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'}); }
+function fmtDate(d){
+  if(!d) return '-';
+  const dt = new Date(d);
+  if (currentLang === 'en') return `${dt.getDate()} ${MONTH_EN[dt.getMonth()]} ${dt.getFullYear()+543}`;
+  return dt.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'});
+}
+function fmtDateTime(d){
+  if(!d) return '-';
+  const dt = new Date(d);
+  if (currentLang === 'en') return `${dt.getDate()} ${MONTH_EN[dt.getMonth()]} ${dt.getFullYear()+543} ` + dt.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:false});
+  return dt.toLocaleDateString('th-TH', {day:'numeric', month:'short', year:'numeric'}) + ' ' + dt.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+}
 function addMonths(dateStr, months){ const d = new Date(dateStr); d.setMonth(d.getMonth()+Number(months)); return d.toISOString().slice(0,10); }
 
 /* ---- Warranty helpers (auto-derived from orders with shipDate + PO) ---- */
@@ -3309,8 +3399,13 @@ function warrantyDisplayStatus(o){
 }
 function warrantyCountdownText(o){
   const status = warrantyDisplayStatus(o);
-  if (status==='claimed') return 'เคลมแล้ว';
+  if (status==='claimed') return t('เคลมแล้ว');
   const days = warrantyDaysLeft(o);
+  if (currentLang === 'en'){
+    if (days < 0) return `Expired ${Math.abs(days)} days ago`;
+    if (days === 0) return t('หมดอายุวันนี้');
+    return `${days} days left`;
+  }
   if (days < 0) return `หมดอายุแล้ว ${Math.abs(days)} วัน`;
   if (days === 0) return 'หมดอายุวันนี้';
   return `เหลือ ${days} วัน`;
@@ -3593,7 +3688,7 @@ function renderStatCommissionDisplay(){
   if (eyeBtn){
     eyeBtn.style.display = 'flex';
     eyeBtn.innerHTML = statCommissionRevealed ? EYE_CLOSED_SVG : EYE_OPEN_SVG;
-    eyeBtn.title = statCommissionRevealed ? 'ซ่อนตัวเลข' : 'แสดงตัวเลข';
+    eyeBtn.title = t(statCommissionRevealed ? 'ซ่อนตัวเลข' : 'แสดงตัวเลข');
   }
 }
 function renderCommissionYearly(){
@@ -3608,7 +3703,7 @@ function renderCommissionYearly(){
       <td>${q.hasTarget ? q.rate.toFixed(2)+'%' : '-'}</td>
       <td class="commission-amount-cell">
         <span>${commissionRevealed[idx] ? fmtMoney(q.amount) : 'xx,xxx'}</span>
-        <button class="commission-eye-btn" type="button" onclick="toggleCommissionReveal(${idx})" title="${commissionRevealed[idx] ? 'ซ่อนตัวเลข' : 'แสดงตัวเลข'}">
+        <button class="commission-eye-btn" type="button" onclick="toggleCommissionReveal(${idx})" title="${t(commissionRevealed[idx] ? 'ซ่อนตัวเลข' : 'แสดงตัวเลข')}">
           ${commissionRevealed[idx] ? EYE_CLOSED_SVG : EYE_OPEN_SVG}
         </button>
       </td>
@@ -3903,14 +3998,14 @@ function renderDashboardSection(suffix, orders){
       const dim = hasSelection && !isSelected;
       const targetHeight = (m.count/max*100) || 2;
       return `
-      <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${m.label}: ${fmtMoney(m.amount)} (คลิกเพื่อเลือกหลายเดือน)">
+      <div class="bar-col" onclick="selectDashboardMonth('${suffix}', ${idx})" title="${t(m.label)}: ${fmtMoney(m.amount)} ${t('(คลิกเพื่อเลือกหลายเดือน)')}">
         <div class="bar ${dim ? 'dim' : ''}" data-height="${targetHeight}" style="height:0%; transition-delay:${idx*35}ms;"></div>
         <div class="bar-label ${dim ? 'dim-text' : ''}">${t(m.label)}</div>
         <div class="bar-amount ${dim ? 'dim-text' : ''}">${fmtMoney(m.amount)}</div>
         ${suffix === 'shipped' ? (gpTargetUid ? `<input type="text" inputmode="decimal" class="bar-gp-input" value="${fmtMoneyPlain(Math.round(m.gpFinal * 100) / 100)}" title="กำไร ${m.label} — แก้ไขได้"
           onclick="event.stopPropagation()"
           oninput="formatMoneyLive(this)"
-          onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">` : `<div class="bar-gp-readonly" onclick="event.stopPropagation()" title="ผลรวมกำไรของทุกคน — เลือกคนใดคนหนึ่งในตัวกรองด้านบนเพื่อแก้ไข">${fmtMoney(m.gpFinal)}</div>`) : ''}
+          onchange="setMonthlyGP('${suffix}', ${selectedDashboardYear}, ${idx}, this.value)">` : `<div class="bar-gp-readonly" onclick="event.stopPropagation()" title="${t('ผลรวมกำไรของทุกคน — เลือกคนใดคนหนึ่งในตัวกรองด้านบนเพื่อแก้ไข')}">${fmtMoney(m.gpFinal)}</div>`) : ''}
       </div>
     `; }).join('');
     requestAnimationFrame(() => {
@@ -4063,7 +4158,7 @@ function renderPromoDashboardSummary(){
     <div class="promo-dash-item" onclick="showTab('promotions'); setTimeout(()=>openPromoModal('${r.promo.id}'), 50);">
       <div>
         <div class="promo-dash-item-name">${escapeHtml(r.promo.name)}</div>
-        <div class="promo-dash-item-meta">ส่งภายใน ${monthShortLabels[r.promo.month]} ${Number(r.promo.year)+543} · ${escapeHtml(r.promo.giftLabel)}</div>
+        <div class="promo-dash-item-meta">${t('ส่งภายใน')} ${t(monthShortLabels[r.promo.month])} ${Number(r.promo.year)+543} · ${escapeHtml(r.promo.giftLabel)}</div>
       </div>
       <div class="promo-dash-item-progress">${r.prepared} / ${r.qualifying}</div>
     </div>
@@ -4145,7 +4240,7 @@ function renderOrders(){
     const poCell = `
       <div class="locked-input-group compact ${poFilled ? 'po-filled' : ''}">
         <span class="locked-prefix">INV</span>
-        <input type="text" class="inline-input" value="${escapeHtml(poSuffix)}" placeholder="เลขที่ INV"
+        <input type="text" class="inline-input" value="${escapeHtml(poSuffix)}" placeholder="${escapeHtml(t('เลขที่ INV'))}"
           onchange="setOrderField('${o.id}','po', this.value.trim() ? 'INV' + this.value.trim() : '')">
       </div>
     `;
@@ -4161,21 +4256,21 @@ function renderOrders(){
       <td>
         <div class="date-edit-wrap">
           <input type="date" class="inline-input" value="${o.shipDate || ''}" onchange="setOrderField('${o.id}','shipDate',this.value)">
-          <span class="date-display-text">${o.shipDate ? fmtDate(o.shipDate) : 'วัน/เดือน/ปี'}</span>
+          <span class="date-display-text">${o.shipDate ? fmtDate(o.shipDate) : t('วัน/เดือน/ปี')}</span>
         </div>
       </td>
       <td>
-        <button class="status-toggle-btn status-${o.status}" onclick="toggleOrderStatus('${o.id}')" title="คลิกเพื่อสลับสถานะ">
+        <button class="status-toggle-btn status-${o.status}" onclick="toggleOrderStatus('${o.id}')" title="${t('คลิกเพื่อสลับสถานะ')}">
           ${o.status==='pending' ? 'PENDING' : 'COMPLETE'}
         </button>
       </td>
       ${currentUserRole==='admin' ? `<td title="${escapeHtml(getUserDisplayName(o.createdBy))}">${escapeHtml(getUserInitials(o.createdBy))}</td>` : ''}
       <td class="row-actions">
-        ${o.status!=='cancelled' ? `<button class="icon-btn cancel-btn" onclick="confirmAction('ต้องการยกเลิกคำสั่งซื้อนี้ใช่ไหม?', () => cancelOrder('${o.id}'))" title="ยกเลิกคำสั่งซื้อ">
+        ${o.status!=='cancelled' ? `<button class="icon-btn cancel-btn" onclick="confirmAction('ต้องการยกเลิกคำสั่งซื้อนี้ใช่ไหม?', () => cancelOrder('${o.id}'))" title="${t('ยกเลิกคำสั่งซื้อ')}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"></line></svg>
-          ยกเลิก
+          ${t('ยกเลิก')}
         </button>` : ''}
-        <button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบคำสั่งซื้อนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteOrder('${o.id}'))" title="ลบ">
+        <button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบคำสั่งซื้อนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteOrder('${o.id}'))" title="${t('ลบ')}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
           DELETE
         </button>
@@ -4338,7 +4433,7 @@ function renderCancelledOrders(){
       <td>${o.shipDate ? fmtDate(o.shipDate) : '-'}</td>
       <td><span class="badge cancelled">CANCELLED</span></td>
       <td class="row-actions">
-        ${currentUserRole==='admin' ? `<button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบคำสั่งซื้อนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteOrder('${o.id}'))" title="ลบ">
+        ${currentUserRole==='admin' ? `<button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบคำสั่งซื้อนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteOrder('${o.id}'))" title="${t('ลบ')}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
           DELETE
         </button>` : ''}
@@ -4422,7 +4517,7 @@ function renderWarranty(){
     const status = warrantyDisplayStatus(o);
     const countdownClass = status==='soon' ? 'soon' : status==='expired' ? 'expired' : '';
     const typeVal = o.warrantyType || warrantyTypeOptions[0];
-    const typeOpts = warrantyTypeOptions.map(t=>`<option value="${t}" ${t===typeVal?'selected':''}>${t}</option>`).join('');
+    const typeOpts = warrantyTypeOptions.map(opt=>`<option value="${opt}" ${opt===typeVal?'selected':''}>${t(opt)}</option>`).join('');
     return `
     <tr class="${status==='expired' ? 'warranty-expired-row' : ''}">
       <td>${escapeHtml(o.customer)}</td>
@@ -4433,11 +4528,11 @@ function renderWarranty(){
       <td><input type="number" min="1" class="inline-input" value="${warrantyMonthsOf(o)}" onchange="setOrderField('${o.id}','warrantyMonths',this.value)"></td>
       <td>${fmtDate(warrantyExpiry(o))}</td>
       <td><span class="countdown ${countdownClass}">${warrantyCountdownText(o)}</span></td>
-      <td><span class="badge ${status}">${warrantyStatusLabel[status]}</span></td>
-      <td><input type="text" class="inline-input" value="${escapeHtml(o.warrantyNotes||'')}" placeholder="หมายเหตุ" onchange="setOrderField('${o.id}','warrantyNotes',this.value)"></td>
+      <td><span class="badge ${status}">${t(warrantyStatusLabel[status])}</span></td>
+      <td><input type="text" class="inline-input" value="${escapeHtml(o.warrantyNotes||'')}" placeholder="${t('หมายเหตุ')}" onchange="setOrderField('${o.id}','warrantyNotes',this.value)"></td>
       ${currentUserRole==='admin' ? `<td title="${escapeHtml(getUserDisplayName(o.createdBy))}">${escapeHtml(getUserInitials(o.createdBy))}</td>` : ''}
       <td class="row-actions center-actions">
-        ${currentUserRole==='admin' ? `<button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบคำสั่งซื้อนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteOrder('${o.id}'))" title="ลบ">
+        ${currentUserRole==='admin' ? `<button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบคำสั่งซื้อนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteOrder('${o.id}'))" title="${t('ลบ')}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
           DELETE
         </button>` : ''}
@@ -4766,7 +4861,7 @@ $('ordSOSeq').addEventListener('input', (e) => {
   e.target.value = e.target.value.replace(/\D/g, '');
 });
 $('ordDate').addEventListener('change', (e) => {
-  $('ordDateDisplay').textContent = e.target.value ? fmtDate(e.target.value) : 'วัน/เดือน/ปี';
+  $('ordDateDisplay').textContent = e.target.value ? fmtDate(e.target.value) : t('วัน/เดือน/ปี');
 });
 
 async function saveNewOrder(customerName){
@@ -4788,7 +4883,7 @@ async function saveNewOrder(customerName){
     });
     logAudit('สร้างคำสั่งซื้อ', `${newSo} — ${customerName}`);
     $('orderForm').reset();
-    $('ordDateDisplay').textContent = 'วัน/เดือน/ปี';
+    $('ordDateDisplay').textContent = t('วัน/เดือน/ปี');
     $('orderCreatePanel').style.display = 'none';
     hideOrderCustomerQuickAdd();
     if (newOrderDate){
@@ -4834,7 +4929,7 @@ $('orderForm').addEventListener('submit', async (e) => {
   if (!knownCustomer){
     const el = $('ordCustomerQuickAdd');
     if (el){
-      $('ordCustomerQuickAddLabel').textContent = `ไม่พบ "${customerName}" ในรายชื่อลูกค้า`;
+      $('ordCustomerQuickAddLabel').textContent = currentLang === 'en' ? `"${customerName}" not found in the customer list` : `ไม่พบ "${customerName}" ในรายชื่อลูกค้า`;
       $('ordCustomerQuickAddBtn').onclick = () => quickAddCustomerAndSaveOrder(customerName);
       el.style.display = 'flex';
     } else {
@@ -4960,13 +5055,13 @@ function renderCustomers(){
 
   body.innerHTML = pagedList.length ? pagedList.map(c => {
     return `
-    <tr class="clickable-row" onclick="openCustomerHistoryModal('${escapeHtml(c.name).replace(/'/g, "\\'")}')" title="คลิกเพื่อดูประวัติคำสั่งซื้อ">
+    <tr class="clickable-row" onclick="openCustomerHistoryModal('${escapeHtml(c.name).replace(/'/g, "\\'")}')" title="${t('คลิกเพื่อดูประวัติคำสั่งซื้อ')}">
       <td>${escapeHtml(c.name)}</td>
       <td>${customerOrderCount(c.name)}</td>
       <td>${fmtMoney(customerOrderAmount(c.name))}</td>
       ${currentUserRole==='admin' ? `<td title="${escapeHtml(getUserDisplayName(c.createdBy))}">${escapeHtml(getUserInitials(c.createdBy))}</td>` : ''}
       <td class="row-actions">
-        <button class="icon-btn delete-btn" onclick="event.stopPropagation(); confirmAction('ต้องการลบลูกค้ารายนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteCustomer('${c.id}'))" title="ลบ">
+        <button class="icon-btn delete-btn" onclick="event.stopPropagation(); confirmAction('ต้องการลบลูกค้ารายนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteCustomer('${c.id}'))" title="${t('ลบ')}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
           DELETE
         </button>
@@ -5129,12 +5224,12 @@ function renderUsers(){
     <tr>
       <td>
         ${u._kind==='user' ? `
-        <label class="user-avatar-upload" title="เปลี่ยนรูปโปรไฟล์">
+        <label class="user-avatar-upload" title="${t('เปลี่ยนรูปโปรไฟล์')}">
           ${u.avatarBase64 ? `<img src="${u.avatarBase64}" alt="">` : `<span>${escapeHtml((u.name||u.email||'?').trim().charAt(0).toUpperCase())}</span>`}
           <input type="file" accept="image/*" style="display:none;" onchange="uploadUserAvatar('${escapeHtml(u._id)}', this)">
         </label>` : `<span class="user-avatar-placeholder">${escapeHtml((u.name||u.email||'?').trim().charAt(0).toUpperCase())}</span>`}
       </td>
-      <td><input type="text" class="inline-input" value="${escapeHtml(u.name||'')}" placeholder="ไม่ระบุชื่อ" onchange="setUserField('${u._kind}','${escapeHtml(u._id)}','name',this.value)"></td>
+      <td><input type="text" class="inline-input" value="${escapeHtml(u.name||'')}" placeholder="${t('ไม่ระบุชื่อ')}" onchange="setUserField('${u._kind}','${escapeHtml(u._id)}','name',this.value)"></td>
       <td>${escapeHtml(u.email)}${u._kind==='user' && u._id===currentUserUid ? ` <span class="badge-count neutral">${t('คุณ')}</span>` : ''}${u._kind==='pending' ? ` <span class="badge-count neutral">${t('รอเข้าสู่ระบบ')}</span>` : ''}</td>
       <td>
         <select class="inline-input badge-select" data-prev-role="${u.role||'user'}" onchange="handleUserRoleChange(this,'${u._kind}','${escapeHtml(u._id)}')">
@@ -5143,7 +5238,7 @@ function renderUsers(){
         </select>
       </td>
       <td class="row-actions">
-        ${!(u._kind==='user' && u._id===currentUserUid) ? `<button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบผู้ใช้งานนี้ใช่ไหม?', () => deleteUser('${u._kind}','${escapeHtml(u._id)}'))" title="ลบ">
+        ${!(u._kind==='user' && u._id===currentUserUid) ? `<button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบผู้ใช้งานนี้ใช่ไหม?', () => deleteUser('${u._kind}','${escapeHtml(u._id)}'))" title="${t('ลบ')}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
           DELETE
         </button>` : ''}
@@ -5215,7 +5310,7 @@ function renderAuditLog(){
   const prevActionFilter = actionSel.value || 'all';
   const distinctActions = [...new Set(fullList.map(a => a.action).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
   actionSel.innerHTML = `<option value="all">${t('ทุกการกระทำ')}</option>` +
-    distinctActions.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+    distinctActions.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(t(a))}</option>`).join('');
   actionSel.value = distinctActions.includes(prevActionFilter) || prevActionFilter === 'all' ? prevActionFilter : 'all';
 
   const userSel = $('auditUserFilter');
@@ -5269,10 +5364,10 @@ function renderAuditLog(){
     <tr>
       <td>${fmtDateTime(a.timestamp)}</td>
       <td>${escapeHtml(a.changedByName || '-')}</td>
-      <td>${escapeHtml(a.action || '-')}</td>
+      <td>${escapeHtml(a.action ? t(a.action) : '-')}</td>
       <td>${escapeHtml(a.entityLabel || '')}${a.details ? ` <span class="countdown">(${escapeHtml(a.details)})</span>` : ''}</td>
     </tr>
-  `).join('') : `<tr><td colspan="4" class="empty-row">${fullList.length ? 'ไม่พบรายการที่ตรงกับตัวกรอง/คำค้นหา' : 'ยังไม่มีประวัติการแก้ไข'}</td></tr>`;
+  `).join('') : `<tr><td colspan="4" class="empty-row">${t(fullList.length ? 'ไม่พบรายการที่ตรงกับตัวกรอง/คำค้นหา' : 'ยังไม่มีประวัติการแก้ไข')}</td></tr>`;
 
   const paginationEl = $('auditPagination');
   if (totalPages <= 1){
@@ -5337,7 +5432,7 @@ function renderErrorLog(){
       <td>${escapeHtml(e.message || '-')}</td>
       <td title="${escapeHtml(e.url || '')}">${escapeHtml((e.url||'').replace(/^https?:\/\/[^/]+/, '') || '-')}</td>
     </tr>
-  `).join('') : `<tr><td colspan="5" class="empty-row">${fullList.length ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : 'ไม่พบข้อผิดพลาด'}</td></tr>`;
+  `).join('') : `<tr><td colspan="5" class="empty-row">${t(fullList.length ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : 'ไม่พบข้อผิดพลาด')}</td></tr>`;
 }
 $('errorSeverityFilter').addEventListener('change', renderErrorLog);
 
@@ -5402,22 +5497,22 @@ function renderPromotions(){
     const ended = isPromoEnded(p);
     return `
     <div class="promo-card ${ended ? 'promo-card-ended' : ''}" onclick="openPromoModal('${p.id}')">
-      ${currentUserRole==='admin' ? `<button class="promo-card-edit" onclick="event.stopPropagation(); openPromoEditForm('${p.id}')" title="แก้ไขโปรโมชัน">
+      ${currentUserRole==='admin' ? `<button class="promo-card-edit" onclick="event.stopPropagation(); openPromoEditForm('${p.id}')" title="${t('แก้ไขโปรโมชัน')}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg>
       </button>` : ''}
-      ${currentUserRole==='admin' ? `<button class="promo-card-delete" onclick="event.stopPropagation(); confirmAction('ต้องการลบโปรโมชันนี้ใช่ไหม?', () => deletePromotion('${p.id}'))" title="ลบโปรโมชัน">
+      ${currentUserRole==='admin' ? `<button class="promo-card-delete" onclick="event.stopPropagation(); confirmAction('ต้องการลบโปรโมชันนี้ใช่ไหม?', () => deletePromotion('${p.id}'))" title="${t('ลบโปรโมชัน')}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
       </button>` : ''}
       <div class="promo-card-icon">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.58 9.59a2 2 0 0 0 2.83 0l4.36-4.36a2 2 0 0 0 0-2.82Z"></path><circle cx="7.5" cy="7.5" r="1.5"></circle></svg>
       </div>
-      <span class="promo-status-badge ${ended ? 'ended' : 'ongoing'}">${ended ? 'สิ้นสุดโปรโมชั่น' : 'กำลังดำเนินการ'}</span>
+      <span class="promo-status-badge ${ended ? 'ended' : 'ongoing'}">${t(ended ? 'สิ้นสุดโปรโมชั่น' : 'กำลังดำเนินการ')}</span>
       <div class="promo-card-name">${escapeHtml(p.name)}</div>
-      <div class="promo-card-meta">ส่งภายใน ${monthShortLabels[p.month]} ${Number(p.year)+543} · ${escapeHtml(p.giftLabel)}</div>
-      <div class="promo-card-progress">เตรียมของแล้ว ${preparedCount} / ${qualifying.length} รายการ</div>
+      <div class="promo-card-meta">${t('ส่งภายใน')} ${t(monthShortLabels[p.month])} ${Number(p.year)+543} · ${escapeHtml(p.giftLabel)}</div>
+      <div class="promo-card-progress">${t('เตรียมของแล้ว')} ${preparedCount} / ${qualifying.length} ${t('รายการ')}</div>
       <div class="promo-progress-bar"><div class="promo-progress-fill" style="width:${progressPct}%;"></div></div>
     </div>
-  `; }).join('') : `<p style="font-size:13px; color:var(--ink-soft);">${searchTerm || selectedPromoCatalogYear !== 'all' ? 'ไม่พบโปรโมชันตามตัวกรองปัจจุบัน' : 'ยังไม่มีโปรโมชัน — กดปุ่ม + เพิ่มโปรโมชัน เพื่อสร้างรายการแรก'}</p>`;
+  `; }).join('') : `<p style="font-size:13px; color:var(--ink-soft);">${t(searchTerm || selectedPromoCatalogYear !== 'all' ? 'ไม่พบโปรโมชันตามตัวกรองปัจจุบัน' : 'ยังไม่มีโปรโมชัน — กดปุ่ม + เพิ่มโปรโมชัน เพื่อสร้างรายการแรก')}</p>`;
 }
 
 function resetPromoFormToCreateMode(){
@@ -5560,7 +5655,7 @@ function renderPromoModalOrders(){
 
   const qualifying = getPromoQualifyingOrders(promo).sort((a,b)=> new Date(a.shipDate)-new Date(b.shipDate));
   $('promoModalTitle').textContent = promo.name;
-  $('promoModalSub').textContent = `กำหนดส่งภายในเดือน ${monthShortLabels[promo.month]} ${Number(promo.year)+543} · ของแจก: ${promo.giftLabel}`;
+  $('promoModalSub').textContent = `${t('กำหนดส่งภายในเดือน')} ${t(monthShortLabels[promo.month])} ${Number(promo.year)+543} · ${t('ของแจก')}: ${promo.giftLabel}`;
   $('promoGiftHeader').textContent = promo.giftLabel;
 
   $('promoOrdersBody').innerHTML = qualifying.length ? qualifying.map(o => {
@@ -5577,7 +5672,7 @@ function renderPromoModalOrders(){
         </label>
       </td>
     </tr>
-  `; }).join('') : `<tr><td colspan="4" class="empty-row">ไม่มีคำสั่งซื้อที่กำหนดส่งภายในเดือนนี้</td></tr>`;
+  `; }).join('') : `<tr><td colspan="4" class="empty-row">${t('ไม่มีคำสั่งซื้อที่กำหนดส่งภายในเดือนนี้')}</td></tr>`;
 }
 
 async function setPromoPrepared(promoId, orderId, checked){
@@ -5727,15 +5822,15 @@ function renderTrash(){
       <td class="row-actions center-actions">
         <button class="icon-btn claim-btn" onclick="restoreTrashItem('${item.type}','${item.id}')" title="กู้คืน">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline></svg>
-          กู้คืน
+          ${t('กู้คืน')}
         </button>
         <button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบถาวรใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => permanentlyDeleteTrashItem('${item.type}','${item.id}'))" title="ลบถาวร">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
-          ลบถาวร
+          ${t('ลบถาวร')}
         </button>
       </td>
     </tr>
-  `).join('') : `<tr><td colspan="5" class="empty-row">ไม่มีรายการในถังขยะ</td></tr>`;
+  `).join('') : `<tr><td colspan="5" class="empty-row">${t('ไม่มีรายการในถังขยะ')}</td></tr>`;
 }
 
 async function restoreTrashItem(type, id){
