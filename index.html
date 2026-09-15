@@ -2051,6 +2051,49 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="warrantyReportModal" data-close-btn="warrantyReportCancelBtn" style="display:none;">
+  <div class="modal">
+    <h3 class="serif" style="font-size:18px; margin-bottom:6px;">ดาวน์โหลดรายงานการรับประกัน</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px;">เลือกช่วงเวลาที่ต้องการออกรายงาน (อิงจากวันที่ส่งสินค้า)</p>
+    <div class="form-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="field">
+        <label>ประเภท</label>
+        <select id="warrantyReportType">
+          <option value="month">รายเดือน</option>
+          <option value="year">รายปี</option>
+        </select>
+      </div>
+      <div class="field" id="warrantyReportMonthField">
+        <label>เดือน</label>
+        <input type="month" id="warrantyReportMonth">
+      </div>
+      <div class="field" id="warrantyReportYearField" style="display:none;">
+        <label>ปี</label>
+        <select id="warrantyReportYear"></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn outline" id="warrantyReportCancelBtn" type="button">ยกเลิก</button>
+      <button class="btn" id="warrantyReportDownloadBtn" type="button">ดาวน์โหลด</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="customerReportModal" data-close-btn="customerReportCancelBtn" style="display:none;">
+  <div class="modal">
+    <h3 class="serif" style="font-size:18px; margin-bottom:6px;">ดาวน์โหลดรายงานลูกค้า</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:18px;">เลือกปีที่ต้องการออกรายงาน</p>
+    <div class="field">
+      <label>ปี</label>
+      <select id="customerReportYear"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn outline" id="customerReportCancelBtn" type="button">ยกเลิก</button>
+      <button class="btn" id="customerReportDownloadBtn" type="button">ดาวน์โหลด</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="promoModal" data-close-btn="promoModalCloseBtn" style="display:none;">
   <div class="modal" style="max-width:920px;">
     <div class="panel-head" style="margin-bottom:4px;">
@@ -2139,7 +2182,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.23';
+const APP_VERSION = '1.0.24';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -3021,6 +3064,10 @@ const I18N = {
   // Modals
   'นำเข้าข้อมูลจาก Excel': 'Import from Excel', 'ยกเลิก': 'Cancel',
   'ดาวน์โหลดรายงานคำสั่งซื้อ': 'Download Order Report', 'ประเภท': 'Type', 'เดือน': 'Month',
+  'ดาวน์โหลดรายงานการรับประกัน': 'Download Warranty Report', 'ดาวน์โหลดรายงานลูกค้า': 'Download Customer Report',
+  'เลือกช่วงเวลาที่ต้องการออกรายงาน': 'Select the period for the report',
+  'เลือกช่วงเวลาที่ต้องการออกรายงาน (อิงจากวันที่ส่งสินค้า)': 'Select the period for the report (based on ship date)',
+  'เลือกปีที่ต้องการออกรายงาน': 'Select the year for the report',
   'ดาวน์โหลด': 'Download', 'ปิด': 'Close', 'ตั้งค่าตารางอัตราค่าคอมมิชชั่น': 'Commission Rate Settings',
   'อัตราต่ำสุด (%)': 'Minimum Rate (%)', 'บันทึก': 'Save', 'ยืนยันการทำรายการ': 'Confirm Action',
   'ยืนยัน': 'Confirm', 'รายเดือน': 'Monthly', 'รายปี': 'Yearly',
@@ -4598,24 +4645,69 @@ $('warrantySearch').addEventListener('input', () => { warrantyCurrentPage = 1; r
 $('warrantyStatusFilter').addEventListener('change', () => { warrantyCurrentPage = 1; renderWarranty(); });
 
 $('warrantyExportBtn').addEventListener('click', () => {
-  const list = getVisibleOrders().filter(isWarrantyCandidate).sort((a,b)=> warrantyDaysLeft(a) - warrantyDaysLeft(b));
-  if (!list.length){ toast('ไม่พบรายการรับประกัน'); return; }
-  const rows = list.map(o => ({
-    'ลูกค้า': o.customer,
-    'สินค้า': o.product,
-    'PO': o.po,
-    'วันที่ส่งสินค้า': fmtDate(o.shipDate),
-    'ประเภทการรับประกัน': o.warrantyType || warrantyTypeOptions[0],
-    'ระยะเวลา (เดือน)': warrantyMonthsOf(o),
-    'หมดอายุ': fmtDate(warrantyExpiry(o)),
-    'เหลือเวลา': warrantyCountdownText(o),
-    'สถานะ': warrantyStatusLabel[warrantyDisplayStatus(o)],
-    'หมายเหตุ': o.warrantyNotes || ''
-  }));
+  const years = [...new Set(getVisibleOrders().filter(isWarrantyCandidate).map(o => o.shipDate ? new Date(o.shipDate).getFullYear() : null).filter(Boolean))].sort((a,b)=>b-a);
+  const currentYear = new Date().getFullYear();
+  if (!years.includes(currentYear)) years.unshift(currentYear);
+  $('warrantyReportYear').innerHTML = years.map(y => `<option value="${y}">${y+543}</option>`).join('');
+
+  const now = new Date();
+  $('warrantyReportMonth').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  $('warrantyReportType').value = 'month';
+  $('warrantyReportMonthField').style.display = 'flex';
+  $('warrantyReportYearField').style.display = 'none';
+  $('warrantyReportModal').style.display = 'flex';
+});
+
+$('warrantyReportType').addEventListener('change', (e) => {
+  const isMonth = e.target.value === 'month';
+  $('warrantyReportMonthField').style.display = isMonth ? 'flex' : 'none';
+  $('warrantyReportYearField').style.display = isMonth ? 'none' : 'flex';
+});
+
+$('warrantyReportCancelBtn').addEventListener('click', () => { $('warrantyReportModal').style.display = 'none'; });
+
+$('warrantyReportDownloadBtn').addEventListener('click', () => {
+  const type = $('warrantyReportType').value;
+  let filtered, label;
+  const candidates = getVisibleOrders().filter(isWarrantyCandidate);
+
+  if (type === 'month'){
+    const val = $('warrantyReportMonth').value;
+    if (!val){ toast('กรุณาเลือกเดือน'); return; }
+    const [y, m] = val.split('-').map(Number);
+    filtered = candidates.filter(o => {
+      if (!o.shipDate) return false;
+      const d = new Date(o.shipDate);
+      return d.getFullYear()===y && (d.getMonth()+1)===m;
+    });
+    label = `${y}-${String(m).padStart(2,'0')}`;
+  } else {
+    const y = Number($('warrantyReportYear').value);
+    filtered = candidates.filter(o => o.shipDate && new Date(o.shipDate).getFullYear()===y);
+    label = `${y}`;
+  }
+
+  if (!filtered.length){ toast('ไม่พบรายการรับประกันในช่วงเวลาที่เลือก'); return; }
+
+  const rows = filtered
+    .sort((a,b)=> warrantyDaysLeft(a) - warrantyDaysLeft(b))
+    .map(o => ({
+      'ลูกค้า': o.customer,
+      'สินค้า': o.product,
+      'PO': o.po,
+      'วันที่ส่งสินค้า': fmtDate(o.shipDate),
+      'ประเภทการรับประกัน': o.warrantyType || warrantyTypeOptions[0],
+      'ระยะเวลา (เดือน)': warrantyMonthsOf(o),
+      'หมดอายุ': fmtDate(warrantyExpiry(o)),
+      'เหลือเวลา': warrantyCountdownText(o),
+      'สถานะ': warrantyStatusLabel[warrantyDisplayStatus(o)],
+      'หมายเหตุ': o.warrantyNotes || ''
+    }));
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'การรับประกัน');
-  XLSX.writeFile(wb, `warranty-report-${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb, `warranty-report-${label}.xlsx`);
+  $('warrantyReportModal').style.display = 'none';
   toast('ดาวน์โหลดรายงานแล้ว');
 });
 
@@ -4797,18 +4889,18 @@ function refreshCustomersYearFilter(){
   sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedCustomersYear?'selected':''}>ปี ${y+543}</option>`).join('');
 }
 
-function customerOrdersInYear(customerName){
+function customerOrdersInYear(customerName, year = selectedCustomersYear){
   const key = customerName.trim().toLowerCase();
   return getVisibleOrders().filter(o =>
     o.customer.trim().toLowerCase()===key &&
-    o.date && new Date(o.date).getFullYear() === selectedCustomersYear
+    o.date && new Date(o.date).getFullYear() === year
   );
 }
-function customerOrderCount(customerName){
-  return customerOrdersInYear(customerName).length;
+function customerOrderCount(customerName, year = selectedCustomersYear){
+  return customerOrdersInYear(customerName, year).length;
 }
-function customerOrderAmount(customerName){
-  return customerOrdersInYear(customerName)
+function customerOrderAmount(customerName, year = selectedCustomersYear){
+  return customerOrdersInYear(customerName, year)
     .filter(o => o.status !== 'cancelled')
     .reduce((sum,o) => sum + Number(o.price||0), 0);
 }
@@ -5680,6 +5772,20 @@ $('downloadOrderTemplateBtn').addEventListener('click', (e) => {
 });
 
 $('downloadCustomerReportBtn').addEventListener('click', () => {
+  const years = [...new Set(getVisibleOrders().map(o => o.date ? new Date(o.date).getFullYear() : null).filter(Boolean))].sort((a,b)=>b-a);
+  const currentYear = new Date().getFullYear();
+  if (!years.includes(currentYear)) years.unshift(currentYear);
+  if (!years.includes(selectedCustomersYear)) years.unshift(selectedCustomersYear);
+  years.sort((a,b)=>b-a);
+  $('customerReportYear').innerHTML = years.map(y => `<option value="${y}">${y+543}</option>`).join('');
+  $('customerReportYear').value = String(selectedCustomersYear);
+  $('customerReportModal').style.display = 'flex';
+});
+
+$('customerReportCancelBtn').addEventListener('click', () => { $('customerReportModal').style.display = 'none'; });
+
+$('customerReportDownloadBtn').addEventListener('click', () => {
+  const y = Number($('customerReportYear').value);
   const searchTerm = ($('customersSearch').value || '').trim().toLowerCase();
   let list = [...getVisibleCustomers()];
 
@@ -5692,14 +5798,15 @@ $('downloadCustomerReportBtn').addEventListener('click', () => {
 
   const rows = list.map(c => ({
     'ชื่อลูกค้า': c.name,
-    [`จำนวนคำสั่งซื้อ (ปี ${selectedCustomersYear+543})`]: customerOrderCount(c.name),
-    [`จำนวนเงิน (ปี ${selectedCustomersYear+543})`]: customerOrderAmount(c.name)
+    [`จำนวนคำสั่งซื้อ (ปี ${y+543})`]: customerOrderCount(c.name, y),
+    [`จำนวนเงิน (ปี ${y+543})`]: customerOrderAmount(c.name, y)
   }));
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'รายชื่อลูกค้า');
-  XLSX.writeFile(wb, `customer-report-${selectedCustomersYear}.xlsx`);
+  XLSX.writeFile(wb, `customer-report-${y}.xlsx`);
+  $('customerReportModal').style.display = 'none';
   toast('ดาวน์โหลดรายงานแล้ว');
 });
 
