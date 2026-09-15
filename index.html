@@ -322,6 +322,7 @@
   .global-search-empty{ padding:14px 10px; font-size:12.5px; color:var(--ink-soft); text-align:center; }
   @media (max-width:760px){
     .global-search-wrap{ display:none !important; }
+    #targetUserFilter{ display:none !important; }
   }
 
   .user-email{ font-size:13px; color:var(--ink-soft); }
@@ -1268,10 +1269,15 @@
           <div class="topbar-sub" id="pageSub">สรุปคำสั่งซื้อและการรับประกันทั้งหมด</div>
         </div>
       </div>
-      <div class="global-search-wrap" id="globalSearchWrap" style="display:none;">
-        <svg class="global-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input type="text" id="globalSearchInput" placeholder="ค้นหา SO, ลูกค้า, สินค้า, PO...">
-        <div class="global-search-results" id="globalSearchResults"></div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <select id="targetUserFilter" class="inline-input filter-control" title="ดูข้อมูลของ" style="display:none;">
+          <option value="all">ทั้งหมด</option>
+        </select>
+        <div class="global-search-wrap" id="globalSearchWrap" style="display:none;">
+          <svg class="global-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="globalSearchInput" placeholder="ค้นหา SO, ลูกค้า, สินค้า, PO...">
+          <div class="global-search-results" id="globalSearchResults"></div>
+        </div>
       </div>
     </div>
 
@@ -1340,9 +1346,6 @@
             <button class="subtab-item" data-dashsub="shipped">สรุปการส่งสินค้า</button>
           </div>
           <div style="display:flex; align-items:center; gap:10px;">
-            <select id="targetUserFilter" class="inline-input filter-control" style="display:none;">
-              <option value="all">ทั้งหมด</option>
-            </select>
             <select id="dashboardYearFilter" class="inline-input filter-control"></select>
             <button class="btn outline" id="dashboardClearBtn" type="button">เคลียร์ตัวกรอง</button>
           </div>
@@ -1686,7 +1689,7 @@
           </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">แสดงเฉพาะคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน — นับประกันมาตรฐาน 12 เดือนจากวันที่ส่งสินค้า แก้ระยะเวลาและประเภทได้ในตาราง</p>
           <div class="table-scroll"><table>
-            <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>PO</th><th>ส่งสินค้า</th><th>ประเภทการรับประกัน</th><th style="width:70px;">ระยะเวลา (เดือน)</th><th>หมดอายุ</th><th>เหลือเวลา</th><th style="width:130px;">สถานะ</th><th>หมายเหตุ</th><th></th></tr></thead>
+            <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>PO</th><th>ส่งสินค้า</th><th>ประเภทการรับประกัน</th><th style="width:70px;">ระยะเวลา (เดือน)</th><th>หมดอายุ</th><th>เหลือเวลา</th><th style="width:130px;">สถานะ</th><th>หมายเหตุ</th><th id="warrantyCreatorHeader" style="display:none;">สร้างโดย</th><th></th></tr></thead>
             <tbody id="warrantyBody"></tbody>
           </table></div>
           <div class="pagination" id="warrantyPagination"></div>
@@ -2075,7 +2078,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.16';
+const APP_VERSION = '1.0.17';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2463,16 +2466,27 @@ async function resolveUserRole(){
   $('promoCreateToggleBtn').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('warrantyCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('ordersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('customersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
   updateRoleBadge();
 }
 
+// The #targetUserFilter dropdown (topbar, admin-only) is the one global "view as this person"
+// control for the whole app now, not just the dashboard — getDashboardTargetSel() reads it and
+// keeps its name for historical reasons (dashboard-specific code was the first place that read
+// it), but every page's visible-data function goes through it, not just the dashboard's. Picking
+// "ทั้งหมด" (all) shows everything an admin can see; picking one person shows only their records,
+// on every page built on these two functions (Orders, Warranty, Customers, Cancelled, Dashboard).
 function getVisibleOrders(){
-  return currentUserRole === 'admin' ? data.orders : data.orders.filter(o => o.createdBy === currentUserUid);
+  if (currentUserRole !== 'admin') return data.orders.filter(o => o.createdBy === currentUserUid);
+  const sel = getDashboardTargetSel();
+  return sel === 'all' ? data.orders : data.orders.filter(o => o.createdBy === sel);
 }
 function getVisibleCustomers(){
-  return currentUserRole === 'admin' ? data.customers : data.customers.filter(c => c.createdBy === currentUserUid);
+  if (currentUserRole !== 'admin') return data.customers.filter(c => c.createdBy === currentUserUid);
+  const sel = getDashboardTargetSel();
+  return sel === 'all' ? data.customers : data.customers.filter(c => c.createdBy === sel);
 }
 function getUserDisplayName(uid){
   if (!uid) return '-';
@@ -3265,6 +3279,15 @@ function calcCommission(shippedTotal, gpPercent, targetAmount){
   if (!targetAmount) return null;
   const cfg = getCommissionConfig();
   const targetPct = (shippedTotal / targetAmount) * 100;
+  // Below the lowest target bracket's ceiling (60% by default, but this follows whatever that
+  // bracket is edited to via the ⚙️ settings modal rather than a separate hardcoded number),
+  // shipped hasn't reached the threshold to pay commission at all — 0%, not floored up to
+  // minRate the way the 60%+ brackets are. Per explicit user correction: minRate is a floor for
+  // an already-qualifying quarter, not a guarantee every quarter pays something.
+  const zeroCutoffPct = cfg.targetBrackets && cfg.targetBrackets[0] ? cfg.targetBrackets[0].max : null;
+  if (zeroCutoffPct !== null && zeroCutoffPct !== undefined && targetPct < zeroCutoffPct){
+    return { rate: 0, amount: 0, targetPct };
+  }
   const gpBracket = lookupBracket(cfg.gpBrackets, gpPercent);
   const targetBracket = lookupBracket(cfg.targetBrackets, targetPct);
   const minRate = cfg.minRate ?? 0.5;
@@ -3692,11 +3715,9 @@ function renderDashboardSection(suffix, orders){
 function getDashboardTargetSel(){
   return currentUserRole === 'admin' ? ($('targetUserFilter').value || 'all') : currentUserUid;
 }
+// Now that the person-filter is global, this is just an alias for getVisibleOrders() — kept
+// under its old name since call sites throughout the dashboard code already use it.
 function getDashboardScopedOrders(){
-  const targetSel = getDashboardTargetSel();
-  if (currentUserRole === 'admin' && targetSel !== 'all'){
-    return data.orders.filter(o => o.createdBy === targetSel);
-  }
   return getVisibleOrders();
 }
 
@@ -4178,6 +4199,7 @@ function renderWarranty(){
       <td><span class="countdown ${countdownClass}">${warrantyCountdownText(o)}</span></td>
       <td><span class="badge ${status}">${warrantyStatusLabel[status]}</span></td>
       <td><input type="text" class="inline-input" value="${escapeHtml(o.warrantyNotes||'')}" placeholder="หมายเหตุ" onchange="setOrderField('${o.id}','warrantyNotes',this.value)"></td>
+      ${currentUserRole==='admin' ? `<td title="${escapeHtml(getUserDisplayName(o.createdBy))}">${escapeHtml(getUserInitials(o.createdBy))}</td>` : ''}
       <td class="row-actions center-actions">
         ${currentUserRole==='admin' ? `<button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบคำสั่งซื้อนี้ใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => deleteOrder('${o.id}'))" title="ลบ">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
@@ -4185,7 +4207,7 @@ function renderWarranty(){
         </button>` : ''}
       </td>
     </tr>
-  `; }).join('') : `<tr><td colspan="11" class="empty-row">${getVisibleOrders().filter(isWarrantyCandidate).length ? 'ไม่พบรายการที่ตรงกับตัวกรอง/คำค้นหา' : 'ยังไม่มีคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน'}</td></tr>`;
+  `; }).join('') : `<tr><td colspan="12" class="empty-row">${getVisibleOrders().filter(isWarrantyCandidate).length ? 'ไม่พบรายการที่ตรงกับตัวกรอง/คำค้นหา' : 'ยังไม่มีคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน'}</td></tr>`;
 
   const warrantyPaginationEl = $('warrantyPagination');
   if (totalPages <= 1){
@@ -4333,7 +4355,14 @@ $('dashboardYearFilter').addEventListener('change', (e) => {
   renderDashboard();
 });
 
-$('targetUserFilter').addEventListener('change', () => renderDashboard());
+$('targetUserFilter').addEventListener('change', () => {
+  // Global now (moved out of the dashboard toolbar into the shared topbar per explicit request)
+  // — it scopes getVisibleOrders()/getVisibleCustomers() themselves, so every page built on those
+  // (Orders, Warranty, Customers, Cancelled, Dashboard) needs to re-render, not just the dashboard.
+  selectedOrderIds.clear();
+  render();
+  if ($('tab-cancelled').style.display === 'block') renderCancelledOrders();
+});
 $('targetYearFilter').addEventListener('change', (e) => {
   selectedTargetYear = Number(e.target.value);
   renderUserTargets();
@@ -4343,9 +4372,20 @@ $('dashboardClearBtn').addEventListener('click', () => {
   selectedDashboardYear = new Date().getFullYear();
   selectedDashboardMonths = { all: [], shipped: [], order: [] };
   dashboardRecentPage = { all: 1, shipped: 1, order: 1 };
-  if (currentUserRole === 'admin') $('targetUserFilter').value = 'all';
   refreshDashboardYearFilter();
-  renderDashboard();
+  // targetUserFilter is global now — resetting it here has to refresh every page it scopes
+  // (Orders/Warranty/Customers/Cancelled), not just call renderDashboard(), since showTab()
+  // doesn't re-render those tables on tab-switch (they're kept live by the Firestore listener
+  // instead) and would otherwise show stale, still-filtered-to-someone data if the admin
+  // navigates to one of them right after clearing.
+  if (currentUserRole === 'admin' && $('targetUserFilter').value !== 'all'){
+    $('targetUserFilter').value = 'all';
+    selectedOrderIds.clear();
+    render();
+    if ($('tab-cancelled').style.display === 'block') renderCancelledOrders();
+  } else {
+    renderDashboard();
+  }
   toast('เคลียร์ตัวกรองแล้ว');
 });
 
@@ -5259,6 +5299,7 @@ async function setUserField(kind, id, field, value){
       $('promoCreateToggleBtn').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
+      $('warrantyCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('ordersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('customersCreatorFilter').style.display = currentUserRole === 'admin' ? '' : 'none';
       if (currentUserRole !== 'admin') showTab('dashboard');
