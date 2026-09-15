@@ -2015,6 +2015,10 @@
             </div>
           </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">รายการที่ถูกลบจะแสดงที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กดปุ่ม "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด)</p>
+          <div id="trashPurgeBanner" style="display:none; align-items:center; justify-content:space-between; gap:12px; background:var(--paper-dim); border-radius:12px; padding:10px 16px; margin-bottom:16px;">
+            <span id="trashPurgeBannerText" style="font-size:12.5px; color:var(--ink-soft);"></span>
+            <button class="btn outline" id="trashPurgeBtn" type="button" style="color:var(--danger); border-color:var(--danger); white-space:nowrap;">ลบถาวรทั้งหมด</button>
+          </div>
           <div class="table-scroll"><table>
             <thead><tr><th>ประเภท</th><th>รายการ</th><th>ลบโดย</th><th>วันที่ลบ</th><th></th></tr></thead>
             <tbody id="trashBody"><tr><td colspan="5" class="empty-row">กดปุ่ม "รีเฟรช" เพื่อโหลดรายการ</td></tr></tbody>
@@ -2170,7 +2174,7 @@
 <div class="modal-overlay" id="confirmModal" data-close-btn="confirmModalCancelBtn" style="display:none;">
   <div class="modal" style="max-width:400px;">
     <h3 class="serif" id="confirmModalTitle" style="font-size:17px; margin-bottom:8px;">ยืนยันการทำรายการ</h3>
-    <p id="confirmModalMsg" style="font-size:13.5px; color:var(--ink-soft); margin-bottom:20px;"></p>
+    <p id="confirmModalMsg" style="font-size:13.5px; color:var(--ink-soft); margin-bottom:20px; white-space:pre-line;"></p>
     <div class="modal-actions">
       <button class="btn outline" id="confirmModalCancelBtn" type="button">ยกเลิก</button>
       <button class="btn" id="confirmModalOkBtn" type="button" style="background:var(--danger); border-color:var(--danger);">ยืนยัน</button>
@@ -2195,7 +2199,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.30';
+const APP_VERSION = '1.0.31';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2567,6 +2571,8 @@ const I18N = {
     'You can pre-add someone before they ever log in (matched by email), or leave it blank — anyone who logs in for the first time without being on the list is added automatically as a "regular user"',
   'กำหนดเป้าหมายยอดขาย (บาท) ของคำสั่งซื้อและของยอดที่ส่งแล้ว ของแต่ละคนในแต่ละปี ใช้เทียบผลงานจริงในหน้าแดชบอร์ด — เฉพาะคนที่เคยล็อกอินแล้วเท่านั้นที่ตั้งเป้าหมายได้':
     "Set each person's annual sales target (THB) for orders and for shipped amount, compared against real performance on the Dashboard — only people who have logged in at least once can have a target set",
+  'ยังไม่มีผู้ใช้งานทั่วไปที่ต้องตั้งเป้าหมาย (ผู้ดูแลระบบไม่ต้องตั้งเป้าหมาย)':
+    'No regular users need targets set yet (admins don’t need targets)',
   'บันทึกการสร้าง/แก้ไข/ลบ/ยกเลิกรายการต่างๆ ในระบบ เรียงจากล่าสุดไปเก่าสุด': 'Log of every create/edit/delete/cancel action in the system, newest first',
   'ข้อผิดพลาด JavaScript ที่เกิดขึ้นจริงในเครื่องผู้ใช้งาน (ไม่ใช่ข้อผิดพลาดจากการกรอกฟอร์ม) แสดง 200 รายการล่าสุด — เรียงจากล่าสุดไปเก่าสุด ระดับความรุนแรงประเมินอัตโนมัติจากลักษณะของข้อผิดพลาด':
     'Real JavaScript errors that occurred on a user\'s device (not form-validation messages). Shows the latest 200 entries, newest first — severity is auto-classified from the nature of the error',
@@ -2584,7 +2590,7 @@ const I18N = {
   'ถังขยะ': 'Trash', 'ทุกประเภท': 'All Types', 'โปรโมชัน': 'Promotion', 'รีเฟรช': 'Refresh',
   'รายการ': 'Item',
   'ลบโดย': 'Deleted By', 'วันที่ลบ': 'Deleted At', 'กู้คืน': 'Restore', 'ลบถาวร': 'Delete Permanently',
-  'ไม่มีรายการในถังขยะ': 'Trash is empty',
+  'ไม่มีรายการในถังขยะ': 'Trash is empty', 'ลบถาวรทั้งหมด': 'Delete All Permanently',
   'คำสั่งซื้อ/ลูกค้า/โปรโมชันที่ถูกลบ — กู้คืนหรือลบถาวรได้': 'Deleted orders/customers/promotions — restore or permanently delete them',
   // Modals
   'นำเข้าข้อมูลจาก Excel': 'Import from Excel', 'ยกเลิก': 'Cancel',
@@ -3605,9 +3611,8 @@ function lookupBracket(brackets, value){
   return brackets.find(b => (b.min === null || value >= b.min) && (b.max === null || value < b.max))
     || brackets[brackets.length-1];
 }
-function calcCommission(shippedTotal, gpPercent, targetAmount){
+function calcCommissionForConfig(cfg, shippedTotal, gpPercent, targetAmount){
   if (!targetAmount) return null;
-  const cfg = getCommissionConfig();
   const targetPct = (shippedTotal / targetAmount) * 100;
   // Below the lowest target bracket's ceiling (60% by default, but this follows whatever that
   // bracket is edited to via the ⚙️ settings modal rather than a separate hardcoded number),
@@ -3623,6 +3628,27 @@ function calcCommission(shippedTotal, gpPercent, targetAmount){
   const minRate = cfg.minRate ?? 0.5;
   const rate = Math.max(minRate, gpBracket.rate + targetBracket.adjustment);
   return { rate, amount: shippedTotal * rate / 100, targetPct };
+}
+function calcCommission(shippedTotal, gpPercent, targetAmount){
+  return calcCommissionForConfig(getCommissionConfig(), shippedTotal, gpPercent, targetAmount);
+}
+
+// The only two real, already-paid data points this whole bracket model was fit to (see
+// CLAUDE.md "Commission calculator") — not a general validation suite, just a tripwire so an
+// edit to the ⚙️ bracket table via openCommissionSettingsModal() doesn't silently stop
+// reproducing the two payouts it was built to match, without the admin realizing it.
+const COMMISSION_KNOWN_ANCHORS = [
+  { label: 'Q1/2026', shipped: 4028900, gp: 19, target: 2500000, expected: 46332.35 },
+  { label: 'Q2/2026', shipped: 3246100, gp: 19.2, target: 2500000, expected: 35707.10 },
+];
+function checkCommissionConfigAnchors(cfg){
+  return COMMISSION_KNOWN_ANCHORS
+    .map(a => {
+      const result = calcCommissionForConfig(cfg, a.shipped, a.gp, a.target);
+      const actual = result ? result.amount : 0;
+      return { ...a, actual, broken: Math.abs(actual - a.expected) > 1 };
+    })
+    .filter(a => a.broken);
 }
 
 function getAnnualShipTarget(year){
@@ -3770,7 +3796,7 @@ $('addTargetBracketBtn').addEventListener('click', () => {
   renderCommissionSettingsRows();
 });
 $('commissionSettingsCancelBtn').addEventListener('click', () => { $('commissionSettingsModal').style.display = 'none'; });
-$('commissionSettingsSaveBtn').addEventListener('click', async () => {
+async function saveCommissionConfigDraft(){
   setSync('saving');
   try{
     await db.collection('commissionConfig').doc('default').set(commissionConfigDraft);
@@ -3782,6 +3808,15 @@ $('commissionSettingsSaveBtn').addEventListener('click', async () => {
     setSync('error');
     toast('บันทึกไม่สำเร็จ');
   }
+}
+$('commissionSettingsSaveBtn').addEventListener('click', () => {
+  const broken = checkCommissionConfigAnchors(commissionConfigDraft);
+  if (!broken.length){ saveCommissionConfigDraft(); return; }
+  const lines = broken.map(a => `${a.label}: ควรได้ ${fmtMoney(a.expected)} แต่จะกลายเป็น ${fmtMoney(a.actual)}`).join('\n');
+  confirmAction(
+    `การแก้ไขนี้จะทำให้ผลลัพธ์ของไตรมาสจริงที่เคยจ่ายไปแล้วเปลี่ยนไป:\n${lines}\nต้องการบันทึกต่อไหม?`,
+    saveCommissionConfigDraft
+  );
 });
 $('commissionSettingsBtn').addEventListener('click', openCommissionSettingsModal);
 
@@ -5717,7 +5752,7 @@ function renderUserTargets(){
       <td><input type="text" inputmode="decimal" class="inline-input" value="${fmtMoneyPlain(t.orderTarget)}" oninput="formatMoneyLive(this)" onchange="setUserTarget('${u.id}', ${selectedTargetYear}, 'orderTarget', this.value)"></td>
       <td><input type="text" inputmode="decimal" class="inline-input" value="${fmtMoneyPlain(t.shippedTarget)}" oninput="formatMoneyLive(this)" onchange="setUserTarget('${u.id}', ${selectedTargetYear}, 'shippedTarget', this.value)"></td>
     </tr>
-  `; }).join('') : `<tr><td colspan="3" class="empty-row">ยังไม่มีผู้ใช้งานทั่วไปที่ต้องตั้งเป้าหมาย (ผู้ดูแลระบบไม่ต้องตั้งเป้าหมาย)</td></tr>`;
+  `; }).join('') : `<tr><td colspan="3" class="empty-row">${t('ยังไม่มีผู้ใช้งานทั่วไปที่ต้องตั้งเป้าหมาย (ผู้ดูแลระบบไม่ต้องตั้งเป้าหมาย)')}</td></tr>`;
 }
 
 function handleUserRoleChange(selectEl, kind, id){
@@ -5782,6 +5817,11 @@ async function deleteUser(kind, id){
 const trashTypeLabel = { orders:'คำสั่งซื้อ', customers:'ลูกค้า', promotions:'โปรโมชัน' };
 let trashItems = [];
 let trashLoading = false;
+// There's no scheduled backend to auto-purge Trash (this is a static client-side app — see
+// CLAUDE.md "Soft-delete and Trash"), so instead of a true background sweep, renderTrash()
+// surfaces a banner once anything has sat in Trash longer than this, letting an admin who
+// happens to open the page trigger the cleanup themselves rather than never being purged at all.
+const TRASH_PURGE_THRESHOLD_DAYS = 90;
 
 function trashItemLabel(item){
   if (item.type === 'orders') return `${item.so||item.id} — ${item.customer||''}`;
@@ -5827,6 +5867,18 @@ function renderTrash(){
     totalBadge.style.display = 'inline-block';
   } else {
     totalBadge.style.display = 'none';
+  }
+
+  const purgeCutoff = Date.now() - TRASH_PURGE_THRESHOLD_DAYS*24*60*60*1000;
+  const oldCount = trashItems.filter(x => x.deletedAt && new Date(x.deletedAt).getTime() < purgeCutoff).length;
+  const banner = $('trashPurgeBanner');
+  if (oldCount){
+    $('trashPurgeBannerText').textContent = currentLang === 'en'
+      ? `${oldCount} item(s) have been in Trash for over ${TRASH_PURGE_THRESHOLD_DAYS} days`
+      : `มี ${oldCount} รายการที่ถูกลบมานานกว่า ${TRASH_PURGE_THRESHOLD_DAYS} วัน`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
   }
 
   body.innerHTML = list.length ? list.map(item => `
@@ -5884,6 +5936,43 @@ async function permanentlyDeleteTrashItem(type, id){
   }
 }
 $('trashTypeFilter').addEventListener('change', renderTrash);
+
+async function purgeOldTrashItems(){
+  const purgeCutoff = Date.now() - TRASH_PURGE_THRESHOLD_DAYS*24*60*60*1000;
+  const targets = trashItems.filter(x => x.deletedAt && new Date(x.deletedAt).getTime() < purgeCutoff);
+  if (!targets.length) return;
+  const msg = currentLang === 'en'
+    ? `Permanently delete ${targets.length} item(s) older than ${TRASH_PURGE_THRESHOLD_DAYS} days? This cannot be undone.`
+    : `ต้องการลบถาวร ${targets.length} รายการที่เก่ากว่า ${TRASH_PURGE_THRESHOLD_DAYS} วันใช่ไหม? การลบไม่สามารถย้อนกลับได้`;
+  confirmAction(msg, async () => {
+    setSync('saving');
+    try{
+      // Chunked into batches of 500 (Firestore's per-batch write limit) — trashItems can hold up
+      // to 200 docs per type (orders/customers/promotions, see loadTrash()), so a single purge
+      // could in principle exceed one batch even though a normal admin-triggered bulk delete
+      // elsewhere in the app never gets close.
+      for (let i = 0; i < targets.length; i += 500){
+        const chunk = targets.slice(i, i+500);
+        const batch = db.batch();
+        chunk.forEach(item => batch.delete(db.collection(item.type).doc(item.id)));
+        await batch.commit();
+      }
+      setSync('ok');
+      const byType = {};
+      targets.forEach(item => { byType[item.type] = (byType[item.type]||0) + 1; });
+      const summary = Object.keys(byType).map(type => `${trashTypeLabel[type]} ${byType[type]}`).join(', ');
+      logAudit('ลบถาวรอัตโนมัติ (หลายรายการ)', `${targets.length} รายการ`, summary);
+      const purgedIds = new Set(targets.map(x => `${x.type}_${x.id}`));
+      trashItems = trashItems.filter(x => !purgedIds.has(`${x.type}_${x.id}`));
+      renderTrash();
+      toast(currentLang === 'en' ? `Permanently deleted ${targets.length} item(s)` : `ลบถาวรแล้ว ${targets.length} รายการ`);
+    }catch(err){
+      setSync('error');
+      toast('ลบไม่สำเร็จ');
+    }
+  });
+}
+$('trashPurgeBtn').addEventListener('click', purgeOldTrashItems);
 
 $('userForm').addEventListener('submit', async (e) => {
   e.preventDefault();
