@@ -2075,7 +2075,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.15';
+const APP_VERSION = '1.0.16';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -4343,6 +4343,7 @@ $('dashboardClearBtn').addEventListener('click', () => {
   selectedDashboardYear = new Date().getFullYear();
   selectedDashboardMonths = { all: [], shipped: [], order: [] };
   dashboardRecentPage = { all: 1, shipped: 1, order: 1 };
+  if (currentUserRole === 'admin') $('targetUserFilter').value = 'all';
   refreshDashboardYearFilter();
   renderDashboard();
   toast('เคลียร์ตัวกรองแล้ว');
