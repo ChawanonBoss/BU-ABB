@@ -2188,7 +2188,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.26';
+const APP_VERSION = '1.0.27';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -4252,7 +4252,12 @@ function renderOrders(){
       <td>${escapeHtml(o.product)}</td>
       <td>${fmtMoney(o.price)}</td>
       <td>${poCell}</td>
-      <td>${fmtDate(o.date)}</td>
+      <td>
+        <div class="date-edit-wrap">
+          <input type="date" class="inline-input" value="${o.date || ''}" onchange="if(!this.value){ toast('กรุณาเลือกวันที่สั่งซื้อ'); this.value='${o.date||''}'; } else { setOrderField('${o.id}','date',this.value); }">
+          <span class="date-display-text">${o.date ? fmtDate(o.date) : t('วัน/เดือน/ปี')}</span>
+        </div>
+      </td>
       <td>
         <div class="date-edit-wrap">
           <input type="date" class="inline-input" value="${o.shipDate || ''}" onchange="setOrderField('${o.id}','shipDate',this.value)">
