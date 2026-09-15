@@ -1193,6 +1193,10 @@
       <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="9"></circle></svg>
       <span class="nav-tooltip">ประวัติการแก้ไข</span>
     </button>
+    <button class="nav-item" data-tab="trash" id="navTrashTab" style="display:none;">
+      <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+      <span class="nav-tooltip">ถังขยะ</span>
+    </button>
     <div class="rail-spacer"></div>
     <div class="rail-menu-wrap">
       <button class="nav-item" id="railMenuBtn" type="button">
@@ -1847,6 +1851,37 @@
             <tbody id="auditBody"></tbody>
           </table></div>
           <div class="pagination" id="auditPagination"></div>
+          <div style="text-align:center; margin-top:12px;">
+            <button class="btn outline" id="auditLoadMoreBtn" type="button" style="display:none;" onclick="loadMoreAuditLog()">โหลดประวัติเก่าเพิ่มเติม</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trash tab (admin only) — soft-deleted orders/customers/promotions (deleteOrder/deleteCustomer/
+           deletePromotion set deletedAt instead of hard-deleting; the realtime listeners in
+           attachRealtimeListeners() filter deletedAt docs out of data.orders/customers/promotions so
+           every other page keeps working unchanged). No auto-purge — this is a static client-side app
+           with no backend to run one, so items stay here until an admin restores or permanently deletes
+           them by hand. Loaded on demand (not a live listener) since it's rarely opened. -->
+      <div id="tab-trash" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>ถังขยะ <span class="badge-count neutral" id="trashTotalCount" style="display:none;"></span></h3>
+            <div class="filter-bar">
+              <select id="trashTypeFilter" class="inline-input filter-control">
+                <option value="all">ทุกประเภท</option>
+                <option value="orders">คำสั่งซื้อ</option>
+                <option value="customers">ลูกค้า</option>
+                <option value="promotions">โปรโมชัน</option>
+              </select>
+              <button class="btn outline" id="trashRefreshBtn" type="button" onclick="loadTrash()">รีเฟรช</button>
+            </div>
+          </div>
+          <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">รายการที่ถูกลบจะแสดงที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กดปุ่ม "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด)</p>
+          <div class="table-scroll"><table>
+            <thead><tr><th>ประเภท</th><th>รายการ</th><th>ลบโดย</th><th>วันที่ลบ</th><th></th></tr></thead>
+            <tbody id="trashBody"><tr><td colspan="5" class="empty-row">กดปุ่ม "รีเฟรช" เพื่อโหลดรายการ</td></tr></tbody>
+          </table></div>
         </div>
       </div>
 
@@ -1980,7 +2015,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.11';
+const APP_VERSION = '1.0.12';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -1991,6 +2026,12 @@ let currentUserName = '';
 let currentUserUid = null;
 let currentUserRole = 'user';
 let unsubOrders = null, unsubCustomers = null, unsubUsers = null, unsubPendingRoles = null, unsubMonthlyGP = null, unsubUserTargets = null, unsubPromotions = null, unsubPromotionPrepared = null, unsubAuditLog = null, unsubCommissionConfig = null;
+// Declared up here (not just before their first use further down) so the sign-out handler above can
+// safely reset them — a plain top-level `let` is only in the temporal dead zone until its own line
+// runs, and putting these near the other cross-cutting state avoids relying on execution-order luck.
+let auditOlderEntries = [];
+let auditHasMoreOlder = true;
+let auditLoadingMore = false;
 let authMode = 'signin'; // 'signin' | 'signup'
 
 /* ====== Auth: remembered credentials + 4-hour session expiry ====== */
@@ -2280,6 +2321,7 @@ auth.onAuthStateChanged(async (user) => {
     if (unsubCommissionConfig) unsubCommissionConfig();
     currentUserEmail = null; currentUserName = ''; currentUserUid = null; currentUserRole = 'user';
     data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [], commissionConfig: null };
+    auditOlderEntries = []; auditHasMoreOlder = true;
     $('gate').style.display = 'block';
     $('sidebar').style.display = 'none';
     $('globalSearchWrap').style.display = 'none';
@@ -2364,6 +2406,8 @@ async function resolveUserRole(){
     }
   }
   $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('navAuditTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+  $('navTrashTab').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('promoCreateToggleBtn').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
   $('customersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
@@ -2514,14 +2558,18 @@ function attachRealtimeListeners(){
     if ($('tab-audit').style.display === 'block') renderAuditLog();
   }
 
+  // Soft-deleted docs (deletedAt set — see deleteOrder/restoreOrder) are filtered out right here,
+  // at the single place every part of the app reads orders/customers from, so the rest of the
+  // codebase (tables, dashboard, exports, autocomplete...) never has to know soft-delete exists.
+  // The admin-only Trash tab reads them back with its own separate one-time queries instead.
   unsubOrders = db.collection('orders').onSnapshot((snap) => {
-    data.orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.orders = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(o => !o.deletedAt);
     loaded.orders = true;
     onAnyUpdate();
   }, () => { setSync('error'); toast('โหลดคำสั่งซื้อไม่สำเร็จ'); });
 
   unsubCustomers = db.collection('customers').onSnapshot((snap) => {
-    data.customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.customers = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.deletedAt);
     loaded.customers = true;
     onAnyUpdate();
   }, () => { setSync('error'); toast('โหลดลูกค้าไม่สำเร็จ'); });
@@ -2551,7 +2599,7 @@ function attachRealtimeListeners(){
   }, () => { setSync('error'); toast('โหลดข้อมูลเป้าหมายไม่สำเร็จ'); });
 
   unsubPromotions = db.collection('promotions').onSnapshot((snap) => {
-    data.promotions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    data.promotions = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => !p.deletedAt);
     loaded.promotions = true;
     onAnyUpdate();
   }, () => { setSync('error'); toast('โหลดโปรโมชันไม่สำเร็จ'); });
@@ -2662,6 +2710,13 @@ const I18N = {
   'เป้าหมายส่งสินค้า (บาท)': 'Shipping Target (THB)', 'ค้นหาชื่อ, อีเมล': 'Search name, email',
   // Audit
   'เวลา': 'Time', 'ผู้ทำรายการ': 'User', 'การกระทำ': 'Action', 'รายละเอียด': 'Details',
+  'โหลดประวัติเก่าเพิ่มเติม': 'Load older history', 'กำลังโหลด...': 'Loading...',
+  // Trash
+  'ถังขยะ': 'Trash', 'ทุกประเภท': 'All Types', 'โปรโมชัน': 'Promotion', 'รีเฟรช': 'Refresh',
+  'รายการ': 'Item',
+  'ลบโดย': 'Deleted By', 'วันที่ลบ': 'Deleted At', 'กู้คืน': 'Restore', 'ลบถาวร': 'Delete Permanently',
+  'ไม่มีรายการในถังขยะ': 'Trash is empty',
+  'คำสั่งซื้อ/ลูกค้า/โปรโมชันที่ถูกลบ — กู้คืนหรือลบถาวรได้': 'Deleted orders/customers/promotions — restore or permanently delete them',
   // Modals
   'นำเข้าข้อมูลจาก Excel': 'Import from Excel', 'ยกเลิก': 'Cancel',
   'ดาวน์โหลดรายงานคำสั่งซื้อ': 'Download Order Report', 'ประเภท': 'Type', 'เดือน': 'Month',
@@ -2793,7 +2848,8 @@ const titles = {
   customers: ['รายชื่อลูกค้า','ข้อมูลลูกค้าและจำนวนคำสั่งซื้อที่จัดส่งแล้ว'],
   promotions: ['Promotion','จัดการโปรโมชันและติดตามการเตรียมของแจกลูกค้า'],
   users: ['ผู้ใช้งาน','กำหนดสิทธิ์การเข้าถึงของแต่ละคน'],
-  audit: ['ประวัติการแก้ไข','บันทึกการสร้าง/แก้ไข/ลบรายการทั้งหมดในระบบ']
+  audit: ['ประวัติการแก้ไข','บันทึกการสร้าง/แก้ไข/ลบรายการทั้งหมดในระบบ'],
+  trash: ['ถังขยะ','คำสั่งซื้อ/ลูกค้า/โปรโมชันที่ถูกลบ — กู้คืนหรือลบถาวรได้']
 };
 setLanguage(currentLang);
 
@@ -2822,6 +2878,7 @@ function showTab(tab){
   if (tab==='users') renderUsers();
   if (tab==='promotions') renderPromotions();
   if (tab==='audit') renderAuditLog();
+  if (tab==='trash') loadTrash();
 }
 
 /* ====== Rendering ====== */
@@ -4193,7 +4250,7 @@ async function deleteOrder(id){
   const o = data.orders.find(o=>o.id===id);
   setSync('saving');
   try{
-    await db.collection('orders').doc(id).delete();
+    await db.collection('orders').doc(id).update({ deletedAt: new Date().toISOString(), deletedBy: currentUserUid });
     setSync('ok');
     if (o) logAudit('ลบคำสั่งซื้อ', `${o.so||id} — ${o.customer||''}`);
   }catch(err){
@@ -4379,7 +4436,7 @@ async function deleteCustomer(id){
   const c = data.customers.find(x=>x.id===id);
   setSync('saving');
   try{
-    await db.collection('customers').doc(id).delete();
+    await db.collection('customers').doc(id).update({ deletedAt: new Date().toISOString(), deletedBy: currentUserUid });
     setSync('ok');
     if (c) logAudit('ลบลูกค้า', c.name);
   }catch(err){
@@ -4510,11 +4567,39 @@ function goToUsersPage(page){
 }
 
 let auditCurrentPage = 1;
+// auditOlderEntries/auditHasMoreOlder/auditLoadingMore are declared near the other cross-cutting
+// state further up (with unsubOrders etc.) — see the comment there. The live listener only keeps
+// the most recent 300 entries (see attachRealtimeListeners) so it stays cheap to sync; anything
+// older is fetched on demand into auditOlderEntries via loadMoreAuditLog() rather than being
+// silently unreachable once the team has generated more than 300 log entries.
+
+async function loadMoreAuditLog(){
+  if (auditLoadingMore || !auditHasMoreOlder) return;
+  const combined = [...(data.auditLog||[]), ...auditOlderEntries];
+  if (!combined.length) return;
+  const oldestTimestamp = combined.reduce((min, a) => (a.timestamp && (!min || a.timestamp < min)) ? a.timestamp : min, null);
+  if (!oldestTimestamp) return;
+  auditLoadingMore = true;
+  const btn = $('auditLoadMoreBtn');
+  if (btn){ btn.disabled = true; btn.textContent = t('กำลังโหลด...'); }
+  try{
+    const snap = await db.collection('auditLog').orderBy('timestamp', 'desc').startAfter(oldestTimestamp).limit(300).get();
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    auditOlderEntries.push(...rows);
+    if (rows.length < 300) auditHasMoreOlder = false;
+  } catch(e){
+    toast('โหลดประวัติเก่าไม่สำเร็จ');
+  }
+  auditLoadingMore = false;
+  if (btn) btn.disabled = false;
+  renderAuditLog();
+}
+
 function renderAuditLog(){
   const loadingEl = $('loadingOverlay');
   if (loadingEl) loadingEl.style.display = 'none';
   const body = $('auditBody');
-  const list = [...(data.auditLog||[])].sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
+  const list = [...(data.auditLog||[]), ...auditOlderEntries].sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
 
   const totalBadge = $('auditTotalCount');
   if (list.length){
@@ -4549,6 +4634,12 @@ function renderAuditLog(){
       btns += `<button class="page-btn ${p===auditCurrentPage?'active':''}" onclick="goToAuditPage(${p})">${p}</button>`;
     }
     paginationEl.innerHTML = btns;
+  }
+
+  const loadMoreBtn = $('auditLoadMoreBtn');
+  if (loadMoreBtn){
+    loadMoreBtn.style.display = auditHasMoreOlder ? 'inline-block' : 'none';
+    loadMoreBtn.textContent = t('โหลดประวัติเก่าเพิ่มเติม');
   }
 }
 function goToAuditPage(page){
@@ -4682,7 +4773,7 @@ async function deletePromotion(id){
   const p = data.promotions.find(x=>x.id===id);
   setSync('saving');
   try{
-    await db.collection('promotions').doc(id).delete();
+    await db.collection('promotions').doc(id).update({ deletedAt: new Date().toISOString(), deletedBy: currentUserUid });
     setSync('ok');
     if (p) logAudit('ลบโปรโมชัน', p.name);
   }catch(err){
@@ -4805,6 +4896,7 @@ async function setUserField(kind, id, field, value){
       updateRoleBadge();
       $('navUsersTab').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('navAuditTab').style.display = currentUserRole === 'admin' ? '' : 'none';
+      $('navTrashTab').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('commissionSettingsBtn').style.display = currentUserRole === 'admin' ? 'inline' : 'none';
       $('promoCreateToggleBtn').style.display = currentUserRole === 'admin' ? '' : 'none';
       $('ordersCreatorHeader').style.display = currentUserRole === 'admin' ? '' : 'none';
@@ -4836,6 +4928,116 @@ async function deleteUser(kind, id){
     toast('ลบไม่สำเร็จ');
   }
 }
+
+/* ====== Trash (admin only) — restore/permanently-delete soft-deleted orders/customers/promotions ======
+   Loaded on demand rather than a live listener since it's rarely opened; deletedAt/deletedBy are set
+   by deleteOrder/deleteCustomer/deletePromotion instead of a real Firestore delete(). orderBy('deletedAt')
+   naturally returns only docs that HAVE that field, so this needs no separate "!=" query/index. */
+const trashTypeLabel = { orders:'คำสั่งซื้อ', customers:'ลูกค้า', promotions:'โปรโมชัน' };
+let trashItems = [];
+let trashLoading = false;
+
+function trashItemLabel(item){
+  if (item.type === 'orders') return `${item.so||item.id} — ${item.customer||''}`;
+  return item.name || item.id;
+}
+
+async function loadTrash(){
+  if (trashLoading) return;
+  trashLoading = true;
+  const btn = $('trashRefreshBtn');
+  if (btn){ btn.disabled = true; btn.textContent = t('กำลังโหลด...'); }
+  const body = $('trashBody');
+  if (body) body.innerHTML = `<tr><td colspan="5" class="empty-row">${t('กำลังโหลด...')}</td></tr>`;
+  try{
+    const [ordersSnap, customersSnap, promotionsSnap] = await Promise.all([
+      db.collection('orders').orderBy('deletedAt', 'desc').limit(200).get(),
+      db.collection('customers').orderBy('deletedAt', 'desc').limit(200).get(),
+      db.collection('promotions').orderBy('deletedAt', 'desc').limit(200).get(),
+    ]);
+    trashItems = [
+      ...ordersSnap.docs.map(d => ({ type:'orders', id:d.id, ...d.data() })),
+      ...customersSnap.docs.map(d => ({ type:'customers', id:d.id, ...d.data() })),
+      ...promotionsSnap.docs.map(d => ({ type:'promotions', id:d.id, ...d.data() })),
+    ];
+  }catch(err){
+    toast('โหลดถังขยะไม่สำเร็จ');
+  }
+  trashLoading = false;
+  if (btn){ btn.disabled = false; btn.textContent = t('รีเฟรช'); }
+  renderTrash();
+}
+
+function renderTrash(){
+  const body = $('trashBody');
+  if (!body) return;
+  const typeFilter = $('trashTypeFilter').value;
+  let list = [...trashItems].sort((a,b)=> new Date(b.deletedAt||0) - new Date(a.deletedAt||0));
+  if (typeFilter !== 'all') list = list.filter(x => x.type === typeFilter);
+
+  const totalBadge = $('trashTotalCount');
+  if (list.length){
+    totalBadge.textContent = `(${list.length})`;
+    totalBadge.style.display = 'inline-block';
+  } else {
+    totalBadge.style.display = 'none';
+  }
+
+  body.innerHTML = list.length ? list.map(item => `
+    <tr>
+      <td><span class="badge active">${t(trashTypeLabel[item.type] || item.type)}</span></td>
+      <td>${escapeHtml(trashItemLabel(item))}</td>
+      <td>${escapeHtml(getUserDisplayName(item.deletedBy))}</td>
+      <td>${fmtDateTime(item.deletedAt)}</td>
+      <td class="row-actions center-actions">
+        <button class="icon-btn claim-btn" onclick="restoreTrashItem('${item.type}','${item.id}')" title="กู้คืน">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 4 3 9 8 9"></polyline></svg>
+          กู้คืน
+        </button>
+        <button class="icon-btn delete-btn" onclick="confirmAction('ต้องการลบถาวรใช่ไหม? การลบไม่สามารถย้อนกลับได้', () => permanentlyDeleteTrashItem('${item.type}','${item.id}'))" title="ลบถาวร">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          ลบถาวร
+        </button>
+      </td>
+    </tr>
+  `).join('') : `<tr><td colspan="5" class="empty-row">ไม่มีรายการในถังขยะ</td></tr>`;
+}
+
+async function restoreTrashItem(type, id){
+  const item = trashItems.find(x => x.type===type && x.id===id);
+  setSync('saving');
+  try{
+    await db.collection(type).doc(id).update({
+      deletedAt: firebase.firestore.FieldValue.delete(),
+      deletedBy: firebase.firestore.FieldValue.delete(),
+    });
+    setSync('ok');
+    if (item) logAudit(`กู้คืน${trashTypeLabel[type]}`, trashItemLabel(item));
+    trashItems = trashItems.filter(x => !(x.type===type && x.id===id));
+    renderTrash();
+    toast('กู้คืนแล้ว');
+  }catch(err){
+    setSync('error');
+    toast('กู้คืนไม่สำเร็จ');
+  }
+}
+
+async function permanentlyDeleteTrashItem(type, id){
+  const item = trashItems.find(x => x.type===type && x.id===id);
+  setSync('saving');
+  try{
+    await db.collection(type).doc(id).delete();
+    setSync('ok');
+    if (item) logAudit(`ลบถาวร${trashTypeLabel[type]}`, trashItemLabel(item));
+    trashItems = trashItems.filter(x => !(x.type===type && x.id===id));
+    renderTrash();
+    toast('ลบถาวรแล้ว');
+  }catch(err){
+    setSync('error');
+    toast('ลบไม่สำเร็จ');
+  }
+}
+$('trashTypeFilter').addEventListener('change', renderTrash);
 
 $('userForm').addEventListener('submit', async (e) => {
   e.preventDefault();
