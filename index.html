@@ -1890,11 +1890,20 @@
               <button class="btn outline" id="auditClearBtn" type="button">เคลียร์ตัวกรอง</button>
             </div>
           </div>
-          <div class="filter-bar" style="margin-bottom:16px;">
+          <div class="filter-bar" style="margin-bottom:10px;">
             <input type="text" id="auditSearch" class="inline-input filter-control" placeholder="ค้นหาผู้ทำรายการ, การกระทำ, รายละเอียด" style="width:260px;">
             <select id="auditActionFilter" class="inline-input filter-control">
               <option value="all">ทุกการกระทำ</option>
             </select>
+            <select id="auditUserFilter" class="inline-input filter-control">
+              <option value="all">ทุกคน</option>
+            </select>
+          </div>
+          <div class="filter-bar" style="margin-bottom:16px;">
+            <span style="font-size:12.5px; color:var(--ink-soft);">ตั้งแต่</span>
+            <input type="datetime-local" id="auditStartTime" class="inline-input filter-control">
+            <span style="font-size:12.5px; color:var(--ink-soft);">ถึง</span>
+            <input type="datetime-local" id="auditEndTime" class="inline-input filter-control">
           </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">บันทึกการสร้าง/แก้ไข/ลบ/ยกเลิกรายการต่างๆ ในระบบ เรียงจากล่าสุดไปเก่าสุด</p>
           <div class="table-scroll"><table>
@@ -2083,7 +2092,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.18';
+const APP_VERSION = '1.0.19';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2874,6 +2883,7 @@ const I18N = {
   'เวลา': 'Time', 'ผู้ทำรายการ': 'User', 'การกระทำ': 'Action', 'รายละเอียด': 'Details',
   'โหลดประวัติเก่าเพิ่มเติม': 'Load older history', 'กำลังโหลด...': 'Loading...',
   'ทุกการกระทำ': 'All Actions', 'ค้นหาผู้ทำรายการ, การกระทำ, รายละเอียด': 'Search user, action, details',
+  'ทุกคน': 'Everyone', 'ตั้งแต่': 'From', 'ถึง': 'To',
   'การแก้ไข': 'Changes', 'ข้อผิดพลาดระบบ': 'System Errors', 'ข้อความ': 'Message', 'หน้า': 'Page',
   'ไม่พบข้อผิดพลาด': 'No errors found',
   // Trash
@@ -4950,9 +4960,12 @@ function renderAuditLog(){
   const body = $('auditBody');
   const fullList = [...(data.auditLog||[]), ...auditOlderEntries].sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
 
-  // The action filter's options are built from whatever distinct action strings actually appear in
-  // the loaded log (logAudit() callers use free-text Thai labels, not a fixed enum), preserving
-  // whichever one is currently selected across re-renders.
+  // The action/user filters' options are built from whatever distinct values actually appear in
+  // the loaded log (logAudit() callers use free-text Thai action labels, not a fixed enum, and
+  // changedByName is a point-in-time snapshot of the actor's name rather than a live lookup by
+  // uid — building the dropdown from the log itself, not from data.users, means someone who was
+  // later renamed or removed still shows up correctly under whatever name they acted under),
+  // preserving whichever option is currently selected across re-renders.
   const actionSel = $('auditActionFilter');
   const prevActionFilter = actionSel.value || 'all';
   const distinctActions = [...new Set(fullList.map(a => a.action).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
@@ -4960,10 +4973,29 @@ function renderAuditLog(){
     distinctActions.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
   actionSel.value = distinctActions.includes(prevActionFilter) || prevActionFilter === 'all' ? prevActionFilter : 'all';
 
+  const userSel = $('auditUserFilter');
+  const prevUserFilter = userSel.value || 'all';
+  const distinctUsers = [...new Set(fullList.map(a => a.changedByName).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+  userSel.innerHTML = `<option value="all">${t('ทุกคน')}</option>` +
+    distinctUsers.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+  userSel.value = distinctUsers.includes(prevUserFilter) || prevUserFilter === 'all' ? prevUserFilter : 'all';
+
   const searchTerm = ($('auditSearch').value || '').trim().toLowerCase();
   const actionFilter = actionSel.value;
+  const userFilter = userSel.value;
+  const startTimeVal = $('auditStartTime').value;
+  const endTimeVal = $('auditEndTime').value;
   let list = fullList;
   if (actionFilter !== 'all') list = list.filter(a => a.action === actionFilter);
+  if (userFilter !== 'all') list = list.filter(a => a.changedByName === userFilter);
+  if (startTimeVal){
+    const startMs = new Date(startTimeVal).getTime();
+    list = list.filter(a => a.timestamp && new Date(a.timestamp).getTime() >= startMs);
+  }
+  if (endTimeVal){
+    const endMs = new Date(endTimeVal).getTime();
+    list = list.filter(a => a.timestamp && new Date(a.timestamp).getTime() <= endMs);
+  }
   if (searchTerm){
     list = list.filter(a =>
       (a.changedByName||'').toLowerCase().includes(searchTerm) ||
@@ -5021,10 +5053,16 @@ function goToAuditPage(page){
 $('auditPageSize').addEventListener('change', () => { auditCurrentPage = 1; renderAuditLog(); });
 $('auditSearch').addEventListener('input', () => { auditCurrentPage = 1; renderAuditLog(); });
 $('auditActionFilter').addEventListener('change', () => { auditCurrentPage = 1; renderAuditLog(); });
+$('auditUserFilter').addEventListener('change', () => { auditCurrentPage = 1; renderAuditLog(); });
+$('auditStartTime').addEventListener('change', () => { auditCurrentPage = 1; renderAuditLog(); });
+$('auditEndTime').addEventListener('change', () => { auditCurrentPage = 1; renderAuditLog(); });
 $('auditClearBtn').addEventListener('click', () => {
   $('auditPageSize').value = '20';
   $('auditSearch').value = '';
   $('auditActionFilter').value = 'all';
+  $('auditUserFilter').value = 'all';
+  $('auditStartTime').value = '';
+  $('auditEndTime').value = '';
   auditCurrentPage = 1;
   renderAuditLog();
   toast('เคลียร์ตัวกรองแล้ว');
