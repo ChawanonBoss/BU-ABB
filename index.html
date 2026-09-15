@@ -723,6 +723,20 @@
     padding:8px;
     border-radius:14px;
   }
+  .bulk-action-bar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    background:var(--accent-soft);
+    padding:10px 12px;
+    border-radius:14px;
+    margin-bottom:16px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--accent);
+  }
+  .bulk-action-bar .btn.outline{ font-weight:500; }
 
   /* Overlay a readable formatted date on top of a native <input type=date>,
      so it matches the plain-text date columns instead of showing mm/dd/yyyy */
@@ -1284,10 +1298,6 @@
               <label>รหัสผ่าน</label>
               <input type="password" id="authPassword" placeholder="อย่างน้อย 6 ตัวอักษร" autocomplete="current-password" required>
             </div>
-            <label class="gate-remember-row" style="display:flex; align-items:center; gap:7px; margin-bottom:14px; cursor:pointer; font-size:13px; color:var(--ink-soft);">
-              <input type="checkbox" id="authRememberMe" style="width:15px; height:15px; cursor:pointer;">
-              <span>จดจำรหัสผ่าน</span>
-            </label>
             <p id="authError" class="gate-form-error"></p>
             <button type="submit" class="btn gate-submit-btn" id="authSubmitBtn">เข้าสู่ระบบ</button>
           </form>
@@ -1603,8 +1613,15 @@
               </select>
               <button class="btn outline" id="ordersClearBtn" type="button">เคลียร์ตัวกรอง</button>
           </div>
+          <div class="bulk-action-bar" id="ordersBulkBar" style="display:none;">
+            <span id="ordersBulkCount">เลือกไว้ 0 รายการ</span>
+            <button class="btn outline" type="button" onclick="bulkMarkOrdersDone()">ทำเครื่องหมายว่าจัดส่งแล้ว</button>
+            <button class="btn outline" type="button" onclick="bulkExportSelectedOrders()">ส่งออกที่เลือก</button>
+            <button class="btn outline" type="button" style="color:var(--danger); border-color:var(--danger);" onclick="bulkDeleteSelectedOrders()">ลบที่เลือก</button>
+            <button class="btn outline" type="button" onclick="clearOrdersSelection()">ล้างการเลือก</button>
+          </div>
           <div class="table-scroll"><table>
-            <thead><tr><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th id="ordersCreatorHeader" style="display:none;">สร้างโดย</th></tr></thead>
+            <thead><tr><th style="width:34px;"><input type="checkbox" id="ordersSelectAllCb" title="เลือกทั้งหมดในหน้านี้" onchange="toggleSelectAllOrdersOnPage(this.checked)"></th><th>SO</th><th>ลูกค้า</th><th>สินค้า</th><th>ยอดเงิน</th><th>PO <span class="badge-count" id="poEmptyBadge" style="display:none;"></span></th><th>วันที่สั่งซื้อ</th><th>วันที่ส่งสินค้า</th><th>สถานะ</th><th id="ordersCreatorHeader" style="display:none;">สร้างโดย</th></tr></thead>
             <tbody id="ordersBody"></tbody>
           </table></div>
           <div class="pagination" id="ordersPagination"></div>
@@ -1834,6 +1851,12 @@
 
       <!-- Audit log tab (admin only) -->
       <div id="tab-audit" class="tab-panel" style="display:none;">
+        <div class="subtabs" style="margin-bottom:16px;">
+          <button class="subtab-item active" data-auditsub="log">การแก้ไข</button>
+          <button class="subtab-item" data-auditsub="errors">ข้อผิดพลาดระบบ</button>
+        </div>
+
+        <div id="auditSub-log">
         <div class="panel">
           <div class="panel-head">
             <h3>ประวัติการแก้ไข <span class="badge-count neutral" id="auditTotalCount" style="display:none;"></span></h3>
@@ -1843,7 +1866,14 @@
                 <option value="50">แสดง 50</option>
                 <option value="100">แสดง 100</option>
               </select>
+              <button class="btn outline" id="auditClearBtn" type="button">เคลียร์ตัวกรอง</button>
             </div>
+          </div>
+          <div class="filter-bar" style="margin-bottom:16px;">
+            <input type="text" id="auditSearch" class="inline-input filter-control" placeholder="ค้นหาผู้ทำรายการ, การกระทำ, รายละเอียด" style="width:260px;">
+            <select id="auditActionFilter" class="inline-input filter-control">
+              <option value="all">ทุกการกระทำ</option>
+            </select>
           </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">บันทึกการสร้าง/แก้ไข/ลบ/ยกเลิกรายการต่างๆ ในระบบ เรียงจากล่าสุดไปเก่าสุด</p>
           <div class="table-scroll"><table>
@@ -1853,6 +1883,23 @@
           <div class="pagination" id="auditPagination"></div>
           <div style="text-align:center; margin-top:12px;">
             <button class="btn outline" id="auditLoadMoreBtn" type="button" style="display:none;" onclick="loadMoreAuditLog()">โหลดประวัติเก่าเพิ่มเติม</button>
+          </div>
+        </div>
+        </div>
+
+        <!-- Client-side JS errors (window 'error'/'unhandledrejection' → logClientError() → errorLog
+             collection). No backend exists to run real error monitoring (Sentry etc.), so this is the
+             self-contained substitute: admins can see when someone hit a bug without them reporting it. -->
+        <div id="auditSub-errors" style="display:none;">
+          <div class="panel">
+            <div class="panel-head">
+              <h3>ข้อผิดพลาดระบบ <span class="badge-count neutral" id="errorLogTotalCount" style="display:none;"></span></h3>
+            </div>
+            <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">ข้อผิดพลาด JavaScript ที่เกิดขึ้นจริงในเครื่องผู้ใช้งาน (ไม่ใช่ข้อผิดพลาดจากการกรอกฟอร์ม) แสดง 200 รายการล่าสุด — เรียงจากล่าสุดไปเก่าสุด</p>
+            <div class="table-scroll"><table>
+              <thead><tr><th>เวลา</th><th>ผู้ใช้งาน</th><th>ข้อความ</th><th>หน้า</th></tr></thead>
+              <tbody id="errorLogBody"></tbody>
+            </table></div>
           </div>
         </div>
       </div>
@@ -2015,17 +2062,17 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.12';
+const APP_VERSION = '1.0.13';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
 /* ====== State ====== */
-let data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [], commissionConfig: null };
+let data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [], errorLog: [], commissionConfig: null };
 let currentUserEmail = null;
 let currentUserName = '';
 let currentUserUid = null;
 let currentUserRole = 'user';
-let unsubOrders = null, unsubCustomers = null, unsubUsers = null, unsubPendingRoles = null, unsubMonthlyGP = null, unsubUserTargets = null, unsubPromotions = null, unsubPromotionPrepared = null, unsubAuditLog = null, unsubCommissionConfig = null;
+let unsubOrders = null, unsubCustomers = null, unsubUsers = null, unsubPendingRoles = null, unsubMonthlyGP = null, unsubUserTargets = null, unsubPromotions = null, unsubPromotionPrepared = null, unsubAuditLog = null, unsubErrorLog = null, unsubCommissionConfig = null;
 // Declared up here (not just before their first use further down) so the sign-out handler above can
 // safely reset them — a plain top-level `let` is only in the temporal dead zone until its own line
 // runs, and putting these near the other cross-cutting state avoids relying on execution-order luck.
@@ -2034,24 +2081,16 @@ let auditHasMoreOlder = true;
 let auditLoadingMore = false;
 let authMode = 'signin'; // 'signin' | 'signup'
 
-/* ====== Auth: remembered credentials + 4-hour session expiry ====== */
-const REMEMBER_CRED_KEY = 'bu-abb-remember-cred';
+/* ====== Auth: 4-hour session expiry ======
+   Remembering the login itself (email + password prefill) is left entirely to the browser's own
+   password manager now — the form already carries autocomplete="email"/"current-password", which
+   is enough for the browser to offer to save and refill them with its own secure storage. This app
+   used to also keep a copy of the password in localStorage as plain text for its own "remember
+   password" checkbox; that duplicated what the browser already does, only less safely, so it was
+   removed rather than fixed — there is no secure way to keep a reversible plaintext copy in
+   localStorage. LOGIN_TS_KEY below is unrelated (session-expiry bookkeeping only) and is kept. */
 const LOGIN_TS_KEY = 'bu-abb-login-ts';
 const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
-
-function prefillRememberedCredentials(){
-  try{
-    const raw = localStorage.getItem(REMEMBER_CRED_KEY);
-    if (!raw) return;
-    const cred = JSON.parse(raw);
-    if (cred && cred.email){
-      $('authEmail').value = cred.email;
-      $('authPassword').value = cred.password || '';
-      $('authRememberMe').checked = true;
-    }
-  }catch(e){ localStorage.removeItem(REMEMBER_CRED_KEY); }
-}
-prefillRememberedCredentials();
 
 function ensureSessionValid(){
   // Checked only at the moment auth state resolves (fresh login, or a page reload restoring
@@ -2278,7 +2317,7 @@ $('authForm').addEventListener('submit', async (e) => {
     } else {
       await auth.signInWithEmailAndPassword(email, password);
     }
-    // onAuthStateChanged below handles the rest (session timestamp + remember-password)
+    // onAuthStateChanged below handles the rest (stamping the session timestamp)
   }catch(err){
     justLoggedInViaForm = false;
     pendingSignupName = '';
@@ -2300,11 +2339,6 @@ auth.onAuthStateChanged(async (user) => {
     if (justLoggedInViaForm){
       justLoggedInViaForm = false;
       localStorage.setItem(LOGIN_TS_KEY, String(Date.now()));
-      if ($('authRememberMe').checked){
-        localStorage.setItem(REMEMBER_CRED_KEY, JSON.stringify({ email: currentUserEmail, password: $('authPassword').value }));
-      } else {
-        localStorage.removeItem(REMEMBER_CRED_KEY);
-      }
     }
     if (!ensureSessionValid()){ currentUserEmail = null; currentUserName = ''; currentUserUid = null; return; }
     await onSignedIn();
@@ -2318,9 +2352,10 @@ auth.onAuthStateChanged(async (user) => {
     if (unsubPromotions) unsubPromotions();
     if (unsubPromotionPrepared) unsubPromotionPrepared();
     if (unsubAuditLog) unsubAuditLog();
+    if (unsubErrorLog) unsubErrorLog();
     if (unsubCommissionConfig) unsubCommissionConfig();
     currentUserEmail = null; currentUserName = ''; currentUserUid = null; currentUserRole = 'user';
-    data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [], commissionConfig: null };
+    data = { orders: [], customers: [], users: [], pendingRoles: [], monthlyGP: [], userTargets: [], promotions: [], promotionPrepared: [], auditLog: [], errorLog: [], commissionConfig: null };
     auditOlderEntries = []; auditHasMoreOlder = true;
     $('gate').style.display = 'block';
     $('sidebar').style.display = 'none';
@@ -2330,7 +2365,6 @@ auth.onAuthStateChanged(async (user) => {
     authMode = 'signin';
     updateAuthFormMode();
     $('authForm').reset();
-    prefillRememberedCredentials();
   }
 });
 
@@ -2621,6 +2655,15 @@ function attachRealtimeListeners(){
     loaded.commissionConfig = true;
     onAnyUpdate();
   }, () => { setSync('error'); loaded.commissionConfig = true; onAnyUpdate(); });
+
+  // Admin-only and deliberately NOT part of the `loaded` gate above — this is a bonus subscription
+  // for the Audit Log tab's error-log subtab, not something every user's first paint should wait on.
+  if (currentUserRole === 'admin'){
+    unsubErrorLog = db.collection('errorLog').orderBy('timestamp', 'desc').limit(200).onSnapshot((snap) => {
+      data.errorLog = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if ($('tab-audit').style.display === 'block') renderErrorLog();
+    }, () => { /* non-critical — silently skip */ });
+  }
 }
 
 function logAudit(action, entityLabel, details){
@@ -2634,6 +2677,39 @@ function logAudit(action, entityLabel, details){
     timestamp: new Date().toISOString()
   }).catch(() => { /* audit logging must never block the real action */ });
 }
+
+/* ====== Client-side error capture ======
+   No backend/Sentry-style service is set up for this static app, so uncaught JS errors otherwise
+   go completely unnoticed unless the user happens to report them. These two handlers write a
+   fire-and-forget record to Firestore instead (mirrors logAudit's pattern), visible to admins under
+   the Audit Log tab's "ข้อผิดพลาดระบบ" subtab. Same-message throttling stops an error that fires
+   repeatedly (e.g. inside a render loop) from writing hundreds of near-identical documents. */
+const recentlyLoggedErrors = new Map();
+function logClientError(message, stack){
+  const key = String(message).slice(0, 300);
+  const now = Date.now();
+  const last = recentlyLoggedErrors.get(key);
+  if (last && now - last < 10000) return;
+  recentlyLoggedErrors.set(key, now);
+  try{
+    db.collection('errorLog').add({
+      message: key,
+      stack: String(stack || '').slice(0, 2000),
+      url: location.href,
+      userAgent: navigator.userAgent,
+      userUid: currentUserUid || null,
+      userName: currentUserName || currentUserEmail || '',
+      timestamp: new Date().toISOString()
+    }).catch(() => { /* error logging must never itself throw */ });
+  }catch(e){ /* db may not be ready yet (e.g. error during initial script parse) */ }
+}
+window.addEventListener('error', (e) => {
+  logClientError(e.message, e.error && e.error.stack);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const reason = e.reason;
+  logClientError(reason && reason.message ? reason.message : String(reason), reason && reason.stack);
+});
 
 $('syncRetryBtn').addEventListener('click', () => {
   if (!currentUserUid){ toast('กรุณาเข้าสู่ระบบก่อน'); return; }
@@ -2655,7 +2731,6 @@ const I18N = {
   'BU-ABB เว็บไซต์สำหรับบันทึกข้อมูลการขาย': 'BU-ABB — a website for recording sales data',
   'ยังไม่มีบัญชี?': "Don't have an account?", 'สร้างบัญชีใหม่': 'Create account',
   'ลืมรหัสผ่าน?': 'Forgot password?', 'มีบัญชีอยู่แล้ว?': 'Already have an account?',
-  'จดจำรหัสผ่าน': 'Remember password',
   'ข้อมูลจะถูกเก็บไว้อย่างปลอดภัยบน Firebase': 'Your data is securely stored on Firebase',
   // Dashboard
   'สรุปรวม': 'Overview', 'สรุปการส่งสินค้า': 'Shipping Summary', 'เคลียร์ตัวกรอง': 'Clear Filters',
@@ -2675,6 +2750,8 @@ const I18N = {
   'ดาวน์โหลดรายงาน': 'Download Report', 'ดาวน์โหลดไฟล์ตัวอย่าง': 'Download Template',
   'นำเข้าจาก Excel': 'Import from Excel', 'สร้างโดย': 'Created By',
   'รายการคำสั่งซื้อทั้งหมด': 'All Orders',
+  'เลือกไว้': 'Selected', 'ทำเครื่องหมายว่าจัดส่งแล้ว': 'Mark as Shipped',
+  'ส่งออกที่เลือก': 'Export Selected', 'ลบที่เลือก': 'Delete Selected', 'ล้างการเลือก': 'Clear Selection',
   'คุณ': 'You', 'รอเข้าสู่ระบบ': 'Pending',
   'นำเข้า (': 'Import (', 'แถว)': 'rows)',
   '+ เพิ่มช่วง GP': '+ Add GP Range', '+ เพิ่มช่วงเป้า': '+ Add Target Range',
@@ -2711,6 +2788,9 @@ const I18N = {
   // Audit
   'เวลา': 'Time', 'ผู้ทำรายการ': 'User', 'การกระทำ': 'Action', 'รายละเอียด': 'Details',
   'โหลดประวัติเก่าเพิ่มเติม': 'Load older history', 'กำลังโหลด...': 'Loading...',
+  'ทุกการกระทำ': 'All Actions', 'ค้นหาผู้ทำรายการ, การกระทำ, รายละเอียด': 'Search user, action, details',
+  'การแก้ไข': 'Changes', 'ข้อผิดพลาดระบบ': 'System Errors', 'ข้อความ': 'Message', 'หน้า': 'Page',
+  'ไม่พบข้อผิดพลาด': 'No errors found',
   // Trash
   'ถังขยะ': 'Trash', 'ทุกประเภท': 'All Types', 'โปรโมชัน': 'Promotion', 'รีเฟรช': 'Refresh',
   'รายการ': 'Item',
@@ -2877,7 +2957,10 @@ function showTab(tab){
   if (tab==='customers') renderCustomers();
   if (tab==='users') renderUsers();
   if (tab==='promotions') renderPromotions();
-  if (tab==='audit') renderAuditLog();
+  if (tab==='audit'){
+    renderAuditLog();
+    if ($('auditSub-errors').style.display === 'block') renderErrorLog();
+  }
   if (tab==='trash') loadTrash();
 }
 
@@ -2988,9 +3071,13 @@ function refreshDashboardYearFilter(){
   sel.innerHTML = years.map(y => `<option value="${y}" ${y===selectedDashboardYear?'selected':''}>ปี ${y+543}</option>`).join('');
 }
 
-document.querySelectorAll('.subtab-item').forEach(btn => {
+// Scoped to [data-dashsub] specifically (not the bare .subtab-item class, which the Audit tab's
+// subtabs also use for shared styling) — matching the same fix already applied to .nav-item[data-tab]
+// for the same reason: a plain '.subtab-item' selector here would also catch clicks on the audit
+// subtabs and crash trying to read a dashSub-undefined element.
+document.querySelectorAll('.subtab-item[data-dashsub]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.subtab-item').forEach(b => b.classList.toggle('active', b===btn));
+    document.querySelectorAll('.subtab-item[data-dashsub]').forEach(b => b.classList.toggle('active', b===btn));
     document.querySelectorAll('.dash-subpanel').forEach(p => p.style.display = 'none');
     $(`dashSub-${btn.dataset.dashsub}`).style.display = 'block';
     // The trend chart's draw-in animation only plays while its container is visible — it was
@@ -3002,6 +3089,15 @@ document.querySelectorAll('.subtab-item').forEach(btn => {
     if (btn.dataset.dashsub === 'order' && lastOrderTrendMonths){
       renderTrendLine('trendChart_order', lastOrderTrendMonths);
     }
+  });
+});
+
+document.querySelectorAll('.subtab-item[data-auditsub]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.subtab-item[data-auditsub]').forEach(b => b.classList.toggle('active', b===btn));
+    $('auditSub-log').style.display = btn.dataset.auditsub === 'log' ? 'block' : 'none';
+    $('auditSub-errors').style.display = btn.dataset.auditsub === 'errors' ? 'block' : 'none';
+    if (btn.dataset.auditsub === 'errors') renderErrorLog();
   });
 });
 
@@ -3602,6 +3698,9 @@ function renderPromoDashboardSummary(){
 const orderStatusLabel = { pending:'PENDING', done:'COMPLETE', cancelled:'CANCELLED' };
 let selectedOrdersYear = new Date().getFullYear();
 let ordersCurrentPage = 1;
+// Persists across filter/page changes on purpose (so picking a few rows, then narrowing the search
+// to find more, doesn't lose what was already picked) — clearOrdersSelection() is the explicit reset.
+let selectedOrderIds = new Set();
 
 function refreshOrdersYearFilter(){
   const years = buildYearOptionsList();
@@ -3694,6 +3793,7 @@ function renderOrders(){
     `;
     return `
     <tr>
+      <td><input type="checkbox" class="order-select-cb" data-id="${o.id}" ${selectedOrderIds.has(o.id) ? 'checked' : ''} onchange="toggleOrderSelect('${o.id}', this.checked)"></td>
       <td>${escapeHtml(o.so||'-')}</td>
       <td>${escapeHtml(o.customer)}</td>
       <td>${escapeHtml(o.product)}</td>
@@ -3723,7 +3823,9 @@ function renderOrders(){
         </button>
       </td>
     </tr>
-  `; }).join('') : `<tr><td colspan="10" class="empty-row">ไม่มีคำสั่งซื้อในปี ${selectedOrdersYear+543} — เพิ่มรายการหรือเปลี่ยนปีที่เลือก</td></tr>`;
+  `; }).join('') : `<tr><td colspan="11" class="empty-row">ไม่มีคำสั่งซื้อในปี ${selectedOrdersYear+543} — เพิ่มรายการหรือเปลี่ยนปีที่เลือก</td></tr>`;
+
+  updateOrdersBulkBar();
 
   const ordersPaginationEl = $('ordersPagination');
   if (totalPages <= 1){
@@ -3740,6 +3842,106 @@ function renderOrders(){
 function goToOrdersPage(page){
   ordersCurrentPage = page;
   renderOrders();
+}
+
+function updateOrdersBulkBar(){
+  const bar = $('ordersBulkBar');
+  const count = selectedOrderIds.size;
+  if (bar) bar.style.display = count > 0 ? 'flex' : 'none';
+  const countEl = $('ordersBulkCount');
+  if (countEl) countEl.textContent = `${t('เลือกไว้')} ${count} ${t('รายการ')}`;
+
+  const pageCbs = document.querySelectorAll('#ordersBody .order-select-cb');
+  const selectAllCb = $('ordersSelectAllCb');
+  if (selectAllCb){
+    const total = pageCbs.length;
+    const checkedCount = Array.from(pageCbs).filter(cb => cb.checked).length;
+    selectAllCb.checked = total > 0 && checkedCount === total;
+    selectAllCb.indeterminate = checkedCount > 0 && checkedCount < total;
+  }
+}
+
+function toggleOrderSelect(id, checked){
+  if (checked) selectedOrderIds.add(id); else selectedOrderIds.delete(id);
+  updateOrdersBulkBar();
+}
+
+function toggleSelectAllOrdersOnPage(checked){
+  document.querySelectorAll('#ordersBody .order-select-cb').forEach(cb => {
+    cb.checked = checked;
+    const id = cb.dataset.id;
+    if (checked) selectedOrderIds.add(id); else selectedOrderIds.delete(id);
+  });
+  updateOrdersBulkBar();
+}
+
+function clearOrdersSelection(){
+  selectedOrderIds.clear();
+  renderOrders();
+}
+
+async function bulkDeleteSelectedOrders(){
+  if (!selectedOrderIds.size) return;
+  const ids = [...selectedOrderIds];
+  confirmAction(`ต้องการลบคำสั่งซื้อที่เลือกไว้ ${ids.length} รายการใช่ไหม? การลบไม่สามารถย้อนกลับได้`, async () => {
+    setSync('saving');
+    try{
+      const batch = db.batch();
+      const labels = [];
+      ids.forEach(id => {
+        const o = data.orders.find(x=>x.id===id);
+        if (o) labels.push(`${o.so||id} — ${o.customer||''}`);
+        batch.update(db.collection('orders').doc(id), { deletedAt: new Date().toISOString(), deletedBy: currentUserUid });
+      });
+      await batch.commit();
+      setSync('ok');
+      logAudit('ลบคำสั่งซื้อ (หลายรายการ)', `${ids.length} รายการ`, labels.slice(0,5).join(', ') + (labels.length>5?' ...':''));
+      selectedOrderIds.clear();
+      toast(`ลบแล้ว ${ids.length} รายการ`);
+    }catch(err){
+      setSync('error');
+      toast('ลบไม่สำเร็จ');
+    }
+  });
+}
+
+async function bulkMarkOrdersDone(){
+  if (!selectedOrderIds.size) return;
+  const ids = [...selectedOrderIds].filter(id => {
+    const o = data.orders.find(x=>x.id===id);
+    return o && o.status === 'pending';
+  });
+  if (!ids.length){ toast('ไม่มีรายการที่เป็น PENDING ในรายการที่เลือก'); return; }
+  setSync('saving');
+  try{
+    const batch = db.batch();
+    ids.forEach(id => batch.update(db.collection('orders').doc(id), { status: 'done' }));
+    await batch.commit();
+    setSync('ok');
+    logAudit('เปลี่ยนสถานะคำสั่งซื้อ (หลายรายการ)', `${ids.length} รายการ`, 'PENDING → COMPLETE');
+    toast(`อัปเดตแล้ว ${ids.length} รายการ`);
+  }catch(err){
+    setSync('error');
+    toast('อัปเดตไม่สำเร็จ');
+  }
+}
+
+function bulkExportSelectedOrders(){
+  if (!selectedOrderIds.size) return;
+  const rows = [...selectedOrderIds]
+    .map(id => data.orders.find(o=>o.id===id))
+    .filter(Boolean)
+    .map(o => ({
+      'SO': o.so||'-', 'ลูกค้า': o.customer, 'สินค้า': o.product, 'ยอดเงิน': o.price,
+      'PO': o.po||'', 'วันที่สั่งซื้อ': fmtDate(o.date), 'วันที่ส่งสินค้า': o.shipDate?fmtDate(o.shipDate):'',
+      'สถานะ': orderStatusLabel[o.status]||o.status
+    }));
+  if (!rows.length){ toast('ไม่มีรายการที่เลือก'); return; }
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'คำสั่งซื้อที่เลือก');
+  XLSX.writeFile(wb, `orders-selected-${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('ดาวน์โหลดแล้ว');
 }
 
 let cancelledCurrentPage = 1;
@@ -4599,7 +4801,30 @@ function renderAuditLog(){
   const loadingEl = $('loadingOverlay');
   if (loadingEl) loadingEl.style.display = 'none';
   const body = $('auditBody');
-  const list = [...(data.auditLog||[]), ...auditOlderEntries].sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
+  const fullList = [...(data.auditLog||[]), ...auditOlderEntries].sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
+
+  // The action filter's options are built from whatever distinct action strings actually appear in
+  // the loaded log (logAudit() callers use free-text Thai labels, not a fixed enum), preserving
+  // whichever one is currently selected across re-renders.
+  const actionSel = $('auditActionFilter');
+  const prevActionFilter = actionSel.value || 'all';
+  const distinctActions = [...new Set(fullList.map(a => a.action).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+  actionSel.innerHTML = `<option value="all">${t('ทุกการกระทำ')}</option>` +
+    distinctActions.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+  actionSel.value = distinctActions.includes(prevActionFilter) || prevActionFilter === 'all' ? prevActionFilter : 'all';
+
+  const searchTerm = ($('auditSearch').value || '').trim().toLowerCase();
+  const actionFilter = actionSel.value;
+  let list = fullList;
+  if (actionFilter !== 'all') list = list.filter(a => a.action === actionFilter);
+  if (searchTerm){
+    list = list.filter(a =>
+      (a.changedByName||'').toLowerCase().includes(searchTerm) ||
+      (a.action||'').toLowerCase().includes(searchTerm) ||
+      (a.entityLabel||'').toLowerCase().includes(searchTerm) ||
+      (a.details||'').toLowerCase().includes(searchTerm)
+    );
+  }
 
   const totalBadge = $('auditTotalCount');
   if (list.length){
@@ -4623,7 +4848,7 @@ function renderAuditLog(){
       <td>${escapeHtml(a.action || '-')}</td>
       <td>${escapeHtml(a.entityLabel || '')}${a.details ? ` <span class="countdown">(${escapeHtml(a.details)})</span>` : ''}</td>
     </tr>
-  `).join('') : `<tr><td colspan="4" class="empty-row">ยังไม่มีประวัติการแก้ไข</td></tr>`;
+  `).join('') : `<tr><td colspan="4" class="empty-row">${fullList.length ? 'ไม่พบรายการที่ตรงกับตัวกรอง/คำค้นหา' : 'ยังไม่มีประวัติการแก้ไข'}</td></tr>`;
 
   const paginationEl = $('auditPagination');
   if (totalPages <= 1){
@@ -4647,6 +4872,37 @@ function goToAuditPage(page){
   renderAuditLog();
 }
 $('auditPageSize').addEventListener('change', () => { auditCurrentPage = 1; renderAuditLog(); });
+$('auditSearch').addEventListener('input', () => { auditCurrentPage = 1; renderAuditLog(); });
+$('auditActionFilter').addEventListener('change', () => { auditCurrentPage = 1; renderAuditLog(); });
+$('auditClearBtn').addEventListener('click', () => {
+  $('auditPageSize').value = '20';
+  $('auditSearch').value = '';
+  $('auditActionFilter').value = 'all';
+  auditCurrentPage = 1;
+  renderAuditLog();
+  toast('เคลียร์ตัวกรองแล้ว');
+});
+
+function renderErrorLog(){
+  const body = $('errorLogBody');
+  if (!body) return;
+  const list = data.errorLog || [];
+  const totalBadge = $('errorLogTotalCount');
+  if (list.length){
+    totalBadge.textContent = `(${list.length})`;
+    totalBadge.style.display = 'inline-block';
+  } else {
+    totalBadge.style.display = 'none';
+  }
+  body.innerHTML = list.length ? list.map(e => `
+    <tr>
+      <td>${fmtDateTime(e.timestamp)}</td>
+      <td>${escapeHtml(e.userName || '-')}</td>
+      <td>${escapeHtml(e.message || '-')}</td>
+      <td title="${escapeHtml(e.url || '')}">${escapeHtml((e.url||'').replace(/^https?:\/\/[^/]+/, '') || '-')}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="4" class="empty-row">ไม่พบข้อผิดพลาด</td></tr>`;
+}
 
 let selectedTargetYear = new Date().getFullYear();
 
