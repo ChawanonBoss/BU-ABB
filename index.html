@@ -1611,6 +1611,21 @@
       <div id="tab-warranty" class="tab-panel" style="display:none;">
         <div class="alert-banner" id="warrantyAlert" style="display:none;"></div>
 
+        <div class="stat-grid">
+          <div class="stat-card" style="cursor:pointer;" title="ดูเฉพาะที่ใช้งานอยู่" onclick="filterWarrantyByStatus('active')">
+            <div class="stat-label">ใช้งานอยู่</div>
+            <div class="stat-value" id="warrantyStatActive">0</div>
+          </div>
+          <div class="stat-card" style="cursor:pointer;" title="ดูเฉพาะที่ใกล้หมดอายุ" onclick="filterWarrantyByStatus('soon')">
+            <div class="stat-label">ใกล้หมดอายุ</div>
+            <div class="stat-value" id="warrantyStatSoon" style="color:var(--sun);">0</div>
+          </div>
+          <div class="stat-card" style="cursor:pointer;" title="ดูเฉพาะที่หมดอายุ" onclick="filterWarrantyByStatus('expired')">
+            <div class="stat-label">หมดอายุ</div>
+            <div class="stat-value" id="warrantyStatExpired" style="color:var(--danger);">0</div>
+          </div>
+        </div>
+
         <div class="panel">
           <div class="panel-head">
             <h3>รายการรับประกันทั้งหมด <span class="badge-count neutral" id="warrantyTotalCount" style="display:none;"></span></h3>
@@ -1624,6 +1639,16 @@
               <button class="btn outline" id="warrantyClearBtn" type="button">เคลียร์ตัวกรอง</button>
               <button class="btn outline" id="warrantyExportBtn" type="button">ดาวน์โหลดรายงาน</button>
             </div>
+          </div>
+          <div class="filter-bar" style="margin-bottom:16px;">
+            <input type="text" id="warrantySearch" class="inline-input filter-control" placeholder="ค้นหาลูกค้า, สินค้า, PO" style="width:220px;">
+            <select id="warrantyStatusFilter" class="inline-input filter-control">
+              <option value="all">ทุกสถานะ</option>
+              <option value="active">ใช้งานอยู่</option>
+              <option value="soon">ใกล้หมดอายุ</option>
+              <option value="expired">หมดอายุ</option>
+              <option value="claimed">เคลมแล้ว</option>
+            </select>
           </div>
           <p style="font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px;">แสดงเฉพาะคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน — นับประกันมาตรฐาน 12 เดือนจากวันที่ส่งสินค้า แก้ระยะเวลาและประเภทได้ในตาราง</p>
           <div class="table-scroll"><table>
@@ -1955,7 +1980,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.10';
+const APP_VERSION = '1.0.11';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2617,6 +2642,8 @@ const I18N = {
   'รายการรับประกันทั้งหมด': 'All Warranties', 'ส่งสินค้า': 'Shipped',
   'ประเภทการรับประกัน': 'Warranty Type', 'ระยะเวลา (เดือน)': 'Duration (Months)',
   'หมดอายุ': 'Expiry', 'เหลือเวลา': 'Remaining', 'หมายเหตุ': 'Notes',
+  'ใช้งานอยู่': 'Active', 'ใกล้หมดอายุ': 'Expiring Soon', 'เคลมแล้ว': 'Claimed',
+  'ค้นหาลูกค้า, สินค้า, PO': 'Search customer, product, PO',
   // Cancelled
   'รายการยกเลิกการสั่งซื้อ': 'Cancelled Orders',
   // Customers
@@ -2865,7 +2892,7 @@ function renderAlerts(){
   });
   const banners = [$('warrantyAlert'), $('dashboardAlert')].filter(Boolean);
   const messages = [];
-  if (soon.length) messages.push(`มีคำสั่งจำนวน ${soon.length} กำลังจะหมดประกัน (ภายใน 30 วัน)`);
+  if (soon.length) messages.push(`มีคำสั่งจำนวน ${soon.length} กำลังจะหมดประกัน`);
   if (promosEndingSoon.length) messages.push(`มีโปรโมชัน ${promosEndingSoon.length} รายการใกล้สิ้นสุด (ภายใน 7 วัน)`);
   const notifyDot = $('railNotifyDot');
   if (notifyDot) notifyDot.style.display = messages.length ? 'block' : 'none';
@@ -3727,9 +3754,38 @@ $('cancelledPageSize').addEventListener('change', () => {
 const warrantyStatusLabel = { active:'ใช้งานอยู่', soon:'ใกล้หมดอายุ', claimed:'เคลมแล้ว', expired:'หมดอายุ' };
 const warrantyTypeOptions = ['สั่งซื้อใหม่','งานซ่อม','งานบำรุงรักษา'];
 
+function filterWarrantyByStatus(status){
+  $('warrantyStatusFilter').value = status;
+  warrantyCurrentPage = 1;
+  renderWarranty();
+}
+
 function renderWarranty(){
   const body = $('warrantyBody');
-  const list = getVisibleOrders().filter(isWarrantyCandidate).sort((a,b)=> warrantyDaysLeft(a) - warrantyDaysLeft(b));
+  const searchTerm = ($('warrantySearch').value || '').trim().toLowerCase();
+  const statusFilter = $('warrantyStatusFilter').value;
+
+  let baseList = getVisibleOrders().filter(isWarrantyCandidate);
+  if (searchTerm){
+    baseList = baseList.filter(o =>
+      (o.customer||'').toLowerCase().includes(searchTerm) ||
+      (o.product||'').toLowerCase().includes(searchTerm) ||
+      (o.po||'').toLowerCase().includes(searchTerm)
+    );
+  }
+
+  // Stat cards reflect the search term but never the status filter itself, so all three
+  // stay meaningful together no matter which one (if any) is currently selected.
+  const statusCounts = { active:0, soon:0, expired:0, claimed:0 };
+  baseList.forEach(o => { statusCounts[warrantyDisplayStatus(o)]++; });
+  animateNumber($('warrantyStatActive'), statusCounts.active);
+  animateNumber($('warrantyStatSoon'), statusCounts.soon);
+  animateNumber($('warrantyStatExpired'), statusCounts.expired);
+
+  let list = baseList.sort((a,b)=> warrantyDaysLeft(a) - warrantyDaysLeft(b));
+  if (statusFilter !== 'all'){
+    list = list.filter(o => warrantyDisplayStatus(o) === statusFilter);
+  }
 
   const warrantyTotalBadge = $('warrantyTotalCount');
   if (list.length){
@@ -3769,7 +3825,7 @@ function renderWarranty(){
         </button>` : ''}
       </td>
     </tr>
-  `; }).join('') : `<tr><td colspan="11" class="empty-row">ยังไม่มีคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน</td></tr>`;
+  `; }).join('') : `<tr><td colspan="11" class="empty-row">${getVisibleOrders().filter(isWarrantyCandidate).length ? 'ไม่พบรายการที่ตรงกับตัวกรอง/คำค้นหา' : 'ยังไม่มีคำสั่งซื้อที่มีวันที่ส่งสินค้าและเลขที่ PO ครบถ้วน'}</td></tr>`;
 
   const warrantyPaginationEl = $('warrantyPagination');
   if (totalPages <= 1){
@@ -3960,10 +4016,14 @@ $('customersClearBtn').addEventListener('click', () => {
 
 $('warrantyClearBtn').addEventListener('click', () => {
   $('warrantyPageSize').value = '10';
+  $('warrantySearch').value = '';
+  $('warrantyStatusFilter').value = 'all';
   warrantyCurrentPage = 1;
   renderWarranty();
   toast('เคลียร์ตัวกรองแล้ว');
 });
+$('warrantySearch').addEventListener('input', () => { warrantyCurrentPage = 1; renderWarranty(); });
+$('warrantyStatusFilter').addEventListener('change', () => { warrantyCurrentPage = 1; renderWarranty(); });
 
 $('warrantyExportBtn').addEventListener('click', () => {
   const list = getVisibleOrders().filter(isWarrantyCandidate).sort((a,b)=> warrantyDaysLeft(a) - warrantyDaysLeft(b));
