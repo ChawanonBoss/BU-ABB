@@ -1300,6 +1300,7 @@
         <div class="dash-toolbar">
           <div class="subtabs">
             <button class="subtab-item active" data-dashsub="all">สรุปรวม</button>
+            <button class="subtab-item" data-dashsub="order">สรุปการซื้อสั่ง</button>
             <button class="subtab-item" data-dashsub="shipped">สรุปการส่งสินค้า</button>
           </div>
           <div style="display:flex; align-items:center; gap:10px;">
@@ -1399,6 +1400,45 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- สรุปการซื้อสั่ง: only status = done (Complete), keyed by order date (not ship date), no GP/commission -->
+        <div id="dashSub-order" class="dash-subpanel" style="display:none;">
+          <div class="period-indicator" id="periodIndicator_order"></div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-label">คำสั่งซื้อที่เสร็จสิ้น</div>
+              <div class="stat-value" id="statTotalOrders_order">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">ยอดคำสั่งซื้อรวม</div>
+              <div class="stat-value" id="statRevenue_order">฿0</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h3>คำสั่งซื้อรายเดือน</h3>
+              <div class="quarter-btn-group" id="quarterBtnGroup_order">
+                <button class="quarter-btn" type="button" onclick="selectDashboardQuarter('order',0)">Q1</button>
+                <button class="quarter-btn" type="button" onclick="selectDashboardQuarter('order',1)">Q2</button>
+                <button class="quarter-btn" type="button" onclick="selectDashboardQuarter('order',2)">Q3</button>
+                <button class="quarter-btn" type="button" onclick="selectDashboardQuarter('order',3)">Q4</button>
+              </div>
+            </div>
+            <div class="bars" id="monthlyBars_order"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>แนวโน้มคำสั่งซื้อ</h3></div>
+            <div id="trendChart_order" class="trend-chart"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>คำสั่งซื้อล่าสุด</h3><span class="badge-count neutral" id="monthFilterBadge_order" style="display:none; cursor:pointer;" title="คลิกเพื่อล้างตัวกรองเดือน" onclick="clearDashboardMonth('order')"></span></div>
+            <div class="table-scroll"><table>
+              <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>วันที่สั่งซื้อ</th><th>ยอดเงิน</th><th>สถานะ</th></tr></thead>
+              <tbody id="recentOrdersBody_order"></tbody>
+            </table></div>
+            <div class="pagination" id="recentPagination_order"></div>
           </div>
         </div>
 
@@ -1906,7 +1946,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.6';
+const APP_VERSION = '1.0.7';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2543,6 +2583,9 @@ const I18N = {
   'แนวโน้มยอดขาย': 'Sales Trend', 'คำสั่งส่งสินค้าล่าสุด': 'Recent Shipments',
   'ลูกค้า': 'Customer', 'สินค้า': 'Product', 'วันที่ส่งสินค้า': 'Ship Date',
   'ยอดเงิน': 'Amount', 'สถานะ': 'Status', 'ทั้งหมด': 'All',
+  'สรุปการซื้อสั่ง': 'Order Summary', 'คำสั่งซื้อที่เสร็จสิ้น': 'Completed Orders',
+  'ยอดคำสั่งซื้อรวม': 'Total Order Amount', 'คำสั่งซื้อรายเดือน': 'Monthly Orders',
+  'แนวโน้มคำสั่งซื้อ': 'Order Trend', 'คำสั่งซื้อล่าสุด': 'Recent Orders',
   // Orders
   'เพิ่มคำสั่งซื้อใหม่': 'Add New Order', 'เลขที่ใบเสนอราคา (SO)': 'Quote No. (SO)',
   'ชื่อลูกค้า': 'Customer Name', 'ราคารวม (บาท)': 'Total Price (THB)', 'วันที่สั่งซื้อ': 'Order Date',
@@ -2861,12 +2904,16 @@ document.querySelectorAll('.subtab-item').forEach(btn => {
     if (btn.dataset.dashsub === 'shipped' && lastShippedTrendMonths){
       renderTrendLine('trendChart_shipped', lastShippedTrendMonths);
     }
+    if (btn.dataset.dashsub === 'order' && lastOrderTrendMonths){
+      renderTrendLine('trendChart_order', lastOrderTrendMonths);
+    }
   });
 });
 
-let selectedDashboardMonths = { all: [], shipped: [] };
-let dashboardRecentPage = { all: 1, shipped: 1 };
+let selectedDashboardMonths = { all: [], shipped: [], order: [] };
+let dashboardRecentPage = { all: 1, shipped: 1, order: 1 };
 let lastShippedTrendMonths = null;
+let lastOrderTrendMonths = null;
 const RECENT_PAGE_SIZE = 10;
 
 function selectDashboardMonth(suffix, idx){
@@ -3265,9 +3312,20 @@ function renderDashboardSection(suffix, orders){
   });
   const max = Math.max(1, ...months.map(m=>m.count));
 
+  if (suffix === 'shipped' || suffix === 'order'){
+    renderQuarterButtons(suffix);
+    if (suffix === 'shipped'){
+      lastShippedTrendMonths = months;
+      renderTrendLine('trendChart_shipped', months);
+    } else {
+      lastOrderTrendMonths = months;
+      renderTrendLine('trendChart_order', months);
+    }
+  }
+
   // Aggregate GP total & GP% — sum selected months first (or whole year if none selected), then divide.
   // These two cards only exist once in the DOM (in the "สรุปการส่งสินค้า" section), so only the
-  // 'shipped' suffix is allowed to write them — otherwise the 'all'/'orders' renders (which may run
+  // 'shipped' suffix is allowed to write them — otherwise the 'all'/'order' renders (which may run
   // before or after) would silently overwrite the correct number with their own, unrelated calculation.
   if (suffix === 'shipped'){
     const gpMonths = hasSelection ? months.filter((m,idx)=>selMonths.includes(idx)) : months;
@@ -3277,9 +3335,6 @@ function renderDashboardSection(suffix, orders){
     if (gpTotalEl) animateNumber(gpTotalEl, totalGP, fmtMoney);
     const gpPercentEl = $('statGPPercent');
     if (gpPercentEl) animateNumber(gpPercentEl, gpPercent, v => v.toFixed(1) + '%');
-    lastShippedTrendMonths = months;
-    renderTrendLine('trendChart_shipped', months);
-    renderQuarterButtons('shipped');
 
     const annualShipTarget = getAnnualShipTarget(selectedDashboardYear);
     const periodMonths = hasSelection ? selMonths.length : 12;
@@ -3381,6 +3436,7 @@ function getDashboardScopedOrders(){
 function renderDashboard(){
   const yearOrders = getDashboardScopedOrders().filter(o => o.date && new Date(o.date).getFullYear() === selectedDashboardYear);
   const shippedSet = getDashboardScopedOrders().filter(o => o.status === 'done' && o.shipDate && new Date(o.shipDate).getFullYear() === selectedDashboardYear);
+  const orderDoneSet = getDashboardScopedOrders().filter(o => o.status === 'done' && o.date && new Date(o.date).getFullYear() === selectedDashboardYear);
 
   const allSelMonths = selectedDashboardMonths.all;
   const allHasSelection = allSelMonths.length > 0;
@@ -3396,6 +3452,7 @@ function renderDashboard(){
   renderAlerts();
 
   renderDashboardSection('all', yearOrders);
+  renderDashboardSection('order', orderDoneSet);
   renderDashboardSection('shipped', shippedSet);
   renderPromoDashboardSummary();
   renderCommissionYearly();
