@@ -691,6 +691,13 @@
   td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
   tr:last-child td{ border-bottom:none; }
   tbody tr{ transition:background-color .15s ease; animation:rowFadeIn .2s ease backwards; }
+  /* Orders page re-renders on every inline edit/save (its Firestore listener re-runs
+     renderOrders() on every write, including the user's own), which used to replay this
+     fade-in on every single row each time — visibly janky mid-edit. Scoped off by default here
+     and only re-enabled for the moment the tab is actually opened (see showTab()'s 'orders'
+     branch), so it plays once on open and never again from a background re-render. */
+  #ordersBody tr{ animation:none; }
+  #ordersBody.rows-animate-in tr{ animation:rowFadeIn .2s ease backwards; }
   tbody tr:hover{ background:rgba(109,122,82,0.06); }
   tbody tr.clickable-row{ cursor:pointer; }
   @keyframes rowFadeIn{
@@ -2188,7 +2195,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.28';
+const APP_VERSION = '1.0.29';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -3329,7 +3336,11 @@ function showTab(tab){
     if (shipRing) shipRing.dataset.rawPct = 0;
     renderDashboard();
   }
-  if (tab==='orders') renderOrders();
+  if (tab==='orders'){
+    $('ordersBody').classList.add('rows-animate-in');
+    renderOrders();
+    setTimeout(() => $('ordersBody').classList.remove('rows-animate-in'), 500);
+  }
   if (tab==='warranty') renderWarranty();
   if (tab==='cancelled') renderCancelledOrders();
   if (tab==='customers') renderCustomers();
