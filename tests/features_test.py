@@ -203,70 +203,28 @@ def check_commission_config_anchor_guard():
     print("check_commission_config_anchor_guard: OK")
 
 
-def check_gp_target_field():
+def check_gp_target_is_a_locked_constant():
+    # Target GP% is a fixed company policy (confirmed explicitly), not per-person/editable —
+    # shown as a static sub-line under the "GP (%)" stat card. See CLAUDE.md "Commission
+    # calculator". This replaced an earlier editable-per-person version of this field.
     with serve_repo() as base_url:
         with new_page() as (page, errors):
             sign_in_as_admin(page, base_url)
-            page.evaluate("""
-                async () => {
-                  await db.collection('users').doc('alice1').set({ email:'alice@a.com', name:'Alice', role:'user' });
-                  await db.collection('userTargets').doc('alice1_2026').set({ orderTarget: 1000000, shippedTarget: 900000, gpTarget: 18, uid:'alice1' });
-                }
-            """)
-            page.wait_for_timeout(400)
             page.evaluate("() => showTab('dashboard')")
             page.wait_for_timeout(150)
             page.evaluate("() => document.querySelector('[data-dashsub=\"shipped\"]').click()")
             page.wait_for_timeout(200)
 
-            agg_html = page.evaluate("() => document.getElementById('statGPTargetWrap').innerHTML")
-            assert "<input" not in agg_html, "admin viewing the 'all' aggregate must not get an editable GP target field"
-
-            page.evaluate("""
-                () => {
-                  document.getElementById('targetUserFilter').value = 'alice1';
-                  document.getElementById('targetUserFilter').dispatchEvent(new Event('change'));
-                }
-            """)
-            page.wait_for_timeout(300)
-            admin_value = page.evaluate(
-                "() => document.getElementById('statGPTargetWrap').querySelector('input').value"
+            gp_card_text = page.evaluate(
+                "() => document.getElementById('statGPPercent').closest('.stat-card').textContent"
             )
-            assert admin_value == "18", f"admin viewing Alice should see her saved gpTarget=18, got {admin_value!r}"
+            assert "20%" in gp_card_text, f"GP (%) card should show the locked 20% target, got {gp_card_text!r}"
+            assert not page.evaluate("() => !!document.querySelector('.stat-value-input')"), (
+                "target GP% must not be an editable input anywhere — it's a locked constant now"
+            )
 
-            page.evaluate("""
-                () => {
-                  const input = document.getElementById('statGPTargetWrap').querySelector('input');
-                  input.value = '22';
-                  input.dispatchEvent(new Event('change'));
-                }
-            """)
-            page.wait_for_timeout(300)
-            saved = page.evaluate("() => __mockStore.userTargets.get('alice1_' + selectedDashboardYear).gpTarget")
-            assert saved == 22, f"editing the GP target input should save to userTargets, got {saved!r}"
-
-            page.evaluate("""
-                async () => {
-                  currentUserEmail = 'alice@a.com'; currentUserName = 'Alice'; currentUserUid = 'alice1';
-                  await onSignedIn();
-                }
-            """)
-            page.wait_for_timeout(500)
-            page.evaluate("() => showTab('dashboard')")
-            page.wait_for_timeout(150)
-            page.evaluate("() => document.querySelector('[data-dashsub=\"shipped\"]').click()")
-            page.wait_for_timeout(200)
-            alice_own = page.evaluate("""
-                () => {
-                  const wrap = document.getElementById('statGPTargetWrap');
-                  return { hasInput: !!wrap.querySelector('input'), text: wrap.textContent };
-                }
-            """)
-            assert not alice_own["hasInput"], "a non-admin must never get an editable GP target field, even for themselves"
-            assert alice_own["text"] == "22%", f"Alice should see her own updated target read-only, got {alice_own['text']!r}"
-
-            assert errors == [], f"JS error(s) during GP target field check: {errors}"
-    print("check_gp_target_field: OK")
+            assert errors == [], f"JS error(s) during GP target constant check: {errors}"
+    print("check_gp_target_is_a_locked_constant: OK")
 
 
 def check_warranty_alert_dismiss():
@@ -326,7 +284,7 @@ CHECKS = [
     check_sign_out_hides_person_filter,
     check_trash_purge_banner_and_bulk_delete,
     check_commission_config_anchor_guard,
-    check_gp_target_field,
+    check_gp_target_is_a_locked_constant,
     check_warranty_alert_dismiss,
 ]
 
