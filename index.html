@@ -513,6 +513,12 @@
   .stat-label{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
   .stat-value{ font-family:var(--font-display); font-size:28px; font-weight:500; transition:color .2s ease; }
   .stat-grid.mixed .stat-card.small .stat-value{ font-size:22px; }
+  .stat-value-input{
+    font-family:var(--font-display); font-size:22px; font-weight:500;
+    color:var(--ink); background:transparent; border:none; border-bottom:1px dashed transparent;
+    padding:0; width:100%; outline:none;
+  }
+  .stat-value-input:hover, .stat-value-input:focus{ border-bottom-color:var(--accent); }
   .stat-sub{ font-size:12px; color:var(--accent); margin-top:6px; }
   .period-indicator{
     font-size:12.5px;
@@ -1577,6 +1583,10 @@
               <div class="stat-label">GP (%)</div>
               <div class="stat-value" id="statGPPercent">0%</div>
             </div>
+            <div class="stat-card small">
+              <div class="stat-label">เป้าหมาย GP%</div>
+              <div id="statGPTargetWrap" class="stat-value">-</div>
+            </div>
             <div class="stat-card small commission-card">
               <div class="stat-label">ค่าคอมมิชชั่นโดยประมาณ <span id="commissionSettingsBtn" title="ตั้งค่าตารางอัตราค่าคอม" style="display:none; cursor:pointer;">⚙️</span></div>
               <div class="commission-amount-cell">
@@ -2135,7 +2145,7 @@
     <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:16px;">แสดงคำสั่งซื้อที่มีกำหนดส่งสินค้าภายในเดือนที่กำหนดของโปรโมชันนี้เท่านั้น</p>
     <div style="max-height:420px; overflow-y:auto; overflow-x:auto;">
       <table>
-        <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>วันที่ส่งสินค้า</th><th id="promoGiftHeader"></th></tr></thead>
+        <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>วันที่ส่งสินค้า</th><th>สินค้าโปรโมชั่น</th></tr></thead>
         <tbody id="promoOrdersBody"></tbody>
       </table>
     </div>
@@ -2213,7 +2223,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.32';
+const APP_VERSION = '1.0.33';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2627,6 +2637,7 @@ const I18N = {
   'ผลรวมกำไรของทุกคน — เลือกคนใดคนหนึ่งในตัวกรองด้านบนเพื่อแก้ไข': "Everyone's combined profit — pick one person in the filter above to edit",
   '(คลิกเพื่อเลือกหลายเดือน)': '(click to select multiple months)',
   'ลบ': 'Delete', 'ปิดการแจ้งเตือน': 'Dismiss notification', 'รับทราบ': 'Got it',
+  'สินค้าโปรโมชั่น': 'Promotion Item', 'เป้าหมาย GP%': 'Target GP%', 'แก้ไขได้': 'Editable',
   'ส่งภายใน': 'Due within', 'กำหนดส่งภายในเดือน': 'Due within month of',
   'ของแจก': 'Gift',
   'ไม่มีคำสั่งซื้อที่กำหนดส่งภายในเดือนนี้': 'No orders due within this month',
@@ -2836,7 +2847,15 @@ function getUserInitials(uid){
 
 function getUserTarget(uid, year){
   const t = (data.userTargets||[]).find(x => x.id === `${uid}_${year}`);
-  return { orderTarget: t ? Number(t.orderTarget||0) : 0, shippedTarget: t ? Number(t.shippedTarget||0) : 0 };
+  return {
+    orderTarget: t ? Number(t.orderTarget||0) : 0,
+    shippedTarget: t ? Number(t.shippedTarget||0) : 0,
+    // Unlike orderTarget/shippedTarget (always a number, defaulting to 0), gpTarget defaults to
+    // null when unset — a target GP% of exactly 0 would be a real, meaningful value, so there's
+    // no safe "unset" sentinel among real numbers; the UI checks for null to show a blank/dash
+    // instead of a misleading "0%" for someone who was never given a GP target at all.
+    gpTarget: t && t.gpTarget !== undefined && t.gpTarget !== null ? Number(t.gpTarget) : null,
+  };
 }
 
 async function setUserTarget(uid, year, field, value){
@@ -4055,6 +4074,22 @@ function renderDashboardSection(suffix, orders){
     if (gpTotalEl) animateNumber(gpTotalEl, totalGP, fmtMoney);
     const gpPercentEl = $('statGPPercent');
     if (gpPercentEl) animateNumber(gpPercentEl, gpPercent, v => v.toFixed(1) + '%');
+
+    // Only admin, and only while looking at one specific person (not the "ทั้งหมด" aggregate —
+    // there's no single target to attribute there, same reasoning as the monthly GP input right
+    // below), gets an editable field; everyone else (a non-admin looking at their own dashboard
+    // included, matching the existing rule that regular users never set their own targets) sees
+    // it as plain read-only text.
+    const gpTargetWrap = $('statGPTargetWrap');
+    if (gpTargetWrap){
+      const gpTargetInfo = gpTargetUid ? getUserTarget(gpTargetUid, selectedDashboardYear) : null;
+      const gpTargetVal = gpTargetInfo && gpTargetInfo.gpTarget !== null ? gpTargetInfo.gpTarget : null;
+      if (currentUserRole === 'admin' && gpTargetUid){
+        gpTargetWrap.innerHTML = `<input type="text" inputmode="decimal" class="stat-value-input" value="${gpTargetVal ?? ''}" placeholder="-" title="${t('เป้าหมาย GP%')} — ${t('แก้ไขได้')}" onchange="setUserTarget('${gpTargetUid}', ${selectedDashboardYear}, 'gpTarget', this.value)">`;
+      } else {
+        gpTargetWrap.textContent = gpTargetVal !== null ? `${gpTargetVal}%` : '-';
+      }
+    }
 
     const annualShipTarget = getAnnualShipTarget(selectedDashboardYear);
     const periodMonths = hasSelection ? selMonths.length : 12;
@@ -5740,7 +5775,6 @@ function renderPromoModalOrders(){
   const qualifying = getPromoQualifyingOrders(promo).sort((a,b)=> new Date(a.shipDate)-new Date(b.shipDate));
   $('promoModalTitle').textContent = promo.name;
   $('promoModalSub').textContent = `${t('กำหนดส่งภายในเดือน')} ${t(monthShortLabels[promo.month])} ${Number(promo.year)+543} · ${t('ของแจก')}: ${promo.giftLabel}`;
-  $('promoGiftHeader').textContent = promo.giftLabel;
 
   $('promoOrdersBody').innerHTML = qualifying.length ? qualifying.map(o => {
     const checked = isPromoOrderPrepared(promo.id, o.id);

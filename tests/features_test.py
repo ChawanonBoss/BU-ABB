@@ -203,6 +203,72 @@ def check_commission_config_anchor_guard():
     print("check_commission_config_anchor_guard: OK")
 
 
+def check_gp_target_field():
+    with serve_repo() as base_url:
+        with new_page() as (page, errors):
+            sign_in_as_admin(page, base_url)
+            page.evaluate("""
+                async () => {
+                  await db.collection('users').doc('alice1').set({ email:'alice@a.com', name:'Alice', role:'user' });
+                  await db.collection('userTargets').doc('alice1_2026').set({ orderTarget: 1000000, shippedTarget: 900000, gpTarget: 18, uid:'alice1' });
+                }
+            """)
+            page.wait_for_timeout(400)
+            page.evaluate("() => showTab('dashboard')")
+            page.wait_for_timeout(150)
+            page.evaluate("() => document.querySelector('[data-dashsub=\"shipped\"]').click()")
+            page.wait_for_timeout(200)
+
+            agg_html = page.evaluate("() => document.getElementById('statGPTargetWrap').innerHTML")
+            assert "<input" not in agg_html, "admin viewing the 'all' aggregate must not get an editable GP target field"
+
+            page.evaluate("""
+                () => {
+                  document.getElementById('targetUserFilter').value = 'alice1';
+                  document.getElementById('targetUserFilter').dispatchEvent(new Event('change'));
+                }
+            """)
+            page.wait_for_timeout(300)
+            admin_value = page.evaluate(
+                "() => document.getElementById('statGPTargetWrap').querySelector('input').value"
+            )
+            assert admin_value == "18", f"admin viewing Alice should see her saved gpTarget=18, got {admin_value!r}"
+
+            page.evaluate("""
+                () => {
+                  const input = document.getElementById('statGPTargetWrap').querySelector('input');
+                  input.value = '22';
+                  input.dispatchEvent(new Event('change'));
+                }
+            """)
+            page.wait_for_timeout(300)
+            saved = page.evaluate("() => __mockStore.userTargets.get('alice1_' + selectedDashboardYear).gpTarget")
+            assert saved == 22, f"editing the GP target input should save to userTargets, got {saved!r}"
+
+            page.evaluate("""
+                async () => {
+                  currentUserEmail = 'alice@a.com'; currentUserName = 'Alice'; currentUserUid = 'alice1';
+                  await onSignedIn();
+                }
+            """)
+            page.wait_for_timeout(500)
+            page.evaluate("() => showTab('dashboard')")
+            page.wait_for_timeout(150)
+            page.evaluate("() => document.querySelector('[data-dashsub=\"shipped\"]').click()")
+            page.wait_for_timeout(200)
+            alice_own = page.evaluate("""
+                () => {
+                  const wrap = document.getElementById('statGPTargetWrap');
+                  return { hasInput: !!wrap.querySelector('input'), text: wrap.textContent };
+                }
+            """)
+            assert not alice_own["hasInput"], "a non-admin must never get an editable GP target field, even for themselves"
+            assert alice_own["text"] == "22%", f"Alice should see her own updated target read-only, got {alice_own['text']!r}"
+
+            assert errors == [], f"JS error(s) during GP target field check: {errors}"
+    print("check_gp_target_field: OK")
+
+
 def check_warranty_alert_dismiss():
     with serve_repo() as base_url:
         with new_page() as (page, errors):
@@ -260,6 +326,7 @@ CHECKS = [
     check_sign_out_hides_person_filter,
     check_trash_purge_banner_and_bulk_delete,
     check_commission_config_anchor_guard,
+    check_gp_target_field,
     check_warranty_alert_dismiss,
 ]
 
