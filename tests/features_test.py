@@ -227,6 +227,55 @@ def check_gp_target_is_a_locked_constant():
     print("check_gp_target_is_a_locked_constant: OK")
 
 
+def check_dark_mode_soft_token_contrast():
+    # Dark mode used to only override --paper/--card/--ink/--line — the "-soft" tint tokens
+    # (--accent-soft etc., meant as a pale light-mode background behind --ink text) stayed at
+    # their pale light-mode values while --ink switched to near-white, making text on top of
+    # them (e.g. the PO/Invoice input's .po-filled state) unreadable. This checks each -soft
+    # token actually changes value under dark mode rather than staying at the light-mode default.
+    with serve_repo() as base_url:
+        with new_page() as (page, errors):
+            sign_in_as_admin(page, base_url)
+            page.evaluate("""
+                async () => {
+                  await db.collection('orders').doc('o1').set({ so:'A1', customer:'Cust A1', product:'X', price:1000, po:'INV001', date:'2026-09-05', shipDate:'2026-09-10', status:'done', createdBy:'admin1' });
+                }
+            """)
+            page.wait_for_timeout(400)
+
+            light_values = page.evaluate("""
+                () => ['--accent-soft', '--sun-soft', '--danger-soft', '--info-soft'].map(
+                  v => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
+                )
+            """)
+            page.evaluate("() => applyTheme('dark')")
+            page.wait_for_timeout(150)
+            dark_values = page.evaluate("""
+                () => ['--accent-soft', '--sun-soft', '--danger-soft', '--info-soft'].map(
+                  v => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
+                )
+            """)
+            for name, light, dark in zip(["--accent-soft", "--sun-soft", "--danger-soft", "--info-soft"], light_values, dark_values):
+                assert light != dark, f"{name} must be overridden for dark mode, still {dark!r} (same as light mode)"
+
+            # spot-check the PO/Invoice field specifically, since that's the reported symptom
+            page.evaluate("() => showTab('orders')")
+            page.wait_for_timeout(300)
+            colors = page.evaluate("""
+                () => {
+                  const input = document.querySelector('#ordersBody .locked-input-group input');
+                  const group = input.closest('.locked-input-group');
+                  return { text: getComputedStyle(input).color, groupBg: getComputedStyle(group).backgroundColor };
+                }
+            """)
+            assert colors["groupBg"] != "rgb(229, 240, 254)", (
+                f"PO/Invoice field background is still the light-mode pale blue in dark mode: {colors}"
+            )
+
+            assert errors == [], f"JS error(s) during dark mode contrast check: {errors}"
+    print("check_dark_mode_soft_token_contrast: OK")
+
+
 def check_warranty_alert_dismiss():
     with serve_repo() as base_url:
         with new_page() as (page, errors):
@@ -285,6 +334,7 @@ CHECKS = [
     check_trash_purge_banner_and_bulk_delete,
     check_commission_config_anchor_guard,
     check_gp_target_is_a_locked_constant,
+    check_dark_mode_soft_token_contrast,
     check_warranty_alert_dismiss,
 ]
 

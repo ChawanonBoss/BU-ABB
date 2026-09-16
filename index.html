@@ -56,6 +56,15 @@
     --ink: #EDEEF2;
     --ink-soft: #9AA0AC;
     --line: #2C313D;
+    /* The light-mode "-soft" tokens (pale near-white tints, meant as a light background behind
+       --ink text) were never overridden here, so anything using one — the PO/Invoice input's
+       .po-filled state, badges, buttons, hover states — kept its light-mode pale background
+       while --ink switched to near-white text, making that text unreadable. Low-alpha versions
+       of each solid color read correctly against the dark page in either state. */
+    --accent-soft: rgba(59,130,246,0.18);
+    --sun-soft: rgba(255,159,67,0.18);
+    --danger-soft: rgba(240,97,139,0.18);
+    --info-soft: rgba(79,168,245,0.18);
   }
   .stat-icon-badge{
     width:38px; height:38px;
@@ -2214,7 +2223,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.34';
+const APP_VERSION = '1.0.35';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
