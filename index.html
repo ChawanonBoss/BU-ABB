@@ -839,6 +839,13 @@
     opacity:0.6;
   }
   .date-edit-wrap input[type="date"]:hover::-webkit-calendar-picker-indicator{ opacity:1; }
+  /* The browser draws this icon in a fixed dark gray/black regardless of page theme — invisible
+     against the dark card background in dark mode. Inverting it flips that fixed dark icon to
+     light, which is the correct fix specifically because the icon's color is otherwise entirely
+     outside CSS variable control (no currentColor support here). */
+  :root[data-theme="dark"] .date-edit-wrap input[type="date"]::-webkit-calendar-picker-indicator{
+    filter:invert(1);
+  }
   .date-display-text{
     position:absolute;
     left:8px;
@@ -2223,7 +2230,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.35';
+const APP_VERSION = '1.0.36';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 

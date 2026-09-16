@@ -272,6 +272,26 @@ def check_dark_mode_soft_token_contrast():
                 f"PO/Invoice field background is still the light-mode pale blue in dark mode: {colors}"
             )
 
+            # The native <input type=date> calendar icon is drawn in a fixed dark color by the
+            # browser itself (no currentColor support) — invisible on a dark card unless inverted.
+            # getComputedStyle(el, '::-webkit-calendar-picker-indicator') isn't reliably queryable
+            # in Chromium for this UA pseudo-element (confirmed empirically: reads back 'none' even
+            # though the rule visibly takes effect on screen), so check the stylesheet rule itself
+            # exists instead of trying to read the pseudo-element's resolved style.
+            has_dark_invert_rule = page.evaluate("""
+                () => Array.from(document.styleSheets).some(sheet => {
+                  try {
+                    return Array.from(sheet.cssRules).some(rule =>
+                      rule.selectorText &&
+                      rule.selectorText.includes('calendar-picker-indicator') &&
+                      rule.selectorText.includes('dark') &&
+                      rule.style.filter && rule.style.filter.includes('invert')
+                    );
+                  } catch (e) { return false; }
+                })
+            """)
+            assert has_dark_invert_rule, "no dark-mode invert() rule found for the date input's calendar icon"
+
             assert errors == [], f"JS error(s) during dark mode contrast check: {errors}"
     print("check_dark_mode_soft_token_contrast: OK")
 
