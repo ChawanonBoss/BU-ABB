@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM . SALE</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%233B82F6'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='26' text-anchor='middle' fill='white'%3EPM%3C/text%3E%3C/svg%3E">
+<script>
+  (function(){
+    try{
+      if (localStorage.getItem('pm-sale-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    }catch(e){}
+  })();
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --font-display:'Fraunces','Noto Sans Thai',serif;
+    --font-body:'Noto Sans Thai','Inter',-apple-system,sans-serif;
+    --paper:#F6F7F9; --paper-dim:#EEF0F3; --card:#FFFFFF;
+    --ink:#1E2430; --ink-soft:#8B909C; --line:#E7E8EC;
+    --accent:#3B82F6; --accent-soft:#E5F0FE;
+    --sun:#FF9F43; --sun-soft:#FFEEDC;
+    --ok:#22B573; --ok-ink:#1A9D5C; --ok-soft:#E7F7EF;
+    --gray:#8B909C; --gray-soft:#ECEDF0;
+    --danger:#F0618B; --danger-soft:#FDE3EC;
+  }
+  :root[data-theme="dark"]{
+    --paper:#14171F; --paper-dim:#1B1F29; --card:#1E222C;
+    --ink:#EDEEF2; --ink-soft:#9AA0AC; --line:#2C313D;
+    --accent-soft:rgba(59,130,246,0.18); --sun-soft:rgba(255,159,67,0.18);
+    --ok-soft:rgba(34,181,115,0.18); --gray-soft:rgba(139,144,156,0.22);
+    --danger-soft:rgba(240,97,139,0.18);
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  body{ background:var(--paper); color:var(--ink); font-family:var(--font-body); line-height:1.5; transition:background-color .2s ease, color .2s ease; }
+  .serif{ font-family:var(--font-display); }
+  button{ font-family:inherit; cursor:pointer; }
+  input, select, textarea{ font-family:inherit; }
+
+  /* ---- Layout: .app is a fixed 100vh so the rail never scrolls away, only .content scrolls ---- */
+  .app{ display:flex; height:100vh; overflow:hidden; }
+  .sidebar{ width:68px; flex-shrink:0; background:var(--paper-dim); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:20px 0; }
+  .rail-profile-wrap{ position:relative; margin-bottom:18px; flex-shrink:0; }
+  .rail-profile{ width:38px; height:38px; border-radius:50%; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .rail-avatar-img{ width:100%; height:100%; object-fit:cover; }
+  .rail-avatar-fallback{ font-family:var(--font-display); font-weight:600; font-size:15px; color:var(--accent); }
+  .rail-nav-scroll{ width:100%; flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; align-items:center; scrollbar-width:thin; }
+  .sidebar.loading-lock .nav-item{ pointer-events:none; opacity:.4; }
+  .nav-item{ position:relative; display:flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:11px; color:var(--ink-soft); background:none; border:none; margin-bottom:6px; flex-shrink:0; transition:background .15s ease, color .15s ease; }
+  .nav-item:hover{ background:rgba(0,0,0,0.05); color:var(--ink); }
+  .nav-item.active{ background:var(--card); color:var(--accent); box-shadow:0 1px 0 var(--line) inset; }
+  .nav-icon{ width:20px; height:20px; flex-shrink:0; }
+  .nav-tooltip{ position:fixed; transform:translateY(-50%) translateX(-4px); background:var(--ink); color:var(--paper); font-size:12px; font-weight:500; padding:6px 11px; border-radius:7px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .15s ease, transform .15s ease; z-index:400; }
+  .nav-item:hover .nav-tooltip{ opacity:1; transform:translateY(-50%) translateX(0); }
+  .nav-count-badge{ position:absolute; top:1px; right:1px; min-width:15px; height:15px; padding:0 3px; border-radius:100px; background:var(--sun); color:#fff; font-size:9px; font-weight:700; line-height:15px; text-align:center; border:2px solid var(--paper-dim); box-sizing:content-box; }
+  .rail-menu-wrap{ position:relative; flex-shrink:0; }
+  .rail-menu-popover{ position:absolute; left:calc(100% + 12px); bottom:0; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 28px rgba(20,24,34,0.16); padding:14px; width:220px; z-index:400; flex-direction:column; gap:10px; }
+  .rail-menu-user{ display:flex; flex-direction:column; gap:5px; padding-bottom:10px; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .rail-menu-user .user-email{ color:var(--ink); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rail-menu-row{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); }
+  .rail-menu-item{ display:flex; align-items:center; gap:8px; background:none; border:1px solid var(--line); border-radius:9px; padding:9px 11px; font-size:12.5px; color:var(--ink); text-align:left; transition:background .15s ease; }
+  .rail-menu-item:hover{ background:var(--paper-dim); }
+  .rail-menu-danger{ color:var(--danger); }
+  .rail-menu-danger:hover{ background:var(--danger-soft); }
+  .rail-menu-version{ text-align:center; font-size:11px; color:var(--ink-soft); }
+  .sync-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+  .sync-dot.saving{ background:var(--sun); animation:pulse 1s ease-in-out infinite; }
+  .sync-dot.error{ background:var(--danger); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.4;} }
+
+  .main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:22px 36px; border-bottom:1px solid var(--line); }
+  .topbar h1{ font-family:var(--font-display); font-weight:500; font-size:24px; }
+  .topbar-sub{ font-size:13px; color:var(--ink-soft); margin-top:4px; }
+  .content{ padding:32px 36px; flex:1; overflow-y:auto; }
+  .mobile-menu-btn{ display:none; background:none; border:none; color:var(--ink); margin-right:10px; }
+  .mobile-backdrop{ display:none; }
+
+  .btn{ padding:10px 18px; border-radius:100px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); font-size:13.5px; font-weight:500; transition:opacity .15s ease, transform .1s ease; white-space:nowrap; }
+  .btn:hover{ opacity:.85; } .btn:active{ transform:scale(.96); }
+  .btn.outline{ background:transparent; color:var(--ink); }
+  .btn.outline:hover{ background:rgba(0,0,0,0.04); }
+  .btn.danger{ border-color:var(--danger); background:transparent; color:var(--danger); }
+  .btn.danger:hover{ background:var(--danger-soft); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .icon-btn{ height:30px; padding:0 12px; border-radius:100px; border:1px solid var(--line); background:transparent; color:var(--ink); font-size:12px; font-weight:500; white-space:nowrap; }
+  .icon-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .icon-btn.delete-btn{ color:var(--danger); border-color:var(--danger-soft); background:var(--danger-soft); }
+  .icon-btn.delete-btn:hover{ border-color:var(--danger); }
+  .icon-btn.pdf-btn{ color:var(--accent); background:var(--accent-soft); border-color:transparent; }
+  .row-actions{ display:flex; gap:6px; justify-content:flex-end; }
+
+  /* ---- Gate ---- */
+  .gate{ max-width:400px; margin:64px auto; text-align:center; }
+  .gate-card{ background:var(--card); border:1px solid var(--line); border-radius:24px; padding:44px 36px 36px; box-shadow:0 24px 60px rgba(20,24,34,0.1); }
+  .gate-icon{ width:56px; height:56px; border-radius:16px; background:linear-gradient(135deg, var(--accent), #8B7CF6); display:flex; align-items:center; justify-content:center; color:#fff; margin:0 auto 22px; box-shadow:0 10px 24px rgba(59,130,246,0.28); }
+  .gate h2{ font-family:var(--font-display); font-weight:500; font-size:25px; margin-bottom:8px; }
+  .gate p{ color:var(--ink-soft); font-size:14px; }
+  .gate-form-error{ color:var(--danger); font-size:12.5px; min-height:18px; margin-bottom:8px; }
+  .gate-submit-btn{ width:100%; padding:12px 18px; font-size:14px; }
+  .gate-footer{ margin-top:22px; padding-top:18px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px; font-size:13px; }
+
+  /* ---- Forms / modals ---- */
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12.5px; color:var(--ink-soft); }
+  .field input, .field select, .field textarea{ padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--paper); color:var(--ink); font-size:13.5px; width:100%; }
+  .field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--accent); background:var(--card); }
+  .field textarea{ resize:vertical; min-height:70px; }
+  .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+  .form-grid .full{ grid-column:1 / -1; }
+  .modal-overlay{ position:fixed; inset:0; background:rgba(20,24,34,0.45); z-index:600; align-items:center; justify-content:center; padding:16px; }
+  .modal{ background:var(--card); border-radius:20px; padding:26px; width:100%; max-width:560px; max-height:92vh; overflow:auto; box-shadow:0 24px 60px rgba(20,24,34,0.3); }
+  .modal.wide{ max-width:1100px; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+  .toast{ position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--paper); padding:11px 20px; border-radius:100px; font-size:13.5px; opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; z-index:900; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ---- Panels / tables ---- */
+  .panel{ background:var(--card); border:1px solid var(--line); border-radius:20px; padding:24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(20,24,34,0.05); animation:panelIn .35s ease; }
+  @keyframes panelIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .panel-head h3{ font-family:var(--font-display); font-weight:500; font-size:17px; }
+  .panel-note{ font-size:12.5px; color:var(--ink-soft); margin:-8px 0 16px; }
+  .count-pill{ font-family:var(--font-body); font-size:11.5px; font-weight:500; background:var(--paper-dim); color:var(--ink-soft); padding:2px 9px; border-radius:100px; margin-left:6px; }
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th{ text-align:left; font-weight:500; color:var(--ink-soft); font-size:12px; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:rgba(59,130,246,0.04); }
+  .empty-row{ text-align:center; color:var(--ink-soft); padding:28px 10px !important; }
+  .cell-sub{ font-size:12px; color:var(--ink-soft); }
+  .filter-control{ height:36px; padding:0 14px; border:1px solid var(--line); border-radius:100px; background:var(--card); color:var(--ink); font-size:13px; font-weight:500; }
+  .filter-control:focus{ border-color:var(--accent); outline:none; box-shadow:0 0 0 3px var(--accent-soft); }
+  .filter-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--paper-dim); padding:8px; border-radius:14px; }
+  .subtabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .subtab-item{ padding:9px 18px; border-radius:100px; border:1px solid var(--line); background:transparent; color:var(--ink-soft); font-size:13.5px; font-weight:500; }
+  .subtab-item:hover{ border-color:var(--accent); color:var(--ink); }
+  .subtab-item.active{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+
+  /* ---- Status badges: pending=orange, active=green, ended=gray ---- */
+  .badge{ display:inline-block; padding:3px 10px; border-radius:100px; font-size:11.5px; font-weight:500; white-space:nowrap; }
+  .badge.pending{ background:var(--sun-soft); color:var(--sun); }
+  .badge.active, .badge.ok{ background:var(--ok-soft); color:var(--ok-ink); }
+  .badge.ended, .badge.none{ background:var(--gray-soft); color:var(--gray); }
+  .badge.soon{ background:var(--sun-soft); color:var(--sun); }
+  .badge.expired{ background:var(--danger-soft); color:var(--danger); }
+  .badge.role-admin{ background:var(--accent-soft); color:var(--accent); }
+  .badge.role-user{ background:var(--gray-soft); color:var(--gray); }
+
+  /* ---- Dashboard ---- */
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
+  .stat-card{ background:var(--card); border:1px solid var(--line); border-radius:20px; padding:20px; box-shadow:0 1px 3px rgba(20,24,34,0.05); transition:transform .15s ease, box-shadow .2s ease; }
+  .stat-card.clickable{ cursor:pointer; }
+  .stat-card.clickable:hover{ transform:translateY(-2px); box-shadow:0 10px 22px rgba(20,24,34,0.12); }
+  .stat-card.filled{ border:none; color:#fff; }
+  .stat-card.filled.pending{ background:var(--sun); }
+  .stat-card.filled.active{ background:var(--ok); }
+  .stat-card.filled.ended{ background:var(--gray); }
+  .stat-label{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .stat-card.filled .stat-label{ color:rgba(255,255,255,.9); }
+  .stat-value{ font-family:var(--font-display); font-size:32px; font-weight:500; line-height:1.1; }
+  .stat-sub{ font-size:12px; margin-top:6px; color:var(--ink-soft); }
+  .stat-card.filled .stat-sub{ color:rgba(255,255,255,.85); }
+  .alert-banner{ display:flex; flex-direction:column; gap:4px; background:var(--sun-soft); color:var(--ink); border-left:4px solid var(--sun); border-radius:12px; padding:12px 16px; margin-bottom:20px; font-size:13px; }
+  .split-bar{ display:flex; height:14px; border-radius:100px; overflow:hidden; background:var(--paper-dim); margin:4px 0 12px; }
+  .split-bar span{ display:block; height:100%; transition:width .4s ease; }
+  .split-legend{ display:flex; gap:18px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-soft); }
+  .split-legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+  .dash-cols{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .dash-col{ background:var(--card); border:1px solid var(--line); border-radius:20px; padding:18px; border-top:4px solid var(--gray); }
+  .dash-col.pending{ border-top-color:var(--sun); } .dash-col.active{ border-top-color:var(--ok); }
+  .dash-col h4{ font-size:14px; font-weight:600; margin-bottom:12px; display:flex; justify-content:space-between; }
+  .dash-item{ padding:10px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+  .dash-item:last-child{ border-bottom:none; }
+  .dash-item:hover .dash-item-name{ color:var(--accent); }
+  .dash-item-name{ font-size:13.5px; font-weight:500; }
+  .dash-empty{ font-size:12.5px; color:var(--ink-soft); padding:10px 0; }
+
+  /* ---- Companies ---- */
+  .company-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+  .company-card{ background:var(--card); border:1px solid var(--line); border-radius:20px; padding:20px; display:flex; flex-direction:column; gap:12px; }
+  .company-logo{ width:64px; height:64px; border-radius:14px; background:var(--paper-dim); display:flex; align-items:center; justify-content:center; overflow:hidden; color:var(--ink-soft); font-size:22px; font-weight:600; flex-shrink:0; }
+  .company-logo img{ width:100%; height:100%; object-fit:contain; }
+  .company-line{ font-size:12.5px; color:var(--ink-soft); }
+  .logo-upload{ display:flex; align-items:center; gap:14px; }
+
+  /* ---- Project items editor ---- */
+  .items-table input{ width:100%; min-width:70px; height:32px; padding:4px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); font-size:13px; }
+  .items-table input:focus{ outline:none; border-color:var(--accent); background:var(--card); }
+  .items-table td{ padding:6px 6px; }
+  .items-table th{ padding:6px; }
+
+  /* ---- Users ---- */
+  .user-avatar{ display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; font-size:13px; font-weight:600; background:var(--accent-soft); color:var(--accent); overflow:hidden; cursor:pointer; }
+  .user-avatar img{ width:100%; height:100%; object-fit:cover; }
+
+  /* ---- Print (PDF): only #printArea is shown ---- */
+  #printArea{ display:none; }
+  @media print{
+    @page{ size:A4; margin:14mm; }
+    body > *:not(#printArea){ display:none !important; }
+    body{ background:#fff !important; }
+    #printArea{ display:block !important; color:#000; background:#fff; font-size:12.5px; line-height:1.5; }
+    .pr-head{ display:flex; align-items:center; gap:16px; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:16px; }
+    .pr-head img{ max-width:90px; max-height:90px; object-fit:contain; }
+    .pr-co-name{ font-size:18px; font-weight:700; }
+    .pr-title{ text-align:center; font-size:17px; font-weight:700; margin:6px 0 14px; }
+    .pr-info{ width:100%; margin-bottom:14px; }
+    .pr-info td{ border:none; padding:3px 6px 3px 0; vertical-align:top; font-size:12.5px; }
+    .pr-info td:first-child{ width:130px; font-weight:600; white-space:nowrap; }
+    .pr-items{ width:100%; border-collapse:collapse; margin-top:6px; }
+    .pr-items th, .pr-items td{ border:1px solid #000; padding:5px 7px; font-size:12px; color:#000; background:none; }
+    .pr-items th{ background:#eee !important; text-align:center; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .pr-items tr{ page-break-inside:avoid; }
+    .pr-sign{ display:flex; justify-content:space-around; margin-top:60px; text-align:center; page-break-inside:avoid; }
+    .pr-sign div{ width:200px; border-top:1px solid #000; padding-top:6px; }
+  }
+
+  @media (max-width:900px){
+    .stat-grid{ grid-template-columns:repeat(2,1fr); }
+    .dash-cols{ grid-template-columns:1fr; }
+  }
+  @media (max-width:760px){
+    .content{ padding:20px 16px; } .topbar{ padding:16px; }
+    .form-grid{ grid-template-columns:1fr; }
+    .mobile-menu-btn{ display:block; }
+    .sidebar{ position:fixed; z-index:700; top:0; bottom:0; left:0; transform:translateX(-100%); transition:transform .25s ease; }
+    .sidebar.open{ transform:translateX(0); }
+    .mobile-backdrop.show{ display:block; position:fixed; inset:0; background:rgba(20,24,34,.4); z-index:650; }
+    .table-scroll table{ min-width:640px; }
+    #targetUserFilter{ display:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app" class="app">
+  <aside class="sidebar" id="sidebar" style="display:none;">
+    <div class="rail-profile-wrap">
+      <div class="rail-profile">
+        <img class="rail-avatar-img" id="sidebarAvatarImg" src="" alt="" style="display:none;">
+        <span class="rail-avatar-fallback" id="sidebarAvatarFallback">?</span>
+      </div>
+    </div>
+    <div class="rail-nav-scroll" id="railNavScroll">
+      <button class="nav-item active" data-tab="dashboard">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span class="nav-count-badge" id="dashNavBadge" style="display:none;"></span>
+        <span class="nav-tooltip">แดชบอร์ด</span>
+      </button>
+      <button class="nav-item" data-tab="projects">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/></svg>
+        <span class="nav-tooltip">โครงการ</span>
+      </button>
+      <button class="nav-item" data-tab="equipment">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <span class="nav-tooltip">อุปกรณ์และการรับประกัน</span>
+      </button>
+      <button class="nav-item" data-tab="customers">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="nav-tooltip">รายชื่อลูกค้า</span>
+      </button>
+      <button class="nav-item" data-tab="companies">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/></svg>
+        <span class="nav-tooltip">ข้อมูลบริษัท</span>
+      </button>
+      <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="nav-tooltip">ผู้ใช้งาน</span>
+      </button>
+      <button class="nav-item" data-tab="audit" id="navAuditTab" style="display:none;">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+        <span class="nav-tooltip">ประวัติของระบบ</span>
+      </button>
+      <button class="nav-item" data-tab="trash" id="navTrashTab" style="display:none;">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        <span class="nav-tooltip">ถังขยะ</span>
+      </button>
+    </div>
+    <div class="rail-menu-wrap">
+      <button class="nav-item" id="railMenuBtn" type="button">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="nav-tooltip">เมนู</span>
+      </button>
+      <div class="rail-menu-popover" id="railMenuPopover" style="display:none;">
+        <div class="rail-menu-user">
+          <span class="user-email" id="userEmail"></span>
+          <span><span class="badge" id="userRoleBadge"></span></span>
+        </div>
+        <div class="rail-menu-row"><span class="sync-dot" id="syncDot"></span><span id="syncText">ซิงก์แล้ว</span></div>
+        <button id="themeToggleBtn" class="rail-menu-item" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+          <span id="themeToggleLabel">โหมดมืด</span>
+        </button>
+        <button id="signOutBtn" class="rail-menu-item rail-menu-danger" type="button">ออกจากระบบ</button>
+        <div class="rail-menu-version" id="railMenuVersion"></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="mobile-backdrop" id="mobileBackdrop"></div>
+
+  <div class="main">
+    <div class="topbar" id="topbar" style="display:none;">
+      <div style="display:flex; align-items:center;">
+        <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" title="เมนู">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <h1 id="pageTitle">PM-SALE</h1>
+          <div class="topbar-sub" id="pageSub"></div>
+        </div>
+      </div>
+      <select id="targetUserFilter" class="filter-control" title="ดูข้อมูลของ" style="display:none;">
+        <option value="all">ทั้งหมด</option>
+      </select>
+    </div>
+
+    <div class="content">
+      <div id="loadingOverlay" style="display:none; text-align:center; color:var(--ink-soft); padding:60px 0;">กำลังโหลดข้อมูล...</div>
+
+      <!-- Sign-in gate -->
+      <div class="gate" id="gate">
+        <div class="gate-card">
+          <div class="gate-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/></svg>
+          </div>
+          <h2 id="authTitle">เข้าสู่ระบบ</h2>
+          <p id="authSubtitle">PM-SALE ระบบบริหารจัดการโครงการ</p>
+          <form id="authForm" style="text-align:left; margin-top:24px;">
+            <div class="field" style="margin-bottom:14px;"><label>อีเมล</label><input type="email" id="authEmail" placeholder="name@example.com" autocomplete="email" required></div>
+            <div class="field" id="authNameField" style="margin-bottom:14px; display:none;"><label>ชื่อ</label><input type="text" id="authName" placeholder="ชื่อของคุณ" autocomplete="name"></div>
+            <div class="field" style="margin-bottom:8px;"><label>รหัสผ่าน</label><input type="password" id="authPassword" placeholder="อย่างน้อย 6 ตัวอักษร" autocomplete="current-password" required></div>
+            <p id="authError" class="gate-form-error"></p>
+            <button type="submit" class="btn gate-submit-btn" id="authSubmitBtn">เข้าสู่ระบบ</button>
+          </form>
+          <div class="gate-footer">
+            <span><span id="authToggleText">ยังไม่มีบัญชี?</span> <a href="#" id="authToggleLink" style="color:var(--accent); font-weight:500;">สร้างบัญชีใหม่</a></span>
+            <a href="#" id="authForgotLink" style="color:var(--ink-soft);">ลืมรหัสผ่าน?</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard -->
+      <div id="tab-dashboard" class="tab-panel" style="display:none;">
+        <div class="alert-banner" id="dashAlert" style="display:none;"></div>
+        <div class="stat-grid" id="dashStats"></div>
+        <div class="panel">
+          <div class="panel-head"><h3>สัดส่วนสถานะโครงการ</h3></div>
+          <div class="split-bar" id="dashSplitBar"></div>
+          <div class="split-legend" id="dashSplitLegend"></div>
+        </div>
+        <div class="dash-cols" id="dashCols"></div>
+      </div>
+
+      <!-- Projects -->
+      <div id="tab-projects" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>โครงการทั้งหมด <span class="count-pill" id="projectsCount"></span></h3>
+            <div class="filter-bar">
+              <input type="text" id="projectsSearch" class="filter-control" placeholder="ค้นหาชื่อโครงการ, ลูกค้า, เลขที่สัญญา" style="width:250px;">
+              <select id="projectsStatusFilter" class="filter-control">
+                <option value="all">ทุกสถานะ</option>
+                <option value="pending">รอดำเนินการ</option>
+                <option value="active">กำลังดำเนินการ</option>
+                <option value="ended">สิ้นสุดสัญญาโครงการ</option>
+              </select>
+              <button class="btn" id="projectCreateBtn" type="button">+ เพิ่มโครงการ</button>
+            </div>
+          </div>
+          <p class="panel-note">สถานะคำนวณอัตโนมัติจากวันที่: ก่อนวันเริ่มต้น = รอดำเนินการ, ระหว่างวันเริ่มต้น–สิ้นสุด = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ</p>
+          <div class="table-scroll"><table>
+            <thead><tr><th>ชื่อโครงการ</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>ระยะเวลา</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
+            <tbody id="projectsBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- Equipment & warranty -->
+      <div id="tab-equipment" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>รายการอุปกรณ์และการรับประกัน <span class="count-pill" id="equipmentCount"></span></h3>
+            <div class="filter-bar">
+              <input type="text" id="equipmentSearch" class="filter-control" placeholder="ค้นหาอุปกรณ์, โครงการ, สถานที่" style="width:230px;">
+              <select id="equipmentWarrantyFilter" class="filter-control">
+                <option value="all">ทุกสถานะรับประกัน</option>
+                <option value="ok">ในประกัน</option>
+                <option value="soon">ใกล้หมดประกัน (30 วัน)</option>
+                <option value="expired">หมดประกัน</option>
+                <option value="none">ไม่มีประกัน</option>
+              </select>
+            </div>
+          </div>
+          <p class="panel-note">ข้อมูลมาจากตารางรายการอุปกรณ์ในแต่ละโครงการ — แก้ไขได้ที่หน้า "โครงการ" (วันเริ่มรับประกันที่เว้นว่างไว้จะนับจากวันเริ่มต้นโครงการ)</p>
+          <div class="table-scroll"><table>
+            <thead><tr><th>อุปกรณ์</th><th>จำนวน</th><th>โครงการ / ลูกค้า</th><th>สถานที่ติดตั้ง</th><th>เริ่มรับประกัน</th><th>ประกัน (เดือน)</th><th>หมดประกัน</th><th>สถานะ</th></tr></thead>
+            <tbody id="equipmentBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- Customers -->
+      <div id="tab-customers" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>รายชื่อลูกค้า <span class="count-pill" id="customersCount"></span></h3>
+            <div class="filter-bar">
+              <input type="text" id="customersSearch" class="filter-control" placeholder="ค้นหาบริษัท, ผู้ติดต่อ, เลขผู้เสียภาษี" style="width:250px;">
+              <button class="btn" id="customerCreateBtn" type="button">+ เพิ่มลูกค้า</button>
+            </div>
+          </div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>ชื่อบริษัท</th><th>ที่อยู่</th><th>ผู้ติดต่อ</th><th>เบอร์ติดต่อ</th><th>เลขที่ผู้เสียภาษี</th><th>โครงการ</th><th></th></tr></thead>
+            <tbody id="customersBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- Companies -->
+      <div id="tab-companies" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>ข้อมูลบริษัทของเรา <span class="count-pill" id="companiesCount"></span></h3>
+            <button class="btn" id="companyCreateBtn" type="button" style="display:none;">+ เพิ่มบริษัท</button>
+          </div>
+          <p class="panel-note">โลโก้และที่อยู่ของบริษัทจะถูกใช้เป็นหัวกระดาษเวลาพิมพ์โครงการเป็น PDF (เลือกบริษัทได้ในฟอร์มโครงการ) — เฉพาะผู้ดูแลระบบที่เพิ่ม/แก้ไขได้</p>
+          <div class="company-grid" id="companiesGrid"></div>
+        </div>
+      </div>
+
+      <!-- Users (admin) -->
+      <div id="tab-users" class="tab-panel" style="display:none;">
+        <div class="panel" id="userCreatePanel" style="display:none;">
+          <div class="panel-head"><h3>เพิ่มผู้ใช้งาน</h3></div>
+          <form id="userForm">
+            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;">
+              <div class="field"><label>ชื่อ</label><input type="text" id="usrName" placeholder="ไม่บังคับ"></div>
+              <div class="field"><label>อีเมล</label><input type="email" id="usrEmail" placeholder="name@example.com" required></div>
+              <div class="field"><label>สิทธิ์การใช้งาน</label>
+                <select id="usrRole"><option value="user">ผู้ใช้งานทั่วไป</option><option value="admin">ผู้ดูแลระบบ</option></select>
+              </div>
+            </div>
+            <button type="submit" class="btn">บันทึกผู้ใช้งาน</button>
+          </form>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>ผู้ใช้งานทั้งหมด <span class="count-pill" id="usersCount"></span></h3>
+            <div class="filter-bar">
+              <input type="text" id="usersSearch" class="filter-control" placeholder="ค้นหาชื่อ, อีเมล" style="width:200px;">
+              <button class="btn" id="userCreateToggleBtn" type="button">+ เพิ่มผู้ใช้งาน</button>
+            </div>
+          </div>
+          <p class="panel-note">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจับคู่ด้วยอีเมล) — คนที่ล็อกอินครั้งแรกโดยไม่มีชื่อในลิสต์จะได้เป็น "ผู้ใช้งานทั่วไป" อัตโนมัติ</p>
+          <div class="table-scroll"><table>
+            <thead><tr><th>รูป</th><th>ชื่อ</th><th>อีเมล</th><th>สิทธิ์การใช้งาน</th><th></th></tr></thead>
+            <tbody id="usersBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- Audit (admin) -->
+      <div id="tab-audit" class="tab-panel" style="display:none;">
+        <div class="subtabs">
+          <button class="subtab-item active" data-auditsub="log">การแก้ไข</button>
+          <button class="subtab-item" data-auditsub="errors">ข้อผิดพลาดระบบ</button>
+        </div>
+        <div id="auditSub-log">
+          <div class="panel">
+            <div class="panel-head">
+              <h3>ประวัติการแก้ไข <span class="count-pill" id="auditCount"></span></h3>
+              <div class="filter-bar">
+                <input type="text" id="auditSearch" class="filter-control" placeholder="ค้นหาผู้ทำรายการ, รายการ, รายละเอียด" style="width:250px;">
+                <select id="auditActionFilter" class="filter-control"><option value="all">ทุกการกระทำ</option></select>
+              </div>
+            </div>
+            <p class="panel-note">บันทึกการสร้าง/แก้ไข/ลบ/กู้คืนรายการต่างๆ ในระบบ แสดง 300 รายการล่าสุด เรียงจากใหม่ไปเก่า</p>
+            <div class="table-scroll"><table>
+              <thead><tr><th>เวลา</th><th>ผู้ทำรายการ</th><th>การกระทำ</th><th>รายการ</th><th>รายละเอียด</th></tr></thead>
+              <tbody id="auditBody"></tbody>
+            </table></div>
+          </div>
+        </div>
+        <div id="auditSub-errors" style="display:none;">
+          <div class="panel">
+            <div class="panel-head"><h3>ข้อผิดพลาดระบบ <span class="count-pill" id="errorCount"></span></h3></div>
+            <p class="panel-note">ข้อผิดพลาด JavaScript ที่เกิดขึ้นจริงในเครื่องผู้ใช้งาน แสดง 200 รายการล่าสุด</p>
+            <div class="table-scroll"><table>
+              <thead><tr><th>เวลา</th><th>ผู้ใช้งาน</th><th>ข้อความ</th><th>หน้า</th></tr></thead>
+              <tbody id="errorBody"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trash (admin) -->
+      <div id="tab-trash" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>ถังขยะ <span class="count-pill" id="trashCount"></span></h3>
+            <div class="filter-bar">
+              <select id="trashTypeFilter" class="filter-control">
+                <option value="all">ทุกประเภท</option>
+                <option value="projects">โครงการ</option>
+                <option value="customers">ลูกค้า</option>
+                <option value="companies">บริษัท</option>
+              </select>
+              <button class="btn outline" id="trashRefreshBtn" type="button">รีเฟรช</button>
+            </div>
+          </div>
+          <p class="panel-note">รายการที่ถูกลบจะอยู่ที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กด "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด)</p>
+          <div class="table-scroll"><table>
+            <thead><tr><th>ประเภท</th><th>รายการ</th><th>ลบโดย</th><th>วันที่ลบ</th><th></th></tr></thead>
+            <tbody id="trashBody"><tr><td colspan="5" class="empty-row">กด "รีเฟรช" เพื่อโหลดรายการ</td></tr></tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Project form modal -->
+<div class="modal-overlay" id="projectModal" style="display:none;">
+  <div class="modal wide">
+    <h3 class="serif" id="projectModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มโครงการ</h3>
+    <form id="projectForm">
+      <div class="form-grid">
+        <div class="field full"><label>ชื่อโครงการ *</label><input type="text" id="prjName" required></div>
+        <div class="field"><label>หน่วยงาน / ลูกค้า *</label><select id="prjCustomer" required></select></div>
+        <div class="field"><label>เลขที่สัญญา</label><input type="text" id="prjContract"></div>
+        <div class="field"><label>วันที่เริ่มต้น *</label><input type="date" id="prjStart" required></div>
+        <div class="field"><label>วันที่สิ้นสุด *</label><input type="date" id="prjEnd" required></div>
+        <div class="field"><label>บริษัทของเรา (หัวกระดาษ PDF)</label><select id="prjCompany"></select></div>
+        <div class="field"><label>หมายเหตุ</label><input type="text" id="prjNotes"></div>
+      </div>
+      <h4 style="font-size:14px; margin-bottom:8px;">รายละเอียดอุปกรณ์ / งาน</h4>
+      <div class="table-scroll"><table class="items-table">
+        <thead><tr><th style="width:36px;">#</th><th>รายการ *</th><th>รายละเอียด</th><th style="width:80px;">จำนวน</th><th style="width:80px;">หน่วย</th><th>สถานที่ติดตั้ง</th><th style="width:90px;">ประกัน (เดือน)</th><th style="width:140px;">เริ่มรับประกัน</th><th style="width:40px;"></th></tr></thead>
+        <tbody id="prjItemsBody"></tbody>
+      </table></div>
+      <button class="btn outline" type="button" id="prjAddItemBtn" style="margin-top:10px;">+ เพิ่มแถว</button>
+      <div class="modal-actions">
+        <button class="btn outline" type="button" id="projectCancelBtn">ยกเลิก</button>
+        <button class="btn" type="submit" id="projectSaveBtn">บันทึกโครงการ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Customer form modal -->
+<div class="modal-overlay" id="customerModal" style="display:none;">
+  <div class="modal">
+    <h3 class="serif" id="customerModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มลูกค้า</h3>
+    <form id="customerForm">
+      <div class="form-grid">
+        <div class="field full"><label>ชื่อบริษัท / หน่วยงาน *</label><input type="text" id="cusName" required></div>
+        <div class="field full"><label>ที่อยู่</label><textarea id="cusAddress"></textarea></div>
+        <div class="field"><label>ชื่อผู้ติดต่อ</label><input type="text" id="cusContact"></div>
+        <div class="field"><label>เบอร์ติดต่อ</label><input type="text" id="cusPhone" inputmode="tel"></div>
+        <div class="field full"><label>เลขที่ผู้เสียภาษี</label><input type="text" id="cusTax" inputmode="numeric" maxlength="13"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn outline" type="button" id="customerCancelBtn">ยกเลิก</button>
+        <button class="btn" type="submit">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Company form modal -->
+<div class="modal-overlay" id="companyModal" style="display:none;">
+  <div class="modal">
+    <h3 class="serif" id="companyModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มบริษัท</h3>
+    <form id="companyForm">
+      <div class="form-grid">
+        <div class="field full"><label>โลโก้บริษัท</label>
+          <div class="logo-upload">
+            <div class="company-logo" id="cmpLogoPreview">Logo</div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <input type="file" id="cmpLogoFile" accept="image/*" style="font-size:12.5px;">
+              <button type="button" class="icon-btn" id="cmpLogoClear" style="align-self:flex-start;">ลบโลโก้</button>
+            </div>
+          </div>
+        </div>
+        <div class="field full"><label>ชื่อบริษัท *</label><input type="text" id="cmpName" required></div>
+        <div class="field full"><label>ที่อยู่</label><textarea id="cmpAddress"></textarea></div>
+        <div class="field"><label>เบอร์ติดต่อ</label><input type="text" id="cmpPhone" inputmode="tel"></div>
+        <div class="field"><label>เลขที่ผู้เสียภาษี</label><input type="text" id="cmpTax" inputmode="numeric" maxlength="13"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn outline" type="button" id="companyCancelBtn">ยกเลิก</button>
+        <button class="btn" type="submit">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Confirm modal -->
+<div class="modal-overlay" id="confirmModal" style="display:none;">
+  <div class="modal" style="max-width:420px;">
+    <h3 class="serif" id="confirmModalTitle" style="font-size:18px; margin-bottom:10px;">ยืนยันการทำรายการ</h3>
+    <p id="confirmModalMsg" style="font-size:13.5px; color:var(--ink-soft);"></p>
+    <div class="modal-actions">
+      <button class="btn outline" id="confirmModalCancelBtn" type="button">ยกเลิก</button>
+      <button class="btn" id="confirmModalOkBtn" type="button">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+<div class="toast" id="toast"></div>
+<div id="printArea"></div>
+
+<script>
+/* ====== Firebase ======
+   Uses the same Firebase project as BU-ABB (shared sign-in accounts) but its own `pm_`-prefixed
+   collections, so the two sites' data, roles and rules never mix. To move PM-SALE to a project of
+   its own, just replace FIREBASE_CONFIG below (and publish PM-SALE/firestore.rules there). */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBQPnX541zoj8kCCyqgFXhR-DDwbAG7YQ8",
+  authDomain: "bu-abb.firebaseapp.com",
+  projectId: "bu-abb",
+  storageBucket: "bu-abb.firebasestorage.app",
+  messagingSenderId: "217323290836",
+  appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const APP_VERSION = '1.0.0';
+const auth = firebase.auth();
+const db = firebase.firestore();
+const COL = {
+  projects:'pm_projects', customers:'pm_customers', companies:'pm_companies',
+  users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
+};
+const LOGIN_TS_KEY = 'pm-sale-login-ts';
+const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
+
+/* ====== Helpers ====== */
+const $ = id => document.getElementById(id);
+const MONTH_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function escapeHtml(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function fmtDate(iso){
+  if (!iso) return '-';
+  const [y,m,d] = iso.slice(0,10).split('-').map(Number);
+  return `${d} ${MONTH_TH[m-1]} ${y+543}`;
+}
+function fmtDateTime(iso){
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (isNaN(d)) return '-';
+  return `${fmtDate(iso.slice(0,10))} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function daysBetween(aIso, bIso){ return Math.round((Date.parse(bIso) - Date.parse(aIso)) / 86400000); }
+function addMonths(iso, m){
+  const [y,mo,d] = iso.slice(0,10).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, mo-1+m, 1));
+  const last = new Date(Date.UTC(y, mo+m, 0)).getUTCDate();
+  dt.setUTCDate(Math.min(d, last));
+  return dt.toISOString().slice(0,10);
+}
+function fmtNum(n){ return Number(n||0).toLocaleString('th-TH'); }
+
+function toast(msg){
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2400);
+}
+function openModal(id){ $(id).style.display = 'flex'; }
+function closeModal(id){ $(id).style.display = 'none'; }
+
+let confirmModalAction = null;
+function confirmAction(message, onConfirm, title){
+  $('confirmModalTitle').textContent = title || 'ยืนยันการทำรายการ';
+  $('confirmModalMsg').textContent = message;
+  confirmModalAction = onConfirm;
+  openModal('confirmModal');
+}
+$('confirmModalCancelBtn').addEventListener('click', () => { closeModal('confirmModal'); confirmModalAction = null; });
+$('confirmModalOkBtn').addEventListener('click', () => {
+  const action = confirmModalAction;
+  closeModal('confirmModal');
+  confirmModalAction = null;
+  if (action) action();
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const open = Array.from(document.querySelectorAll('.modal-overlay')).filter(m => m.style.display === 'flex');
+  if (open.length) closeModal(open[open.length-1].id);
+});
+
+function setSync(state){
+  $('syncDot').className = 'sync-dot' + (state === 'saving' ? ' saving' : state === 'error' ? ' error' : '');
+  $('syncText').textContent = state === 'saving' ? 'กำลังบันทึก...' : state === 'error' ? 'บันทึกไม่สำเร็จ' : 'ซิงก์แล้ว';
+}
+
+/* ====== State ====== */
+let currentUser = null, currentUserUid = null, currentUserEmail = '', currentUserName = '', currentUserRole = 'user';
+let currentTab = 'dashboard';
+let authMode = 'signin';
+let pendingSignupName = '';
+let justLoggedInViaForm = false;
+const data = { projects:[], customers:[], companies:[], users:[], pending:[], audit:[], errors:[] };
+let unsubscribers = [];
+let loaded = {};
+
+/* ====== Theme ====== */
+function applyTheme(theme){
+  if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  $('themeToggleLabel').textContent = theme === 'dark' ? 'โหมดสว่าง' : 'โหมดมืด';
+}
+$('themeToggleBtn').addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  try{ localStorage.setItem('pm-sale-theme', next); }catch(e){}
+  applyTheme(next);
+});
+applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+$('railMenuVersion').textContent = 'Version ' + APP_VERSION;
+
+/* ====== Sidebar / nav ====== */
+$('railMenuBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  const pop = $('railMenuPopover');
+  pop.style.display = pop.style.display === 'none' ? 'flex' : 'none';
+});
+document.addEventListener('click', e => {
+  if (!$('railMenuBtn').contains(e.target) && !$('railMenuPopover').contains(e.target)) $('railMenuPopover').style.display = 'none';
+});
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('mouseenter', () => {
+    const tip = btn.querySelector('.nav-tooltip');
+    if (!tip) return;
+    const r = btn.getBoundingClientRect();
+    tip.style.top = (r.top + r.height/2) + 'px';
+    tip.style.left = (r.right + 12) + 'px';
+  });
+});
+function setMobileMenu(open){
+  $('sidebar').classList.toggle('open', open);
+  $('mobileBackdrop').classList.toggle('show', open);
+}
+$('mobileMenuBtn').addEventListener('click', () => setMobileMenu(!$('sidebar').classList.contains('open')));
+$('mobileBackdrop').addEventListener('click', () => setMobileMenu(false));
+
+const TITLES = {
+  dashboard:['แดชบอร์ด','สรุปสถานะโครงการทั้งหมด'],
+  projects:['โครงการ','บันทึกและจัดการข้อมูลโครงการ พิมพ์เป็น PDF ได้'],
+  equipment:['อุปกรณ์และการรับประกัน','รายการอุปกรณ์ สถานที่ติดตั้ง และระยะเวลารับประกัน'],
+  customers:['รายชื่อลูกค้า','ข้อมูลหน่วยงานและผู้ติดต่อ'],
+  companies:['ข้อมูลบริษัท','โลโก้และที่อยู่สำหรับหัวกระดาษเอกสาร'],
+  users:['ผู้ใช้งาน','จัดการผู้ใช้งานและสิทธิ์'],
+  audit:['ประวัติของระบบ','บันทึกการแก้ไขและข้อผิดพลาด'],
+  trash:['ถังขยะ','กู้คืนหรือลบถาวร']
+};
+const ADMIN_ONLY_TABS = ['users','audit','trash'];
+function showTab(tab){
+  if (ADMIN_ONLY_TABS.includes(tab) && currentUserRole !== 'admin') tab = 'dashboard';
+  currentTab = tab;
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  $('tab-' + tab).style.display = 'block';
+  document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  $('pageTitle').textContent = TITLES[tab][0];
+  $('pageSub').textContent = TITLES[tab][1];
+  setMobileMenu(false);
+  renderActiveTab();
+}
+document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
+
+function renderActiveTab(){
+  const fn = {
+    dashboard:renderDashboard, projects:renderProjects, equipment:renderEquipment,
+    customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit
+  }[currentTab];
+  if (fn) fn();
+  updateNavBadge();
+}
+let renderQueued = false;
+function onAnyUpdate(){
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; refreshTargetUserFilter(); renderActiveTab(); });
+}
+
+/* ====== Audit / error logging ====== */
+function logAudit(action, entityLabel, details){
+  try{
+    db.collection(COL.audit).add({
+      action, entityLabel: entityLabel || '', details: details || '',
+      changedBy: currentUserUid, changedByName: currentUserName || currentUserEmail || '',
+      timestamp: new Date().toISOString()
+    }).catch(() => {});
+  }catch(e){}
+}
+const recentlyLoggedErrors = new Map();
+function logClientError(message, stack){
+  try{
+    if (!currentUserUid) return;
+    const now = Date.now();
+    if (now - (recentlyLoggedErrors.get(message) || 0) < 10000) return;
+    recentlyLoggedErrors.set(message, now);
+    db.collection(COL.errors).add({
+      message: String(message).slice(0, 500), stack: String(stack || '').slice(0, 1500),
+      page: currentTab, uid: currentUserUid, userName: currentUserName || currentUserEmail || '',
+      timestamp: new Date().toISOString()
+    }).catch(() => {});
+  }catch(e){}
+}
+window.addEventListener('error', e => logClientError(e.message, e.error && e.error.stack));
+window.addEventListener('unhandledrejection', e => logClientError((e.reason && e.reason.message) || String(e.reason), e.reason && e.reason.stack));
+
+/* ====== Auth ====== */
+function updateAuthFormMode(){
+  const isSignup = authMode === 'signup';
+  $('authTitle').textContent = isSignup ? 'สร้างบัญชีใหม่' : 'เข้าสู่ระบบ';
+  $('authNameField').style.display = isSignup ? 'flex' : 'none';
+  $('authSubmitBtn').textContent = isSignup ? 'สร้างบัญชี' : 'เข้าสู่ระบบ';
+  $('authToggleText').textContent = isSignup ? 'มีบัญชีอยู่แล้ว?' : 'ยังไม่มีบัญชี?';
+  $('authToggleLink').textContent = isSignup ? 'เข้าสู่ระบบ' : 'สร้างบัญชีใหม่';
+  $('authError').textContent = '';
+}
+$('authToggleLink').addEventListener('click', e => { e.preventDefault(); authMode = authMode === 'signin' ? 'signup' : 'signin'; updateAuthFormMode(); });
+function authErrorMessage(err){
+  const map = {
+    'auth/invalid-email':'อีเมลไม่ถูกต้อง', 'auth/user-not-found':'ไม่พบบัญชีนี้', 'auth/wrong-password':'รหัสผ่านไม่ถูกต้อง',
+    'auth/email-already-in-use':'อีเมลนี้มีบัญชีอยู่แล้ว', 'auth/weak-password':'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+    'auth/invalid-credential':'อีเมลหรือรหัสผ่านไม่ถูกต้อง', 'auth/too-many-requests':'ลองผิดหลายครั้งเกินไป กรุณารอสักครู่'
+  };
+  return map[err.code] || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+}
+$('authForgotLink').addEventListener('click', async e => {
+  e.preventDefault();
+  const email = $('authEmail').value.trim();
+  if (!email){ $('authError').textContent = 'กรุณากรอกอีเมลก่อนกดลืมรหัสผ่าน'; return; }
+  try{ await auth.sendPasswordResetEmail(email); toast('ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมลแล้ว'); }
+  catch(err){ $('authError').textContent = authErrorMessage(err); }
+});
+$('authForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('authEmail').value.trim(), password = $('authPassword').value, name = $('authName').value.trim();
+  $('authError').textContent = '';
+  $('authSubmitBtn').disabled = true;
+  try{
+    justLoggedInViaForm = true;
+    if (authMode === 'signup'){
+      pendingSignupName = name;
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      if (name) await cred.user.updateProfile({ displayName: name });
+    } else {
+      await auth.signInWithEmailAndPassword(email, password);
+    }
+  }catch(err){
+    justLoggedInViaForm = false; pendingSignupName = '';
+    $('authError').textContent = authErrorMessage(err);
+  }
+  $('authSubmitBtn').disabled = false;
+});
+$('signOutBtn').addEventListener('click', () => auth.signOut());
+
+// The 4-hour limit is only checked when the page (re)loads and auth state resolves — never by a
+// running timer — same behaviour as BU-ABB. The timestamp is written from inside onAuthStateChanged
+// (not after the sign-in await) so it can't race with this check.
+function ensureSessionValid(){
+  let ts = 0;
+  try{ ts = Number(localStorage.getItem(LOGIN_TS_KEY)) || 0; }catch(e){}
+  if (!ts || Date.now() - ts > SESSION_MAX_AGE_MS){ auth.signOut(); return false; }
+  return true;
+}
+
+function detachListeners(){
+  unsubscribers.forEach(u => { try{ u(); }catch(e){} });
+  unsubscribers = [];
+  Object.keys(data).forEach(k => data[k] = []);
+  loaded = {};
+}
+
+function showSignedOutUI(){
+  detachListeners();
+  currentUser = null; currentUserUid = null; currentUserRole = 'user';
+  $('gate').style.display = 'block';
+  $('sidebar').style.display = 'none';
+  $('topbar').style.display = 'none';
+  $('targetUserFilter').style.display = 'none';
+  $('loadingOverlay').style.display = 'none';
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  $('railMenuPopover').style.display = 'none';
+  updateAuthFormMode();
+}
+
+auth.onAuthStateChanged(async user => {
+  if (!user){ showSignedOutUI(); return; }
+  if (justLoggedInViaForm){
+    try{ localStorage.setItem(LOGIN_TS_KEY, String(Date.now())); }catch(e){}
+    justLoggedInViaForm = false;
+  }
+  if (!ensureSessionValid()) return;
+  currentUser = user;
+  currentUserUid = user.uid;
+  currentUserEmail = user.email || '';
+  currentUserName = user.displayName || pendingSignupName || '';
+  $('gate').style.display = 'none';
+  $('loadingOverlay').style.display = 'block';
+  try{
+    await resolveUserRole();
+  }catch(err){
+    $('loadingOverlay').style.display = 'none';
+    $('gate').style.display = 'block';
+    $('authError').textContent = 'ไม่สามารถสร้างสิทธิ์ผู้ใช้งานได้ — ตรวจสอบกฎ Firestore ของ PM-SALE (' + (err.code || err.message) + ')';
+    auth.signOut();
+    return;
+  }
+  $('sidebar').style.display = 'flex';
+  $('sidebar').classList.add('loading-lock');
+  $('topbar').style.display = 'flex';
+  attachRealtimeListeners();
+  showTab(currentTab);
+});
+
+async function resolveUserRole(){
+  const ref = db.collection(COL.users).doc(currentUserUid);
+  const snap = await ref.get();
+  if (!snap.exists){
+    const emailKey = currentUserEmail.toLowerCase();
+    const pendingRef = db.collection(COL.pending).doc(emailKey);
+    const pendingSnap = await pendingRef.get();
+    let role, name;
+    if (pendingSnap.exists){
+      const p = pendingSnap.data();
+      role = p.role || 'user';
+      name = p.name || currentUserName;
+    } else {
+      const any = await db.collection(COL.users).limit(1).get();
+      role = any.empty ? 'admin' : 'user';   // first-ever user becomes admin (see firestore.rules for the bootstrap step)
+      name = currentUserName;
+    }
+    // create the user doc BEFORE deleting the pending invite — the rule for a self-created admin doc checks the invite still exists
+    await ref.set({ email: currentUserEmail, name, role });
+    if (pendingSnap.exists) await pendingRef.delete();
+    currentUserRole = role;
+    if (name) currentUserName = name;
+  } else {
+    const d = snap.data();
+    currentUserRole = d.role || 'user';
+    if (d.name) currentUserName = d.name;
+    else if (currentUserName) await ref.update({ name: currentUserName });
+  }
+  const isAdmin = currentUserRole === 'admin';
+  ['navUsersTab','navAuditTab','navTrashTab'].forEach(id => $(id).style.display = isAdmin ? '' : 'none');
+  $('companyCreateBtn').style.display = isAdmin ? '' : 'none';
+  document.querySelectorAll('.creator-col').forEach(el => el.style.display = isAdmin ? '' : 'none');
+  $('userEmail').textContent = currentUserEmail;
+  $('userEmail').title = currentUserEmail;
+  const badge = $('userRoleBadge');
+  badge.textContent = isAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งานทั่วไป';
+  badge.className = 'badge ' + (isAdmin ? 'role-admin' : 'role-user');
+  updateSidebarAvatar();
+}
+
+function updateSidebarAvatar(){
+  const me = data.users.find(u => u.id === currentUserUid);
+  const img = $('sidebarAvatarImg'), fb = $('sidebarAvatarFallback');
+  if (me && me.avatarBase64){ img.src = me.avatarBase64; img.style.display = 'block'; fb.style.display = 'none'; }
+  else { img.style.display = 'none'; fb.style.display = 'flex'; fb.textContent = (currentUserName || currentUserEmail || '?').trim().charAt(0).toUpperCase(); }
+}
+
+/* ====== Realtime listeners ====== */
+function attachRealtimeListeners(){
+  detachListeners();
+  const isAdmin = currentUserRole === 'admin';
+  // A regular user's queries are scoped to their own createdBy — this must match firestore.rules
+  const scoped = q => isAdmin ? q : q.where('createdBy', '==', currentUserUid);
+  const mapDocs = snap => snap.docs.map(d => ({ id:d.id, ...d.data() })).filter(x => !x.deletedAt);   // soft-deleted docs live only in the Trash tab
+  const watch = (key, query, mapper) => {
+    loaded[key] = false;
+    unsubscribers.push(query.onSnapshot(snap => {
+      data[key] = mapper(snap);
+      loaded[key] = true;
+      if (key === 'users') updateSidebarAvatar();
+      checkAllLoaded();
+      onAnyUpdate();
+    }, err => {
+      console.error(key, err);
+      loaded[key] = true;
+      setSync('error');
+      toast('โหลดข้อมูลไม่สำเร็จ (' + key + ')');
+      checkAllLoaded();
+    }));
+  };
+  watch('projects', scoped(db.collection(COL.projects)), mapDocs);
+  watch('customers', scoped(db.collection(COL.customers)), mapDocs);
+  watch('companies', db.collection(COL.companies), mapDocs);
+  watch('users', db.collection(COL.users), snap => snap.docs.map(d => ({ id:d.id, ...d.data() })));
+  if (isAdmin){
+    // bonus admin-only subscriptions — deliberately not part of the initial-load gate
+    const raw = snap => snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    unsubscribers.push(db.collection(COL.pending).onSnapshot(s => { data.pending = raw(s); onAnyUpdate(); }, () => {}));
+    unsubscribers.push(db.collection(COL.audit).orderBy('timestamp','desc').limit(300).onSnapshot(s => { data.audit = raw(s); onAnyUpdate(); }, () => {}));
+    unsubscribers.push(db.collection(COL.errors).orderBy('timestamp','desc').limit(200).onSnapshot(s => { data.errors = raw(s); onAnyUpdate(); }, () => {}));
+  }
+}
+function checkAllLoaded(){
+  if (['projects','customers','companies','users'].every(k => loaded[k])){
+    $('loadingOverlay').style.display = 'none';
+    $('sidebar').classList.remove('loading-lock');
+    setSync('ok');
+  }
+}
+
+/* ====== Visibility (admin's "view as" filter) ====== */
+function getTargetSel(){
+  if (currentUserRole !== 'admin') return currentUserUid;
+  return $('targetUserFilter').value || 'all';
+}
+function getVisibleProjects(){
+  if (currentUserRole !== 'admin') return data.projects.filter(p => p.createdBy === currentUserUid);
+  const sel = getTargetSel();
+  return sel === 'all' ? data.projects : data.projects.filter(p => p.createdBy === sel);
+}
+function getVisibleCustomers(){
+  if (currentUserRole !== 'admin') return data.customers.filter(c => c.createdBy === currentUserUid);
+  const sel = getTargetSel();
+  return sel === 'all' ? data.customers : data.customers.filter(c => c.createdBy === sel);
+}
+function getUserDisplayName(uid){
+  const u = data.users.find(x => x.id === uid);
+  return u ? (u.name || u.email || uid) : (uid || '-');
+}
+function refreshTargetUserFilter(){
+  const sel = $('targetUserFilter');
+  if (currentUserRole !== 'admin'){ sel.style.display = 'none'; return; }
+  sel.style.display = '';
+  const prev = sel.value || 'all';
+  const users = [...data.users].sort((a,b) => (a.name||a.email||'').localeCompare(b.name||b.email||''));
+  sel.innerHTML = `<option value="all">ทั้งหมด</option>` + users.map(u => `<option value="${u.id}">${escapeHtml(u.name || u.email)}</option>`).join('');
+  sel.value = users.some(u => u.id === prev) ? prev : 'all';
+}
+$('targetUserFilter').addEventListener('change', renderActiveTab);
+
+/* ====== Project status / warranty ====== */
+const STATUS_LABEL = { pending:'รอดำเนินการ', active:'กำลังดำเนินการ', ended:'สิ้นสุดสัญญาโครงการ' };
+function projectStatus(p){
+  const t = todayStr();
+  if (p.startDate && t < p.startDate) return 'pending';
+  if (p.endDate && t > p.endDate) return 'ended';
+  return 'active';
+}
+const WARRANTY_LABEL = { none:'ไม่มีประกัน', ok:'ในประกัน', soon:'ใกล้หมดประกัน', expired:'หมดประกัน' };
+function warrantyStatus(expiry, months){
+  if (!months || !expiry) return 'none';
+  const d = daysBetween(todayStr(), expiry);
+  return d < 0 ? 'expired' : d <= 30 ? 'soon' : 'ok';
+}
+function getEquipmentRows(){
+  const rows = [];
+  getVisibleProjects().forEach(p => (p.items || []).forEach(item => {
+    const start = item.warrantyStart || p.startDate || '';
+    const months = Number(item.warrantyMonths) || 0;
+    const expiry = (start && months) ? addMonths(start, months) : '';
+    rows.push({ project:p, item, start, months, expiry, wstatus: warrantyStatus(expiry, months) });
+  }));
+  return rows;
+}
+function statusBadge(status){ return `<span class="badge ${status}">${STATUS_LABEL[status]}</span>`; }
+function warrantyBadge(status){ return `<span class="badge ${status}">${WARRANTY_LABEL[status]}</span>`; }
+
+/* ====== Dashboard ====== */
+function goProjects(status){
+  $('projectsStatusFilter').value = status || 'all';
+  showTab('projects');
+}
+function getDashAlerts(){
+  const t = todayStr();
+  const endingSoon = getVisibleProjects().filter(p => projectStatus(p) === 'active' && p.endDate && daysBetween(t, p.endDate) <= 30);
+  const warrantySoon = getEquipmentRows().filter(r => r.wstatus === 'soon');
+  return { endingSoon, warrantySoon };
+}
+function updateNavBadge(){
+  if (!currentUserUid) return;
+  const a = getDashAlerts();
+  const n = a.endingSoon.length + a.warrantySoon.length;
+  const b = $('dashNavBadge');
+  b.style.display = n ? '' : 'none';
+  b.textContent = n > 99 ? '99+' : n;
+}
+function renderDashboard(){
+  const list = getVisibleProjects();
+  const groups = { pending:[], active:[], ended:[] };
+  list.forEach(p => groups[projectStatus(p)].push(p));
+  const total = list.length;
+
+  const alerts = getDashAlerts();
+  const lines = [];
+  if (alerts.endingSoon.length) lines.push(`⏰ มี ${alerts.endingSoon.length} โครงการที่สัญญาจะสิ้นสุดภายใน 30 วัน: ` + alerts.endingSoon.map(p => escapeHtml(p.name)).join(', '));
+  if (alerts.warrantySoon.length) lines.push(`🛡️ มี ${alerts.warrantySoon.length} รายการอุปกรณ์ที่ใกล้หมดประกันภายใน 30 วัน`);
+  const banner = $('dashAlert');
+  banner.style.display = lines.length ? 'flex' : 'none';
+  banner.innerHTML = lines.map(l => `<div>${l}</div>`).join('');
+
+  const card = (cls, label, n, sub, click) => `
+    <div class="stat-card ${cls} ${click ? 'clickable' : ''}" ${click ? `onclick="${click}"` : ''}>
+      <div class="stat-label">${label}</div><div class="stat-value">${n}</div><div class="stat-sub">${sub}</div>
+    </div>`;
+  $('dashStats').innerHTML =
+    card('', 'โครงการทั้งหมด', total, 'ทุกสถานะ', "goProjects('all')") +
+    card('filled pending', 'รอดำเนินการ', groups.pending.length, 'ยังไม่ถึงวันเริ่มต้น', "goProjects('pending')") +
+    card('filled active', 'กำลังดำเนินการ', groups.active.length, 'อยู่ในช่วงสัญญา', "goProjects('active')") +
+    card('filled ended', 'สิ้นสุดสัญญาโครงการ', groups.ended.length, 'เลยวันสิ้นสุดแล้ว', "goProjects('ended')");
+
+  const pct = n => total ? (n / total * 100) : 0;
+  $('dashSplitBar').innerHTML =
+    `<span style="width:${pct(groups.pending.length)}%; background:var(--sun);"></span>` +
+    `<span style="width:${pct(groups.active.length)}%; background:var(--ok);"></span>` +
+    `<span style="width:${pct(groups.ended.length)}%; background:var(--gray);"></span>`;
+  $('dashSplitLegend').innerHTML =
+    `<span><i style="background:var(--sun)"></i>รอดำเนินการ ${groups.pending.length} (${pct(groups.pending.length).toFixed(0)}%)</span>` +
+    `<span><i style="background:var(--ok)"></i>กำลังดำเนินการ ${groups.active.length} (${pct(groups.active.length).toFixed(0)}%)</span>` +
+    `<span><i style="background:var(--gray)"></i>สิ้นสุดสัญญาโครงการ ${groups.ended.length} (${pct(groups.ended.length).toFixed(0)}%)</span>`;
+
+  const sortBy = { pending:(a,b)=>(a.startDate||'').localeCompare(b.startDate||''), active:(a,b)=>(a.endDate||'').localeCompare(b.endDate||''), ended:(a,b)=>(b.endDate||'').localeCompare(a.endDate||'') };
+  $('dashCols').innerHTML = ['pending','active','ended'].map(s => {
+    const items = groups[s].slice().sort(sortBy[s]).slice(0, 8);
+    const body = items.length ? items.map(p => `
+      <div class="dash-item" onclick="openProjectForm('${p.id}')">
+        <div class="dash-item-name">${escapeHtml(p.name)}</div>
+        <div class="cell-sub">${escapeHtml(p.customerName || '-')} · ${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}</div>
+      </div>`).join('') : `<div class="dash-empty">ไม่มีโครงการ</div>`;
+    const more = groups[s].length > 8 ? `<div class="dash-empty"><a href="#" onclick="goProjects('${s}'); return false;" style="color:var(--accent);">ดูทั้งหมด ${groups[s].length} โครงการ</a></div>` : '';
+    return `<div class="dash-col ${s}"><h4><span>${STATUS_LABEL[s]}</span><span class="count-pill">${groups[s].length}</span></h4>${body}${more}</div>`;
+  }).join('');
+}
+
+/* ====== Projects ====== */
+function renderProjects(){
+  const isAdmin = currentUserRole === 'admin';
+  document.querySelectorAll('.creator-col').forEach(el => el.style.display = isAdmin ? '' : 'none');
+  const q = $('projectsSearch').value.trim().toLowerCase();
+  const sf = $('projectsStatusFilter').value;
+  const rows = getVisibleProjects()
+    .filter(p => sf === 'all' || projectStatus(p) === sf)
+    .filter(p => !q || [p.name, p.customerName, p.contractNo].some(v => (v||'').toLowerCase().includes(q)))
+    .sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
+  $('projectsCount').textContent = rows.length;
+  const cols = isAdmin ? 8 : 7;
+  $('projectsBody').innerHTML = rows.length ? rows.map(p => `
+    <tr>
+      <td><b>${escapeHtml(p.name)}</b>${p.notes ? `<div class="cell-sub">${escapeHtml(p.notes)}</div>` : ''}</td>
+      <td>${escapeHtml(p.customerName || '-')}</td>
+      <td>${escapeHtml(p.contractNo || '-')}</td>
+      <td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>
+      <td>${(p.items || []).length} รายการ</td>
+      <td>${statusBadge(projectStatus(p))}</td>
+      ${isAdmin ? `<td class="cell-sub">${escapeHtml(getUserDisplayName(p.createdBy))}</td>` : ''}
+      <td><div class="row-actions">
+        <button class="icon-btn pdf-btn" onclick="printProject('${p.id}')">พิมพ์ PDF</button>
+        <button class="icon-btn" onclick="openProjectForm('${p.id}')">แก้ไข</button>
+        <button class="icon-btn delete-btn" onclick="deleteEntity('projects','${p.id}')">ลบ</button>
+      </div></td>
+    </tr>`).join('') : `<tr><td colspan="${cols}" class="empty-row">ยังไม่มีโครงการ</td></tr>`;
+}
+['projectsSearch','projectsStatusFilter'].forEach(id => $(id).addEventListener('input', renderProjects));
+
+let editingProjectId = null;
+let editingItems = [];
+const blankItem = () => ({ name:'', detail:'', qty:1, unit:'', location:'', warrantyMonths:'', warrantyStart:'' });
+
+function fillProjectSelects(selectedCustomer, selectedCompany){
+  const customers = [...data.customers].sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const cs = $('prjCustomer');
+  cs.innerHTML = `<option value="">— เลือกลูกค้า —</option>` + customers.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  cs.value = customers.some(c => c.id === selectedCustomer) ? selectedCustomer : '';
+  const companies = [...data.companies].sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const ks = $('prjCompany');
+  ks.innerHTML = `<option value="">— ไม่ระบุ —</option>` + companies.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  ks.value = companies.some(c => c.id === selectedCompany) ? selectedCompany : (companies.length === 1 && !editingProjectId ? companies[0].id : '');
+}
+function openProjectForm(id){
+  const p = id ? data.projects.find(x => x.id === id) : null;
+  if (id && !p) return;
+  if (!p && !data.customers.length){ toast('กรุณาเพิ่มลูกค้าก่อนสร้างโครงการ'); showTab('customers'); return; }
+  editingProjectId = p ? p.id : null;
+  $('projectModalTitle').textContent = p ? 'แก้ไขโครงการ' : 'เพิ่มโครงการ';
+  fillProjectSelects(p && p.customerId, p && p.companyId);
+  $('prjName').value = p ? p.name || '' : '';
+  $('prjContract').value = p ? p.contractNo || '' : '';
+  $('prjStart').value = p ? p.startDate || '' : '';
+  $('prjEnd').value = p ? p.endDate || '' : '';
+  $('prjNotes').value = p ? p.notes || '' : '';
+  editingItems = p && (p.items || []).length ? p.items.map(i => ({ ...blankItem(), ...i })) : [blankItem()];
+  renderItemRows();
+  openModal('projectModal');
+}
+function renderItemRows(){
+  $('prjItemsBody').innerHTML = editingItems.map((it, i) => `
+    <tr>
+      <td class="cell-sub">${i+1}</td>
+      <td><input type="text" value="${escapeHtml(it.name)}" oninput="editingItems[${i}].name=this.value"></td>
+      <td><input type="text" value="${escapeHtml(it.detail)}" oninput="editingItems[${i}].detail=this.value"></td>
+      <td><input type="number" min="0" step="any" value="${escapeHtml(it.qty)}" oninput="editingItems[${i}].qty=this.value"></td>
+      <td><input type="text" value="${escapeHtml(it.unit)}" oninput="editingItems[${i}].unit=this.value"></td>
+      <td><input type="text" value="${escapeHtml(it.location)}" oninput="editingItems[${i}].location=this.value"></td>
+      <td><input type="number" min="0" step="1" value="${escapeHtml(it.warrantyMonths)}" oninput="editingItems[${i}].warrantyMonths=this.value"></td>
+      <td><input type="date" value="${escapeHtml(it.warrantyStart)}" oninput="editingItems[${i}].warrantyStart=this.value"></td>
+      <td><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeItemRow(${i})" title="ลบแถว">✕</button></td>
+    </tr>`).join('');
+}
+function removeItemRow(i){
+  editingItems.splice(i, 1);
+  if (!editingItems.length) editingItems.push(blankItem());
+  renderItemRows();
+}
+$('prjAddItemBtn').addEventListener('click', () => { editingItems.push(blankItem()); renderItemRows(); });
+$('projectCreateBtn').addEventListener('click', () => openProjectForm(null));
+$('projectCancelBtn').addEventListener('click', () => closeModal('projectModal'));
+
+$('projectForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const start = $('prjStart').value, end = $('prjEnd').value;
+  if (end < start){ toast('วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น'); return; }
+  const customerId = $('prjCustomer').value;
+  const customer = data.customers.find(c => c.id === customerId);
+  if (!customer){ toast('กรุณาเลือกลูกค้า'); return; }
+  const items = editingItems.filter(i => (i.name || '').trim()).map(i => ({
+    name: i.name.trim(), detail: (i.detail || '').trim(), qty: Number(i.qty) || 0, unit: (i.unit || '').trim(),
+    location: (i.location || '').trim(), warrantyMonths: Number(i.warrantyMonths) || 0, warrantyStart: i.warrantyStart || ''
+  }));
+  const doc = {
+    name: $('prjName').value.trim(), customerId, customerName: customer.name,
+    contractNo: $('prjContract').value.trim(), startDate: start, endDate: end,
+    companyId: $('prjCompany').value, notes: $('prjNotes').value.trim(), items
+  };
+  $('projectSaveBtn').disabled = true;
+  setSync('saving');
+  try{
+    if (editingProjectId){
+      await db.collection(COL.projects).doc(editingProjectId).update(doc);
+      logAudit('แก้ไขโครงการ', doc.name, `ลูกค้า ${doc.customerName} · ${items.length} รายการ`);
+    } else {
+      await db.collection(COL.projects).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
+      logAudit('สร้างโครงการ', doc.name, `ลูกค้า ${doc.customerName} · ${items.length} รายการ`);
+    }
+    setSync('ok');
+    closeModal('projectModal');
+    toast('บันทึกโครงการแล้ว');
+  }catch(err){
+    setSync('error');
+    toast('บันทึกไม่สำเร็จ');
+  }
+  $('projectSaveBtn').disabled = false;
+});
+
+/* ====== PDF (browser print → "Save as PDF") ====== */
+function buildProjectPrintHtml(p){
+  const co = data.companies.find(c => c.id === p.companyId);
+  const cu = data.customers.find(c => c.id === p.customerId) || { name: p.customerName };
+  const head = co ? `
+    <div class="pr-head">
+      ${co.logoBase64 ? `<img src="${co.logoBase64}" alt="">` : ''}
+      <div>
+        <div class="pr-co-name">${escapeHtml(co.name)}</div>
+        ${co.address ? `<div>${escapeHtml(co.address)}</div>` : ''}
+        <div>${co.phone ? 'โทร. ' + escapeHtml(co.phone) : ''}${co.phone && co.taxId ? ' &nbsp;|&nbsp; ' : ''}${co.taxId ? 'เลขประจำตัวผู้เสียภาษี ' + escapeHtml(co.taxId) : ''}</div>
+      </div>
+    </div>` : '';
+  const info = [
+    ['ชื่อโครงการ', p.name],
+    ['หน่วยงาน / ลูกค้า', cu.name],
+    ['ที่อยู่', cu.address],
+    ['ผู้ติดต่อ', [cu.contactName, cu.contactPhone].filter(Boolean).join(' · ')],
+    ['เลขที่ผู้เสียภาษี', cu.taxId],
+    ['เลขที่สัญญา', p.contractNo],
+    ['ระยะเวลาโครงการ', `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`],
+    ['สถานะ', STATUS_LABEL[projectStatus(p)]],
+    ['หมายเหตุ', p.notes]
+  ].filter(r => r[1]).map(r => `<tr><td>${r[0]}</td><td>${escapeHtml(r[1])}</td></tr>`).join('');
+  const items = (p.items || []).map((it, i) => `
+    <tr>
+      <td style="text-align:center;">${i+1}</td><td>${escapeHtml(it.name)}</td><td>${escapeHtml(it.detail)}</td>
+      <td style="text-align:center;">${escapeHtml(it.qty)}</td><td style="text-align:center;">${escapeHtml(it.unit)}</td>
+      <td>${escapeHtml(it.location)}</td><td style="text-align:center;">${it.warrantyMonths ? escapeHtml(it.warrantyMonths) + ' เดือน' : '-'}</td>
+    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;">ไม่มีรายการ</td></tr>`;
+  return `${head}
+    <div class="pr-title">รายละเอียดโครงการ</div>
+    <table class="pr-info">${info}</table>
+    <table class="pr-items">
+      <thead><tr><th style="width:34px;">ลำดับ</th><th>รายการ</th><th>รายละเอียด</th><th style="width:50px;">จำนวน</th><th style="width:50px;">หน่วย</th><th>สถานที่ติดตั้ง</th><th style="width:70px;">รับประกัน</th></tr></thead>
+      <tbody>${items}</tbody>
+    </table>
+    <div class="pr-sign"><div>ผู้จัดทำ</div><div>ผู้อนุมัติ</div></div>`;
+}
+function printProject(id){
+  const p = data.projects.find(x => x.id === id);
+  if (!p) return;
+  if (!data.companies.find(c => c.id === p.companyId)) toast('โครงการนี้ยังไม่ได้เลือกบริษัท — เอกสารจะไม่มีหัวกระดาษ');
+  $('printArea').innerHTML = buildProjectPrintHtml(p);
+  const oldTitle = document.title;
+  document.title = (p.contractNo || p.name || 'project').replace(/[\\/:*?"<>|]/g, '_');   // becomes the default PDF file name
+  const restore = () => { document.title = oldTitle; $('printArea').innerHTML = ''; window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
+  setTimeout(() => window.print(), 50);
+}
+
+/* ====== Equipment ====== */
+function renderEquipment(){
+  const q = $('equipmentSearch').value.trim().toLowerCase();
+  const wf = $('equipmentWarrantyFilter').value;
+  const rows = getEquipmentRows()
+    .filter(r => wf === 'all' || r.wstatus === wf)
+    .filter(r => !q || [r.item.name, r.item.detail, r.item.location, r.project.name, r.project.customerName].some(v => (v||'').toLowerCase().includes(q)))
+    .sort((a,b) => (a.expiry || '9999').localeCompare(b.expiry || '9999'));
+  $('equipmentCount').textContent = rows.length;
+  $('equipmentBody').innerHTML = rows.length ? rows.map(r => `
+    <tr>
+      <td><b>${escapeHtml(r.item.name)}</b>${r.item.detail ? `<div class="cell-sub">${escapeHtml(r.item.detail)}</div>` : ''}</td>
+      <td>${fmtNum(r.item.qty)} ${escapeHtml(r.item.unit || '')}</td>
+      <td><a href="#" onclick="openProjectForm('${r.project.id}'); return false;" style="color:var(--accent);">${escapeHtml(r.project.name)}</a><div class="cell-sub">${escapeHtml(r.project.customerName || '')}</div></td>
+      <td>${escapeHtml(r.item.location || '-')}</td>
+      <td style="white-space:nowrap;">${r.months ? fmtDate(r.start) : '-'}</td>
+      <td>${r.months || '-'}</td>
+      <td style="white-space:nowrap;">${r.expiry ? fmtDate(r.expiry) : '-'}</td>
+      <td>${warrantyBadge(r.wstatus)}</td>
+    </tr>`).join('') : `<tr><td colspan="8" class="empty-row">ยังไม่มีรายการอุปกรณ์</td></tr>`;
+}
+['equipmentSearch','equipmentWarrantyFilter'].forEach(id => $(id).addEventListener('input', renderEquipment));
+
+/* ====== Soft delete (shared by projects / customers / companies) ====== */
+const ENTITY_LABEL = { projects:'โครงการ', customers:'ลูกค้า', companies:'บริษัท' };
+function entityName(type, x){ return x.name || '-'; }
+function deleteEntity(type, id){
+  const x = data[type].find(r => r.id === id);
+  if (!x) return;
+  confirmAction(`ต้องการลบ${ENTITY_LABEL[type]} "${x.name}" ใช่หรือไม่? (ย้ายไปถังขยะ ผู้ดูแลระบบกู้คืนได้)`, async () => {
+    setSync('saving');
+    try{
+      await db.collection(COL[type]).doc(id).update({ deletedAt: new Date().toISOString(), deletedBy: currentUserUid });
+      logAudit('ลบ' + ENTITY_LABEL[type], x.name, 'ย้ายไปถังขยะ');
+      setSync('ok');
+      toast('ลบแล้ว');
+    }catch(err){ setSync('error'); toast('ลบไม่สำเร็จ'); }
+  });
+}
+
+/* ====== Customers ====== */
+function projectCountForCustomer(c){ return data.projects.filter(p => p.customerId === c.id).length; }
+function renderCustomers(){
+  const q = $('customersSearch').value.trim().toLowerCase();
+  const rows = getVisibleCustomers()
+    .filter(c => !q || [c.name, c.contactName, c.taxId, c.address].some(v => (v||'').toLowerCase().includes(q)))
+    .sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  $('customersCount').textContent = rows.length;
+  $('customersBody').innerHTML = rows.length ? rows.map(c => `
+    <tr>
+      <td><b>${escapeHtml(c.name)}</b></td>
+      <td style="max-width:260px;">${escapeHtml(c.address || '-')}</td>
+      <td>${escapeHtml(c.contactName || '-')}</td>
+      <td>${escapeHtml(c.contactPhone || '-')}</td>
+      <td>${escapeHtml(c.taxId || '-')}</td>
+      <td>${projectCountForCustomer(c)}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openCustomerForm('${c.id}')">แก้ไข</button>
+        <button class="icon-btn delete-btn" onclick="deleteEntity('customers','${c.id}')">ลบ</button>
+      </div></td>
+    </tr>`).join('') : `<tr><td colspan="7" class="empty-row">ยังไม่มีลูกค้า</td></tr>`;
+}
+$('customersSearch').addEventListener('input', renderCustomers);
+let editingCustomerId = null;
+function openCustomerForm(id){
+  const c = id ? data.customers.find(x => x.id === id) : null;
+  editingCustomerId = c ? c.id : null;
+  $('customerModalTitle').textContent = c ? 'แก้ไขลูกค้า' : 'เพิ่มลูกค้า';
+  $('cusName').value = c ? c.name || '' : '';
+  $('cusAddress').value = c ? c.address || '' : '';
+  $('cusContact').value = c ? c.contactName || '' : '';
+  $('cusPhone').value = c ? c.contactPhone || '' : '';
+  $('cusTax').value = c ? c.taxId || '' : '';
+  openModal('customerModal');
+}
+$('customerCreateBtn').addEventListener('click', () => openCustomerForm(null));
+$('customerCancelBtn').addEventListener('click', () => closeModal('customerModal'));
+$('customerForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const doc = {
+    name: $('cusName').value.trim(), address: $('cusAddress').value.trim(), contactName: $('cusContact').value.trim(),
+    contactPhone: $('cusPhone').value.trim(), taxId: $('cusTax').value.trim()
+  };
+  setSync('saving');
+  try{
+    if (editingCustomerId){
+      await db.collection(COL.customers).doc(editingCustomerId).update(doc);
+      // keep the customer's name on its projects in sync (projects store a copy for display/search)
+      const stale = data.projects.filter(p => p.customerId === editingCustomerId && p.customerName !== doc.name);
+      if (stale.length){
+        const batch = db.batch();
+        stale.forEach(p => batch.update(db.collection(COL.projects).doc(p.id), { customerName: doc.name }));
+        await batch.commit();
+      }
+      logAudit('แก้ไขลูกค้า', doc.name, '');
+    } else {
+      await db.collection(COL.customers).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
+      logAudit('สร้างลูกค้า', doc.name, '');
+    }
+    setSync('ok');
+    closeModal('customerModal');
+    toast('บันทึกลูกค้าแล้ว');
+  }catch(err){ setSync('error'); toast('บันทึกไม่สำเร็จ'); }
+});
+
+/* ====== Companies ====== */
+function renderCompanies(){
+  const isAdmin = currentUserRole === 'admin';
+  const rows = [...data.companies].sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  $('companiesCount').textContent = rows.length;
+  $('companiesGrid').innerHTML = rows.length ? rows.map(c => `
+    <div class="company-card">
+      <div style="display:flex; gap:14px; align-items:center;">
+        <div class="company-logo">${c.logoBase64 ? `<img src="${c.logoBase64}" alt="">` : escapeHtml((c.name||'?').charAt(0).toUpperCase())}</div>
+        <div><div style="font-weight:600;">${escapeHtml(c.name)}</div><div class="company-line">เลขที่ผู้เสียภาษี ${escapeHtml(c.taxId || '-')}</div></div>
+      </div>
+      <div class="company-line">📍 ${escapeHtml(c.address || '-')}</div>
+      <div class="company-line">📞 ${escapeHtml(c.phone || '-')}</div>
+      ${isAdmin ? `<div class="row-actions">
+        <button class="icon-btn" onclick="openCompanyForm('${c.id}')">แก้ไข</button>
+        <button class="icon-btn delete-btn" onclick="deleteEntity('companies','${c.id}')">ลบ</button>
+      </div>` : ''}
+    </div>`).join('') : `<div class="dash-empty">ยังไม่มีข้อมูลบริษัท${isAdmin ? ' — กด "+ เพิ่มบริษัท"' : ' (ให้ผู้ดูแลระบบเพิ่มให้)'}</div>`;
+}
+let editingCompanyId = null;
+let companyLogoDraft = '';
+function setLogoPreview(){
+  $('cmpLogoPreview').innerHTML = companyLogoDraft ? `<img src="${companyLogoDraft}" alt="">` : 'Logo';
+}
+function openCompanyForm(id){
+  const c = id ? data.companies.find(x => x.id === id) : null;
+  editingCompanyId = c ? c.id : null;
+  $('companyModalTitle').textContent = c ? 'แก้ไขบริษัท' : 'เพิ่มบริษัท';
+  $('cmpName').value = c ? c.name || '' : '';
+  $('cmpAddress').value = c ? c.address || '' : '';
+  $('cmpPhone').value = c ? c.phone || '' : '';
+  $('cmpTax').value = c ? c.taxId || '' : '';
+  $('cmpLogoFile').value = '';
+  companyLogoDraft = c ? c.logoBase64 || '' : '';
+  setLogoPreview();
+  openModal('companyModal');
+}
+$('companyCreateBtn').addEventListener('click', () => openCompanyForm(null));
+$('companyCancelBtn').addEventListener('click', () => closeModal('companyModal'));
+$('cmpLogoClear').addEventListener('click', () => { companyLogoDraft = ''; $('cmpLogoFile').value = ''; setLogoPreview(); });
+
+// Client-side resize so the logo stays far below Firestore's 1 MB document limit (no Firebase Storage needed)
+function resizeImageToDataUrl(file, maxSize, mime, quality){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const r = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(img.width * r));
+      cv.height = Math.max(1, Math.round(img.height * r));
+      const ctx = cv.getContext('2d');
+      if (mime === 'image/jpeg'){ ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); }
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      resolve(cv.toDataURL(mime, quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+    img.src = url;
+  });
+}
+$('cmpLogoFile').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try{ companyLogoDraft = await resizeImageToDataUrl(f, 400, 'image/png'); setLogoPreview(); }
+  catch(err){ toast('ไฟล์รูปไม่ถูกต้อง'); }
+});
+$('companyForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const doc = {
+    name: $('cmpName').value.trim(), address: $('cmpAddress').value.trim(), phone: $('cmpPhone').value.trim(),
+    taxId: $('cmpTax').value.trim(), logoBase64: companyLogoDraft
+  };
+  setSync('saving');
+  try{
+    if (editingCompanyId){
+      await db.collection(COL.companies).doc(editingCompanyId).update(doc);
+      logAudit('แก้ไขบริษัท', doc.name, '');
+    } else {
+      await db.collection(COL.companies).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
+      logAudit('สร้างบริษัท', doc.name, '');
+    }
+    setSync('ok');
+    closeModal('companyModal');
+    toast('บันทึกบริษัทแล้ว');
+  }catch(err){ setSync('error'); toast('บันทึกไม่สำเร็จ'); }
+});
+
+/* ====== Users (admin) ====== */
+function renderUsers(){
+  if (currentUserRole !== 'admin') return;
+  const q = $('usersSearch').value.trim().toLowerCase();
+  const real = data.users.map(u => ({ ...u, isPending:false }));
+  const realEmails = new Set(real.map(u => (u.email||'').toLowerCase()));
+  const pending = data.pending.filter(p => !realEmails.has(p.id)).map(p => ({ id:p.id, email:p.id, name:p.name, role:p.role, isPending:true }));
+  const rows = [...real, ...pending]
+    .filter(u => !q || (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q))
+    .sort((a,b) => (a.name||a.email||'').localeCompare(b.name||b.email||''));
+  $('usersCount').textContent = rows.length;
+  $('usersBody').innerHTML = rows.map(u => {
+    const initial = (u.name || u.email || '?').trim().charAt(0).toUpperCase();
+    const avatar = u.isPending ? `<div class="user-avatar" style="cursor:default; background:var(--paper-dim); color:var(--ink-soft);">${escapeHtml(initial)}</div>`
+      : `<div class="user-avatar" title="คลิกเพื่อเปลี่ยนรูป" onclick="pickAvatar('${u.id}')">${u.avatarBase64 ? `<img src="${u.avatarBase64}" alt="">` : escapeHtml(initial)}</div>`;
+    const isMe = u.id === currentUserUid;
+    return `<tr>
+      <td>${avatar}</td>
+      <td>${escapeHtml(u.name || '-')}${isMe ? ' <span class="badge role-admin">คุณ</span>' : ''}${u.isPending ? ' <span class="badge pending">รอเข้าสู่ระบบ</span>' : ''}</td>
+      <td>${escapeHtml(u.email || '-')}</td>
+      <td><select class="filter-control" onchange="setUserRole('${escapeHtml(u.id)}', ${u.isPending}, this.value)" ${isMe ? 'disabled title="ไม่สามารถเปลี่ยนสิทธิ์ของตัวเอง"' : ''}>
+        <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>ผู้ใช้งานทั่วไป</option>
+        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>ผู้ดูแลระบบ</option>
+      </select></td>
+      <td><div class="row-actions">${isMe ? '' : `<button class="icon-btn delete-btn" onclick="deleteUser('${escapeHtml(u.id)}', ${u.isPending})">ลบ</button>`}</div></td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="5" class="empty-row">ไม่พบผู้ใช้งาน</td></tr>`;
+}
+$('usersSearch').addEventListener('input', renderUsers);
+$('userCreateToggleBtn').addEventListener('click', () => {
+  const p = $('userCreatePanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+});
+$('userForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('usrEmail').value.trim().toLowerCase();
+  const name = $('usrName').value.trim();
+  const role = $('usrRole').value;
+  if (data.users.some(u => (u.email||'').toLowerCase() === email)){ toast('อีเมลนี้เป็นผู้ใช้งานอยู่แล้ว'); return; }
+  try{
+    await db.collection(COL.pending).doc(email).set({ role, name });
+    logAudit('เพิ่มผู้ใช้งาน', email, 'สิทธิ์: ' + (role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งานทั่วไป'));
+    $('userForm').reset();
+    $('userCreatePanel').style.display = 'none';
+    toast('เพิ่มผู้ใช้งานแล้ว');
+  }catch(err){ toast('บันทึกไม่สำเร็จ'); }
+});
+async function setUserRole(id, isPending, role){
+  if (id === currentUserUid){ toast('ไม่สามารถเปลี่ยนสิทธิ์ของตัวเอง'); renderUsers(); return; }
+  try{
+    await db.collection(isPending ? COL.pending : COL.users).doc(id).update({ role });
+    logAudit('เปลี่ยนสิทธิ์', isPending ? id : getUserDisplayName(id), 'เป็น ' + (role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งานทั่วไป'));
+    toast('เปลี่ยนสิทธิ์แล้ว');
+  }catch(err){ toast('เปลี่ยนสิทธิ์ไม่สำเร็จ'); renderUsers(); }
+}
+function deleteUser(id, isPending){
+  const label = isPending ? id : getUserDisplayName(id);
+  confirmAction(`ต้องการลบผู้ใช้งาน "${label}" ใช่หรือไม่?`, async () => {
+    try{
+      await db.collection(isPending ? COL.pending : COL.users).doc(id).delete();
+      logAudit('ลบผู้ใช้งาน', label, '');
+      toast('ลบผู้ใช้งานแล้ว');
+    }catch(err){ toast('ลบไม่สำเร็จ'); }
+  });
+}
+let avatarTargetUid = null;
+function pickAvatar(uid){ avatarTargetUid = uid; $('avatarFileInput').click(); }
+$('avatarFileInput').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f || !avatarTargetUid) return;
+  try{
+    const dataUrl = await resizeImageToDataUrl(f, 128, 'image/jpeg', 0.85);
+    await db.collection(COL.users).doc(avatarTargetUid).update({ avatarBase64: dataUrl });
+    toast('อัปเดตรูปแล้ว');
+  }catch(err){ toast('อัปเดตรูปไม่สำเร็จ'); }
+});
+
+/* ====== Audit log (admin) ====== */
+document.querySelectorAll('.subtab-item[data-auditsub]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.subtab-item[data-auditsub]').forEach(b => b.classList.toggle('active', b === btn));
+  $('auditSub-log').style.display = btn.dataset.auditsub === 'log' ? '' : 'none';
+  $('auditSub-errors').style.display = btn.dataset.auditsub === 'errors' ? '' : 'none';
+}));
+function renderAudit(){
+  if (currentUserRole !== 'admin') return;
+  const actionSel = $('auditActionFilter');
+  const prev = actionSel.value || 'all';
+  const actions = [...new Set(data.audit.map(a => a.action).filter(Boolean))].sort();
+  actionSel.innerHTML = `<option value="all">ทุกการกระทำ</option>` + actions.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+  actionSel.value = actions.includes(prev) ? prev : 'all';
+  const q = $('auditSearch').value.trim().toLowerCase();
+  const rows = data.audit
+    .filter(a => actionSel.value === 'all' || a.action === actionSel.value)
+    .filter(a => !q || [a.changedByName, a.action, a.entityLabel, a.details].some(v => (v||'').toLowerCase().includes(q)));
+  $('auditCount').textContent = rows.length;
+  $('auditBody').innerHTML = rows.length ? rows.map(a => `
+    <tr>
+      <td style="white-space:nowrap;">${fmtDateTime(a.timestamp)}</td>
+      <td>${escapeHtml(a.changedByName || '-')}</td>
+      <td><span class="badge active">${escapeHtml(a.action)}</span></td>
+      <td>${escapeHtml(a.entityLabel)}</td>
+      <td class="cell-sub">${escapeHtml(a.details)}</td>
+    </tr>`).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีประวัติ</td></tr>`;
+  $('errorCount').textContent = data.errors.length;
+  $('errorBody').innerHTML = data.errors.length ? data.errors.map(er => `
+    <tr>
+      <td style="white-space:nowrap;">${fmtDateTime(er.timestamp)}</td>
+      <td>${escapeHtml(er.userName || '-')}</td>
+      <td style="max-width:420px; word-break:break-word;">${escapeHtml(er.message)}</td>
+      <td>${escapeHtml(er.page || '-')}</td>
+    </tr>`).join('') : `<tr><td colspan="4" class="empty-row">ไม่มีข้อผิดพลาด</td></tr>`;
+}
+['auditSearch','auditActionFilter'].forEach(id => $(id).addEventListener('input', renderAudit));
+
+/* ====== Trash (admin) ====== */
+let trashItems = [];
+async function loadTrash(){
+  if (currentUserRole !== 'admin') return;
+  $('trashBody').innerHTML = `<tr><td colspan="5" class="empty-row">กำลังโหลด...</td></tr>`;
+  try{
+    // orderBy('deletedAt') only returns docs that actually have the field, so no separate != query/index is needed
+    const results = await Promise.all(Object.keys(ENTITY_LABEL).map(async type => {
+      const snap = await db.collection(COL[type]).orderBy('deletedAt', 'desc').limit(200).get();
+      return snap.docs.map(d => ({ type, id:d.id, ...d.data() }));
+    }));
+    trashItems = results.flat().sort((a,b) => (b.deletedAt||'').localeCompare(a.deletedAt||''));
+    renderTrash();
+  }catch(err){
+    $('trashBody').innerHTML = `<tr><td colspan="5" class="empty-row">โหลดไม่สำเร็จ</td></tr>`;
+  }
+}
+function renderTrash(){
+  const tf = $('trashTypeFilter').value;
+  const rows = trashItems.filter(x => tf === 'all' || x.type === tf);
+  $('trashCount').textContent = rows.length;
+  $('trashBody').innerHTML = rows.length ? rows.map(x => `
+    <tr>
+      <td><span class="badge none">${ENTITY_LABEL[x.type]}</span></td>
+      <td>${escapeHtml(x.name || '-')}</td>
+      <td>${escapeHtml(getUserDisplayName(x.deletedBy))}</td>
+      <td style="white-space:nowrap;">${fmtDateTime(x.deletedAt)}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="restoreTrash('${x.type}','${x.id}')">กู้คืน</button>
+        <button class="icon-btn delete-btn" onclick="purgeTrash('${x.type}','${x.id}')">ลบถาวร</button>
+      </div></td>
+    </tr>`).join('') : `<tr><td colspan="5" class="empty-row">ถังขยะว่างเปล่า</td></tr>`;
+}
+async function restoreTrash(type, id){
+  const x = trashItems.find(r => r.type === type && r.id === id);
+  try{
+    await db.collection(COL[type]).doc(id).update({ deletedAt: firebase.firestore.FieldValue.delete(), deletedBy: firebase.firestore.FieldValue.delete() });
+    logAudit('กู้คืน' + ENTITY_LABEL[type], x ? x.name : id, '');
+    trashItems = trashItems.filter(r => !(r.type === type && r.id === id));
+    renderTrash();
+    toast('กู้คืนแล้ว');
+  }catch(err){ toast('กู้คืนไม่สำเร็จ'); }
+}
+function purgeTrash(type, id){
+  const x = trashItems.find(r => r.type === type && r.id === id);
+  confirmAction(`ลบ "${x ? x.name : id}" ถาวรใช่หรือไม่? กู้คืนไม่ได้อีก`, async () => {
+    try{
+      await db.collection(COL[type]).doc(id).delete();
+      logAudit('ลบถาวร' + ENTITY_LABEL[type], x ? x.name : id, '');
+      trashItems = trashItems.filter(r => !(r.type === type && r.id === id));
+      renderTrash();
+      toast('ลบถาวรแล้ว');
+    }catch(err){ toast('ลบไม่สำเร็จ'); }
+  }, 'ลบถาวร');
+}
+$('trashRefreshBtn').addEventListener('click', loadTrash);
+$('trashTypeFilter').addEventListener('change', renderTrash);
+// Trash isn't a live listener, so load it each time its tab is opened
+document.querySelector('.nav-item[data-tab="trash"]').addEventListener('click', loadTrash);
+
+updateAuthFormMode();
+</script>
+</body>
+</html>
