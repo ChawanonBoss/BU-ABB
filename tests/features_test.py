@@ -347,6 +347,115 @@ def check_warranty_alert_dismiss():
     print("check_warranty_alert_dismiss: OK")
 
 
+SEED_PROMO_ORDERS = """
+async () => {
+  const col = db.collection('orders');
+  await col.doc('p1').set({ so:'S1', customer:'Alpha Co', product:'Widget', price:100, date:'2026-03-01', shipDate:'2026-03-10', status:'done', po:'INV-111', createdBy:'admin1' });
+  await col.doc('p2').set({ so:'S2', customer:'Beta Ltd', product:'Gadget', price:200, date:'2026-03-02', shipDate:'2026-03-15', status:'done', po:'INV-222', createdBy:'admin1' });
+  await col.doc('p3').set({ so:'S3', customer:'Gamma Inc', product:'Gizmo', price:300, date:'2026-03-03', shipDate:'2026-03-20', status:'done', po:'', createdBy:'admin1' });
+  await col.doc('p4').set({ so:'S4', customer:'Delta', product:'Thing', price:400, date:'2026-04-01', shipDate:'2026-04-05', status:'done', po:'INV-444', createdBy:'admin1' });
+  await db.collection('promotions').doc('promoMar').set({ name:'Promo March', month:2, year:2026, giftLabel:'Mug', createdBy:'admin1' });
+  await db.collection('promotions').doc('promoApr').set({ name:'Promo April', month:3, year:2026, giftLabel:'Cap', createdBy:'admin1' });
+}
+"""
+
+PROMO_ROWS_JS = """
+() => [...document.querySelectorAll('#promoOrdersBody tr')].map(tr =>
+  [...tr.querySelectorAll('td')].map(td => td.textContent.trim()))
+"""
+
+
+def _promo_search(page, text):
+    page.fill("#promoOrdersSearch", text)
+    page.wait_for_timeout(100)
+    return page.evaluate(PROMO_ROWS_JS)
+
+
+def check_promo_modal_invoice_column_and_search():
+    with serve_repo() as base_url:
+        with new_page() as (page, errors):
+            sign_in_as_admin(page, base_url)
+            page.evaluate(SEED_PROMO_ORDERS)
+            page.wait_for_timeout(400)
+            page.evaluate("() => showTab('promotions')")
+            page.wait_for_timeout(200)
+            page.evaluate("() => openPromoModal('promoMar')")
+            page.wait_for_timeout(200)
+
+            headers = page.evaluate(
+                "() => [...document.querySelectorAll('#promoModal thead th')].map(th => th.textContent.trim())"
+            )
+            assert headers[:2] == ["ลูกค้า", "เลขที่ Invoice"], f"invoice column should follow ลูกค้า, got {headers}"
+
+            rows = page.evaluate(PROMO_ROWS_JS)
+            assert len(rows) == 3, f"March promo should list 3 qualifying orders, got {rows}"
+            by_customer = {r[0]: r for r in rows}
+            assert by_customer["Alpha Co"][1] == "INV-111", f"invoice cell should show o.po, got {by_customer['Alpha Co']}"
+            assert by_customer["Gamma Inc"][1] == "-", f"empty po should render '-', got {by_customer['Gamma Inc']}"
+
+            # search by po
+            rows = _promo_search(page, "inv-222")
+            assert [r[0] for r in rows] == ["Beta Ltd"], f"search by po should match Beta Ltd only, got {rows}"
+            # search by customer
+            rows = _promo_search(page, "gamma")
+            assert [r[0] for r in rows] == ["Gamma Inc"], f"search by customer should match Gamma Inc only, got {rows}"
+            # no match -> single colspan-5 empty row
+            rows = _promo_search(page, "zzz-nothing")
+            empty = page.evaluate(
+                "() => { const td = document.querySelector('#promoOrdersBody td.empty-row'); return td ? [td.colSpan, td.textContent.trim()] : null; }"
+            )
+            assert len(rows) == 1 and empty == [5, "ไม่พบข้อมูลที่ค้นหา"], f"no-match empty row wrong: {rows} / {empty}"
+
+            # ticking a checkbox while filtered writes the right promotionPrepared doc
+            _promo_search(page, "beta")
+            page.check("#promoOrdersBody input[type=checkbox]")
+            page.wait_for_timeout(300)
+            prepared = page.evaluate(
+                "() => (data.promotionPrepared||[]).filter(x => x.prepared).map(x => x.id)"
+            )
+            assert prepared == ["promoMar_p2"], f"filtered checkbox should write promoMar_p2, got {prepared}"
+            still_filtered = page.evaluate(PROMO_ROWS_JS)
+            assert [r[0] for r in still_filtered] == ["Beta Ltd"], "snapshot re-render must keep the search filter"
+
+            # opening a different promotion clears the search box and shows its own orders unfiltered
+            page.fill("#promoOrdersSearch", "alpha")
+            page.evaluate("() => openPromoModal('promoApr')")
+            page.wait_for_timeout(100)
+            assert page.input_value("#promoOrdersSearch") == "", "search should clear when opening a different promotion"
+            rows = page.evaluate(PROMO_ROWS_JS)
+            assert [r[0] for r in rows] == ["Delta"], f"April promo should show its own unfiltered order, got {rows}"
+
+            assert errors == [], f"JS error(s) during promo modal check: {errors}"
+    print("check_promo_modal_invoice_column_and_search: OK")
+
+
+def check_promo_modal_english():
+    with serve_repo() as base_url:
+        with new_page() as (page, errors):
+            sign_in_as_admin(page, base_url)
+            page.evaluate(SEED_PROMO_ORDERS)
+            page.wait_for_timeout(400)
+            page.evaluate("() => showTab('promotions')")
+            page.wait_for_timeout(200)
+            page.evaluate("() => document.getElementById('langToggleBtn').click()")  # lives in the hidden rail menu popover
+            page.wait_for_timeout(200)
+            page.evaluate("() => openPromoModal('promoMar')")
+            page.wait_for_timeout(200)
+
+            headers = page.evaluate(
+                "() => [...document.querySelectorAll('#promoModal thead th')].map(th => th.textContent.trim())"
+            )
+            assert headers[1] == "Invoice No.", f"invoice header not translated: {headers}"
+            ph = page.get_attribute("#promoOrdersSearch", "placeholder")
+            assert ph == "Search customer / invoice no. / product", f"search placeholder not translated: {ph!r}"
+            _promo_search(page, "zzz-nothing")
+            empty = page.evaluate("() => document.querySelector('#promoOrdersBody td.empty-row').textContent.trim()")
+            assert empty == "No matching results", f"empty-state not translated: {empty!r}"
+
+            assert errors == [], f"JS error(s) during promo English check: {errors}"
+    print("check_promo_modal_english: OK")
+
+
 CHECKS = [
     check_order_date_and_price_inline_edit,
     check_orders_animation_plays_once,
@@ -356,6 +465,8 @@ CHECKS = [
     check_gp_target_is_a_locked_constant,
     check_dark_mode_soft_token_contrast,
     check_warranty_alert_dismiss,
+    check_promo_modal_invoice_column_and_search,
+    check_promo_modal_english,
 ]
 
 

@@ -2149,10 +2149,13 @@
       <button class="icon-btn" id="promoModalCloseBtn" type="button">ปิด</button>
     </div>
     <p id="promoModalSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:6px;"></p>
-    <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:16px;">แสดงคำสั่งซื้อที่มีกำหนดส่งสินค้าภายในเดือนที่กำหนดของโปรโมชันนี้เท่านั้น</p>
-    <div style="max-height:420px; overflow-y:auto; overflow-x:auto;">
+    <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">แสดงคำสั่งซื้อที่มีกำหนดส่งสินค้าภายในเดือนที่กำหนดของโปรโมชันนี้เท่านั้น</p>
+    <div class="filter-bar" style="margin-bottom:12px;">
+      <input type="text" id="promoOrdersSearch" class="inline-input filter-control" placeholder="ค้นหาลูกค้า / เลขที่ Invoice / สินค้า" autocomplete="off" style="width:100%; max-width:340px;">
+    </div>
+    <div class="table-scroll" style="max-height:420px; overflow-y:auto;">
       <table>
-        <thead><tr><th>ลูกค้า</th><th>สินค้า</th><th>วันที่ส่งสินค้า</th><th>สินค้าโปรโมชั่น</th></tr></thead>
+        <thead><tr><th>ลูกค้า</th><th>เลขที่ Invoice</th><th>สินค้า</th><th>วันที่ส่งสินค้า</th><th>สินค้าโปรโมชั่น</th></tr></thead>
         <tbody id="promoOrdersBody"></tbody>
       </table>
     </div>
@@ -2230,7 +2233,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.38';
+const APP_VERSION = '1.0.39';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2648,6 +2651,9 @@ const I18N = {
   'ส่งภายใน': 'Due within', 'กำหนดส่งภายในเดือน': 'Due within month of',
   'ของแจก': 'Gift',
   'ไม่มีคำสั่งซื้อที่กำหนดส่งภายในเดือนนี้': 'No orders due within this month',
+  'มีรายการที่ต้องดู': 'Items need attention',
+  'เลขที่ Invoice': 'Invoice No.', 'ไม่พบข้อมูลที่ค้นหา': 'No matching results',
+  'ค้นหาลูกค้า / เลขที่ Invoice / สินค้า': 'Search customer / invoice no. / product',
   'ไม่พบโปรโมชันตามตัวกรองปัจจุบัน': 'No promotions match the current filters',
   'ยังไม่มีโปรโมชัน — กดปุ่ม + เพิ่มโปรโมชัน เพื่อสร้างรายการแรก': 'No promotions yet — press + Add Promotion to create the first one',
   'อัตราต่ำสุด (%)': 'Minimum Rate (%)', 'บันทึก': 'Save', 'ยืนยันการทำรายการ': 'Confirm Action',
@@ -3289,6 +3295,7 @@ $('langToggleBtn').addEventListener('click', () => {
   refreshTargetYearFilter();
   refreshPromoYearFilter();
   refreshPromoCatalogYearFilter();
+  renderAlerts();
   const activeNav = document.querySelector('.nav-item.active[data-tab]');
   const activeTab = activeNav ? activeNav.dataset.tab : null;
   if (activeTab==='dashboard') renderDashboard();
@@ -3492,8 +3499,9 @@ function renderAlerts(){
   });
   const banners = [$('warrantyAlert'), $('dashboardAlert')].filter(Boolean);
   const messages = [];
-  if (soon.length) messages.push(`มีคำสั่งจำนวน ${soon.length} กำลังจะหมดประกัน`);
-  if (promosEndingSoon.length) messages.push(`มีโปรโมชัน ${promosEndingSoon.length} รายการใกล้สิ้นสุด (ภายใน 7 วัน)`);
+  const en = currentLang === 'en';
+  if (soon.length) messages.push(en ? `${soon.length} order(s) with warranty expiring soon` : `มีคำสั่งจำนวน ${soon.length} กำลังจะหมดประกัน`);
+  if (promosEndingSoon.length) messages.push(en ? `${promosEndingSoon.length} promotion(s) ending soon (within 7 days)` : `มีโปรโมชัน ${promosEndingSoon.length} รายการใกล้สิ้นสุด (ภายใน 7 วัน)`);
   const notifyDot = $('railNotifyDot');
   if (notifyDot) notifyDot.style.display = messages.length ? 'block' : 'none';
   const warrantyDot = $('warrantyNavDot');
@@ -5722,6 +5730,7 @@ async function deletePromotion(id){
 }
 
 function openPromoModal(promoId){
+  if (promoId !== currentPromoId) $('promoOrdersSearch').value = '';
   currentPromoId = promoId;
   renderPromoModalOrders();
   $('promoModal').style.display = 'flex';
@@ -5765,11 +5774,22 @@ function renderPromoModalOrders(){
   $('promoModalTitle').textContent = promo.name;
   $('promoModalSub').textContent = `${t('กำหนดส่งภายในเดือน')} ${t(monthShortLabels[promo.month])} ${Number(promo.year)+543} · ${t('ของแจก')}: ${promo.giftLabel}`;
 
-  $('promoOrdersBody').innerHTML = qualifying.length ? qualifying.map(o => {
+  const q = ($('promoOrdersSearch').value || '').trim().toLowerCase();
+  const rows = q ? qualifying.filter(o =>
+    [o.customer, o.po, o.product, o.shipDate ? fmtDate(o.shipDate) : '']
+      .some(v => String(v||'').toLowerCase().includes(q))
+  ) : qualifying;
+
+  if (!qualifying.length){
+    $('promoOrdersBody').innerHTML = `<tr><td colspan="5" class="empty-row">${t('ไม่มีคำสั่งซื้อที่กำหนดส่งภายในเดือนนี้')}</td></tr>`;
+    return;
+  }
+  $('promoOrdersBody').innerHTML = rows.length ? rows.map(o => {
     const checked = isPromoOrderPrepared(promo.id, o.id);
     return `
     <tr>
       <td>${escapeHtml(o.customer)}</td>
+      <td>${o.po ? escapeHtml(o.po) : '<span style="color:var(--ink-soft);">-</span>'}</td>
       <td>${escapeHtml(o.product)}</td>
       <td>${fmtDate(o.shipDate)}</td>
       <td>
@@ -5779,7 +5799,7 @@ function renderPromoModalOrders(){
         </label>
       </td>
     </tr>
-  `; }).join('') : `<tr><td colspan="4" class="empty-row">${t('ไม่มีคำสั่งซื้อที่กำหนดส่งภายในเดือนนี้')}</td></tr>`;
+  `; }).join('') : `<tr><td colspan="5" class="empty-row">${t('ไม่พบข้อมูลที่ค้นหา')}</td></tr>`;
 }
 
 async function setPromoPrepared(promoId, orderId, checked){
@@ -5795,6 +5815,7 @@ async function setPromoPrepared(promoId, orderId, checked){
 }
 
 $('promoModalCloseBtn').addEventListener('click', closePromoModal);
+$('promoOrdersSearch').addEventListener('input', renderPromoModalOrders);
 $('customerHistoryCloseBtn').addEventListener('click', closeCustomerHistoryModal);
 
 function renderUserTargets(){
