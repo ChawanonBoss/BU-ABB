@@ -1463,7 +1463,7 @@
                   <div class="stat-icon-badge" style="background:rgba(255,255,255,0.28); color:#fff;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                   </div>
-                  <div class="stat-label" style="color:rgba(255,255,255,0.9);">ใบเสนอราคา</div>
+                  <div class="stat-label" style="color:rgba(255,255,255,0.9);">รอส่งสินค้า</div>
                   <div class="stat-value" style="color:#fff;" id="statPending">0</div>
                 </div>
                 <div class="stat-card quad" id="statShippedCard" style="cursor:pointer;" title="ไปที่หน้าคำสั่งซื้อ (กรองจัดส่งแล้ว)">
@@ -2233,7 +2233,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.39';
+const APP_VERSION = '1.0.40';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2550,7 +2550,7 @@ const I18N = {
   'นำเข้า (': 'Import (', 'แถว)': 'rows)',
   '+ เพิ่มช่วง GP': '+ Add GP Range', '+ เพิ่มช่วงเป้า': '+ Add Target Range',
   // Dashboard stat cards / labels missed in the first pass
-  'คำสั่งซื้อทั้งหมด': 'Total Orders', 'ใบเสนอราคา': 'Quotation',
+  'คำสั่งซื้อทั้งหมด': 'Total Orders', 'รอส่งสินค้า': 'Awaiting Shipment',
   'คำสั่งซื้อที่ส่งแล้ว': 'Shipped Orders', 'ยกเลิก': 'Cancel', 'รับประกัน': 'Warranty',
   'เป้าหมายคำสั่งซื้อ (บาท)': 'Order Target (THB)', 'เป้าหมายส่งสินค้า (บาท)': 'Shipping Target (THB)',
   'คำสั่งซื้อที่จัดส่งแล้ว': 'Orders Shipped', 'ยอดขายรวม': 'Total Sales',

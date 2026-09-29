@@ -302,9 +302,11 @@ def check_warranty_alert_dismiss():
             sign_in_as_admin(page, base_url)
             page.evaluate("""
                 async () => {
+                  // shipDate chosen so warranty (12 mo) expires `daysAhead` days from today -> "soon" (<=30 days)
+                  const ship = (daysAhead) => { const d = new Date(); d.setHours(12,0,0,0); d.setMonth(d.getMonth()-12); d.setDate(d.getDate()+daysAhead); return d.toISOString().slice(0,10); };
                   await db.collection('orders').doc('o1').set({
                     so:'A1', customer:'Cust A1', product:'X', price:1000,
-                    date:'2025-09-25', shipDate:'2025-09-30', po:'INV001',
+                    date:ship(5), shipDate:ship(10), po:'INV001',
                     warrantyMonths: 12, status:'done', createdBy:'admin1'
                   });
                 }
@@ -332,9 +334,11 @@ def check_warranty_alert_dismiss():
             # a genuinely NEW warranty-soon order must bring the banner back (different signature)
             page.evaluate("""
                 async () => {
+                  // shipDate chosen so warranty (12 mo) expires `daysAhead` days from today -> "soon" (<=30 days)
+                  const ship = (daysAhead) => { const d = new Date(); d.setHours(12,0,0,0); d.setMonth(d.getMonth()-12); d.setDate(d.getDate()+daysAhead); return d.toISOString().slice(0,10); };
                   await db.collection('orders').doc('o2').set({
                     so:'A2', customer:'Cust A2', product:'Y', price:500,
-                    date:'2025-09-20', shipDate:'2025-09-25', po:'INV002',
+                    date:ship(15), shipDate:ship(20), po:'INV002',
                     warrantyMonths: 12, status:'done', createdBy:'admin1'
                   });
                 }

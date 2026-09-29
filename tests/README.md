@@ -52,3 +52,8 @@ gets added, a value that resolves to the wrong type), add a case to
 every existing check here came to exist — each one previously bit the app for
 real. `smoke_test.py` and `i18n_scan.py` are meant to stay broad/generic;
 put anything specific to one feature in `features_test.py` instead.
+
+Any check that depends on dates (warranty windows, expiry, "soon" banners)
+must seed them relative to today (see the `ship(daysAhead)` helper in
+`check_warranty_alert_dismiss`), never hard-coded — fixed dates drift out of
+the window over time and the check fails for no code reason.
