@@ -2152,6 +2152,7 @@
     <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">แสดงคำสั่งซื้อที่มีกำหนดส่งสินค้าภายในเดือนที่กำหนดของโปรโมชันนี้เท่านั้น</p>
     <div class="filter-bar" style="margin-bottom:12px;">
       <input type="text" id="promoOrdersSearch" class="inline-input filter-control" placeholder="ค้นหาลูกค้า / เลขที่ Invoice / สินค้า" autocomplete="off" style="width:100%; max-width:340px;">
+      <button class="btn outline" id="promoReportBtn" type="button" style="margin-left:auto;">ดาวน์โหลด Report</button>
     </div>
     <div class="table-scroll" style="max-height:420px; overflow-y:auto;">
       <table>
@@ -2233,7 +2234,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Bump the patch number (x.y.PATCH) every time a change gets pushed to git — see CLAUDE.md
-const APP_VERSION = '1.0.40';
+const APP_VERSION = '1.1.0';
 const railMenuVersionEl = document.getElementById('railMenuVersion');
 if (railMenuVersionEl) railMenuVersionEl.textContent = `Version ${APP_VERSION}`;
 
@@ -2540,7 +2541,7 @@ const I18N = {
   'เพิ่มคำสั่งซื้อใหม่': 'Add New Order', 'เลขที่ใบเสนอราคา (SO)': 'Quote No. (SO)',
   'ชื่อลูกค้า': 'Customer Name', 'ราคารวม (บาท)': 'Total Price (THB)', 'วันที่สั่งซื้อ': 'Order Date',
   'บันทึกคำสั่งซื้อ': 'Save Order', '+ เพิ่มคำสั่งซื้อ': '+ Add Order',
-  'ดาวน์โหลดรายงาน': 'Download Report', 'ดาวน์โหลดไฟล์ตัวอย่าง': 'Download Template',
+  'ดาวน์โหลดรายงาน': 'Download Report', 'ดาวน์โหลด Report': 'Download Report', 'ไม่มีโปรโมชันที่กำลังดำเนินการอยู่ตอนนี้': 'No ongoing promotions right now', 'ดาวน์โหลดไฟล์ตัวอย่าง': 'Download Template',
   'นำเข้าจาก Excel': 'Import from Excel', 'สร้างโดย': 'Created By',
   '+ เพิ่มลูกค้าใหม่': '+ Add New Customer', 'เลขที่ INV': 'INV No.', 'วัน/เดือน/ปี': 'dd/mm/yyyy',
   'รายการคำสั่งซื้อทั้งหมด': 'All Orders',
@@ -4273,7 +4274,7 @@ function renderPromoDashboardSummary(){
       </div>
       <div class="promo-dash-item-progress">${r.prepared} / ${r.qualifying}</div>
     </div>
-  `).join('') : `<p style="font-size:13px; color:var(--ink-soft);">ไม่มีโปรโมชันที่กำลังดำเนินการอยู่ตอนนี้</p>`;
+  `).join('') : `<p style="font-size:13px; color:var(--ink-soft);">${t('ไม่มีโปรโมชันที่กำลังดำเนินการอยู่ตอนนี้')}</p>`;
 }
 
 const orderStatusLabel = { pending:'PENDING', done:'COMPLETE', cancelled:'CANCELLED' };
@@ -5816,6 +5817,48 @@ async function setPromoPrepared(promoId, orderId, checked){
 
 $('promoModalCloseBtn').addEventListener('click', closePromoModal);
 $('promoOrdersSearch').addEventListener('input', renderPromoModalOrders);
+$('promoReportBtn').addEventListener('click', downloadPromoReport);
+
+// One promotion's report: every qualifying order (ignores the modal's search box), sorted by ship
+// date like the modal. Scoped through getPromoQualifyingOrders() -> getVisibleOrders(), so the
+// global person filter applies. Headers stay Thai like every other export.
+function downloadPromoReport(){
+  const promo = (data.promotions||[]).find(p => p.id === currentPromoId);
+  if (!promo) return;
+  const orders = getPromoQualifyingOrders(promo).sort((a,b)=> new Date(a.shipDate)-new Date(b.shipDate));
+  if (!orders.length){ toast('ไม่มีคำสั่งซื้อในโปรโมชันนี้'); return; }
+  const isAdmin = currentUserRole === 'admin';
+  let total = 0, preparedCount = 0;
+  const rows = orders.map((o, i) => {
+    const prepared = isPromoOrderPrepared(promo.id, o.id);
+    if (prepared) preparedCount++;
+    total += Number(o.price) || 0;
+    const row = {
+      'ลำดับ': i + 1, 'SO': o.so || '', 'ลูกค้า': o.customer || '', 'เลขที่ Invoice': o.po || '',
+      'สินค้า': o.product || '', 'ยอดเงิน': Number(o.price) || 0,
+      'วันที่สั่งซื้อ': o.date ? fmtDate(o.date) : '', 'วันที่ส่งสินค้า': fmtDate(o.shipDate),
+      'สินค้าโปรโมชั่น': promo.giftLabel || '', 'สถานะการเตรียม': prepared ? 'เตรียมแล้ว' : 'ยังไม่เตรียม'
+    };
+    if (isAdmin) row['สร้างโดย'] = getUserDisplayName(o.createdBy);
+    return row;
+  });
+  const totalRow = {
+    'ลำดับ': 'รวม', 'SO': '', 'ลูกค้า': '', 'เลขที่ Invoice': '', 'สินค้า': `${orders.length} รายการ`,
+    'ยอดเงิน': total, 'วันที่สั่งซื้อ': '', 'วันที่ส่งสินค้า': '', 'สินค้าโปรโมชั่น': '',
+    'สถานะการเตรียม': `เตรียมแล้ว ${preparedCount}/${orders.length}`
+  };
+  if (isAdmin) totalRow['สร้างโดย'] = '';
+  rows.push(totalRow);
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  const sheetName = (String(promo.name||'').replace(/[\\/?*\[\]:]/g, '').trim() || 'โปรโมชัน').slice(0, 31);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  const safeName = String(promo.name||'').replace(/[\\/:*?"<>|\x00-\x1f]/g, '').trim().replace(/\s+/g, '-').replace(/^[-.]+|[-.]+$/g, '') || 'report';
+  const d = new Date();
+  const ymd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `promotion-${safeName}-${ymd}.xlsx`);
+  toast('ดาวน์โหลดรายงานแล้ว');
+}
 $('customerHistoryCloseBtn').addEventListener('click', closeCustomerHistoryModal);
 
 function renderUserTargets(){

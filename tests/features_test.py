@@ -460,6 +460,59 @@ def check_promo_modal_english():
     print("check_promo_modal_english: OK")
 
 
+STUB_XLSX_WRITE = """
+() => {
+  window.__xlsxCalls = [];
+  XLSX.writeFile = (wb, filename) => {
+    const name = wb.SheetNames[0];
+    window.__xlsxCalls.push({ filename, sheet: name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name]) });
+  };
+}
+"""
+
+
+def check_promo_report_download():
+    with serve_repo() as base_url:
+        with new_page() as (page, errors):
+            sign_in_as_admin(page, base_url)
+            page.evaluate(SEED_PROMO_ORDERS)
+            page.evaluate("() => db.collection('promotions').doc('promoEmpty').set({ name:'Promo/Empty', month:0, year:2020, giftLabel:'Pen', createdBy:'admin1' })")
+            page.evaluate("() => db.collection('promotionPrepared').doc('promoMar_p2').set({ prepared: true })")
+            page.wait_for_timeout(400)
+            page.evaluate("() => showTab('promotions')")
+            page.wait_for_timeout(200)
+            page.evaluate(STUB_XLSX_WRITE)
+            page.evaluate("() => openPromoModal('promoMar')")
+            page.wait_for_timeout(200)
+            assert page.is_visible("#promoReportBtn"), "report button should be visible in the promo modal"
+            # search box must not narrow the export
+            _promo_search(page, "alpha")
+            page.click("#promoReportBtn")
+            page.wait_for_timeout(100)
+            calls = page.evaluate("() => window.__xlsxCalls")
+            assert len(calls) == 1, f"expected one XLSX.writeFile call, got {calls}"
+            c = calls[0]
+            assert c["filename"].startswith("promotion-Promo-March-") and c["filename"].endswith(".xlsx"), f"bad filename {c['filename']}"
+            assert len(c["sheet"]) <= 31, f"sheet name too long: {c['sheet']}"
+            rows = c["rows"]
+            assert len(rows) == 4, f"3 orders + 1 total row expected, got {rows}"
+            expected_cols = ["ลำดับ", "SO", "ลูกค้า", "เลขที่ Invoice", "สินค้า", "ยอดเงิน", "วันที่สั่งซื้อ",
+                             "วันที่ส่งสินค้า", "สินค้าโปรโมชั่น", "สถานะการเตรียม", "สร้างโดย"]
+            assert list(rows[0].keys()) == expected_cols, f"columns wrong: {list(rows[0].keys())}"
+            assert [r["ลูกค้า"] for r in rows[:3]] == ["Alpha Co", "Beta Ltd", "Gamma Inc"], f"order/sort wrong: {rows}"
+            assert rows[1]["สถานะการเตรียม"] == "เตรียมแล้ว" and rows[0]["สถานะการเตรียม"] == "ยังไม่เตรียม", f"prepared status wrong: {rows}"
+            assert rows[0]["ยอดเงิน"] == 100, f"amount should be a number: {rows[0]}"
+            assert rows[3]["ยอดเงิน"] == 600 and "1/3" in rows[3]["สถานะการเตรียม"], f"total row wrong: {rows[3]}"
+            # a promotion with no qualifying orders toasts instead of downloading
+            page.evaluate("() => openPromoModal('promoEmpty')")
+            page.wait_for_timeout(100)
+            page.click("#promoReportBtn")
+            page.wait_for_timeout(100)
+            assert page.evaluate("() => window.__xlsxCalls.length") == 1, "empty promotion must not download a file"
+            assert errors == [], f"JS error(s) during promo report check: {errors}"
+    print("check_promo_report_download: OK")
+
+
 CHECKS = [
     check_order_date_and_price_inline_edit,
     check_orders_animation_plays_once,
@@ -471,6 +524,7 @@ CHECKS = [
     check_warranty_alert_dismiss,
     check_promo_modal_invoice_column_and_search,
     check_promo_modal_english,
+    check_promo_report_download,
 ]
 
 
